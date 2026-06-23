@@ -111,7 +111,7 @@ export default function AdminAuditLog() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="font-serif text-3xl font-light">Audit Log</h2>
+          <h2 className="font-serif text-2xl sm:text-3xl font-light">Audit Log</h2>
           <p className="text-sm text-gray-500 mt-1">Every change is recorded.</p>
         </div>
         <button

@@ -77,7 +77,7 @@ export default function AdminTeam() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="font-serif text-3xl font-light">Team & Permissions</h2>
+          <h2 className="font-serif text-2xl sm:text-3xl font-light">Team & Permissions</h2>
           <p className="text-sm text-gray-500 mt-1">Manage admins, moderators, and riders. Change roles in one click.</p>
         </div>
         <button

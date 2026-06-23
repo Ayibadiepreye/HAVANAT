@@ -11,7 +11,7 @@ export default function AdminContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-serif text-3xl font-light">Content</h2>
+        <h2 className="font-serif text-2xl sm:text-3xl font-light">Content</h2>
         <p className="text-sm text-gray-500 mt-1">Edit homepage, lookbook, testimonials, banners, and branding.</p>
       </div>
 

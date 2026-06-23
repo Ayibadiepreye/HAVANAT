@@ -79,7 +79,7 @@ export default function AdminReturns() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-serif text-3xl font-light">Returns</h2>
+        <h2 className="font-serif text-2xl sm:text-3xl font-light">Returns</h2>
         <p className="text-sm text-gray-500 mt-1">{filtered.length} return requests</p>
       </div>
 

@@ -3,8 +3,8 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { ROLE_HOME } from '@/utils/permissions';
 import DashboardSidebar from './DashboardSidebar';
 import type { SidebarItem } from './DashboardSidebar';
-import { Bell, LogOut, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { Bell, LogOut, ChevronDown, Menu } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 
 interface DashboardLayoutProps {
   title: string;
@@ -21,6 +21,30 @@ export default function DashboardLayout({ title, subtitle, items, children, back
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const logout = useAuthStore((s) => s.logout);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the user menu when clicking outside
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [menuOpen]);
+
+  // Close mobile drawer when route changes
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  const currentLabel = items.find((i) =>
+    location.pathname === i.href ||
+    (i.href !== '/admin' && i.href !== '/moderator' && i.href !== '/rider' && location.pathname.startsWith(i.href))
+  )?.label ?? subtitle;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -31,42 +55,51 @@ export default function DashboardLayout({ title, subtitle, items, children, back
         currentPath={location.pathname}
         onNavigate={(href) => navigate(href)}
         bottomNote={{ label: backLabel, href: backHref }}
+        mobileOpen={mobileNavOpen}
+        onCloseMobile={() => setMobileNavOpen(false)}
       />
 
-      <main className="flex-1 ml-64">
-        <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between sticky top-0 z-30">
-          <h1 className="font-serif text-2xl font-light">
-            {items.find((i) => location.pathname === i.href || (i.href !== '/admin' && i.href !== '/moderator' && i.href !== '/rider' && location.pathname.startsWith(i.href)))?.label ?? subtitle}
-          </h1>
-          <div className="flex items-center gap-5">
+      <main className="flex-1 lg:ml-64 min-w-0">
+        <header className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-3 lg:py-4 flex items-center justify-between sticky top-0 z-30 gap-3">
+          <div className="flex items-center gap-2 lg:gap-3 min-w-0 flex-1">
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden p-1.5 -ml-1.5 hover:bg-gray-100 transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <h1 className="font-serif text-lg sm:text-xl lg:text-2xl font-light truncate">
+              {currentLabel}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 flex-shrink-0">
             <button
               aria-label="Notifications"
-              className="text-gray-500 hover:text-black transition-colors"
+              className="text-gray-500 hover:text-black transition-colors hidden sm:block"
             >
               <Bell className="h-4 w-4" />
             </button>
-            <div className="relative">
+            <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 className="flex items-center gap-2 text-sm hover:opacity-70 transition-opacity"
               >
-                <div className="h-8 w-8 bg-black text-white flex items-center justify-center text-xs font-semibold rounded-full">
+                <div className="h-8 w-8 bg-black text-white flex items-center justify-center text-xs font-semibold rounded-full flex-shrink-0">
                   {dashboardUser?.name?.[0] ?? '?'}
                 </div>
-                <div className="hidden sm:block text-left">
-                  <p className="text-xs font-medium leading-tight">{dashboardUser?.name}</p>
+                <div className="hidden md:block text-left min-w-0">
+                  <p className="text-xs font-medium leading-tight truncate max-w-[140px]">{dashboardUser?.name}</p>
                   <p className="text-[10px] uppercase tracking-wider text-gray-500">{dashboardUser?.role}</p>
                 </div>
-                <ChevronDown className="h-3 w-3" />
+                <ChevronDown className="h-3 w-3 hidden sm:block" />
               </button>
               {menuOpen && (
-                <div
-                  className="absolute right-0 top-full mt-2 bg-white border border-gray-200 w-56 z-40"
-                  onMouseLeave={() => setMenuOpen(false)}
-                >
+                <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 w-56 z-40 shadow-lg">
                   <div className="p-4 border-b border-gray-100">
-                    <p className="text-sm font-medium">{dashboardUser?.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{dashboardUser?.email}</p>
+                    <p className="text-sm font-medium truncate">{dashboardUser?.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">{dashboardUser?.email}</p>
                   </div>
                   <button
                     onClick={() => {
@@ -91,7 +124,7 @@ export default function DashboardLayout({ title, subtitle, items, children, back
             </div>
           </div>
         </header>
-        <div className="p-8">{children}</div>
+        <div className="p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );

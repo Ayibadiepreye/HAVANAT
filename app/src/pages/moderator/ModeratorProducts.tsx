@@ -77,7 +77,7 @@ export default function ModeratorProducts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="font-serif text-3xl font-light">Products</h2>
+          <h2 className="font-serif text-2xl sm:text-3xl font-light">Products</h2>
           <p className="text-sm text-gray-500 mt-1">You have full edit & delete access. Every change is audit-logged.</p>
         </div>
         <button

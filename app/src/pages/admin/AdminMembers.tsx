@@ -44,7 +44,7 @@ export default function AdminMembers() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-serif text-3xl font-light">Members</h2>
+        <h2 className="font-serif text-2xl sm:text-3xl font-light">Members</h2>
         <p className="text-sm text-gray-500 mt-1">{members.length} members · {members.filter((m) => m.status === 'active').length} active</p>
       </div>
 
