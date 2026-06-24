@@ -53,7 +53,7 @@ export default function AccountPage() {
   const wishlistProducts = PRODUCTS.filter((p) => wishlist.includes(p.id));
 
   return (
-    <main className="min-h-screen pt-20 lg:pt-24 bg-white">
+    <main className="min-h-screen pt-20 lg:pt-24 pb-24 lg:pb-12 bg-white">
       <div className="px-4 sm:px-6 lg:px-12 py-8 lg:py-12">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8 lg:mb-12">
@@ -71,8 +71,8 @@ export default function AccountPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <aside className="lg:col-span-1">
+          {/* Desktop sidebar */}
+          <aside className="hidden lg:block lg:col-span-1">
             <div className="lg:sticky lg:top-24 space-y-1">
               {TABS.map(({ key, label, icon: Icon }) => (
                 <button
@@ -253,6 +253,25 @@ export default function AccountPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile bottom tab bar — sleek separate navigation for account sub-pages */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200">
+        <div className="grid grid-cols-5">
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex flex-col items-center gap-1 py-3 transition-colors ${
+                activeTab === key ? 'text-black' : 'text-gray-400 hover:text-gray-600'
+              }`}
+              aria-label={label}
+            >
+              <Icon size={18} strokeWidth={activeTab === key ? 2 : 1.5} />
+              <span className="text-[9px] uppercase tracking-[0.1em] font-medium">{label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </main>
   );
 }
