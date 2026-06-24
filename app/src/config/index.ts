@@ -8,15 +8,15 @@ export const CONFIG = {
   DEFAULT_DELIVERY_FEE: 3500,
   FREE_DELIVERY_THRESHOLD: 150000,
   CONTACT: {
-    PHONE: '+234 812 345 6789',
-    EMAIL: 'hello@havanat.com',
-    ADDRESS: '12 Adeola Odeku Street, Victoria Island, Lagos, Nigeria',
+    PHONE: '+234 803 000 0000',
+    EMAIL: 'concierge@havanat.ng',
+    ADDRESS: 'Port Harcourt, Rivers State, Nigeria',
   },
   SOCIAL: {
     INSTAGRAM: 'https://instagram.com/havanat',
     TWITTER: 'https://twitter.com/havanat',
     FACEBOOK: 'https://facebook.com/havanat',
-    WHATSAPP: 'https://wa.me/2348123456789',
+    WHATSAPP: 'https://wa.me/2348030000000',
   },
 } as const;
 

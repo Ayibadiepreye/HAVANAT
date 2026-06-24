@@ -15,7 +15,15 @@ export const BRAND = {
   contact: {
     email: 'concierge@havanat.ng',
     phone: '+234 803 000 0000',
-    address: '24 Adetokunbo Ademola, Victoria Island, Lagos, Nigeria',
+    address: 'Port Harcourt, Rivers State, Nigeria',
+  },
+  // company.* fields are intentionally left blank — these require registered business details
+  // the user has not yet provided. See docs/REGISTRATION_GAPS.md for the full list, prioritized.
+  company: {
+    legalName: '',      // TODO: registered legal name (e.g. "Havanat Limited")
+    rcNumber: '',        // TODO: CAC RC number (e.g. "RC 1234567")
+    tin: '',             // TODO: FIRS Tax Identification Number
+    address: '',         // TODO: registered office street address
   },
   social: {
     instagram: 'https://instagram.com/havanat',

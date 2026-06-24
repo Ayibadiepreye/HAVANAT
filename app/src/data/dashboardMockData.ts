@@ -29,7 +29,7 @@ export const ORDERS: DashboardOrder[] = [
     ],
     subtotal: 250000, deliveryFee: 0, total: 250000,
     status: 'processing',
-    shippingAddress: { street: '7B Banana Island Road', city: 'Ikoyi', state: 'Lagos' },
+    shippingAddress: { street: 'Plot 132 Old Aba Road', city: 'Old Old GRA', state: '' },
     trackingHistory: [
       { status: 'pending', timestamp: '2026-06-23T09:14:00Z', note: 'Order placed' },
       { status: 'processing', timestamp: '2026-06-23T11:02:00Z', note: 'Payment confirmed' },
@@ -60,7 +60,7 @@ export const ORDERS: DashboardOrder[] = [
     ],
     subtotal: 220000, deliveryFee: 3500, total: 223500,
     status: 'processing',
-    shippingAddress: { street: '11 Raymond Njoku Street', city: 'South West', state: 'Ikeja, Lagos' },
+    shippingAddress: { street: '12 Gwani Street', city: 'Wuse Zone 5', state: 'Abuja' },
     trackingHistory: [
       { status: 'pending', timestamp: '2026-06-22T16:42:00Z' },
       { status: 'processing', timestamp: '2026-06-22T17:15:00Z' },
@@ -75,7 +75,7 @@ export const ORDERS: DashboardOrder[] = [
     ],
     subtotal: 380000, deliveryFee: 0, total: 380000,
     status: 'shipped',
-    shippingAddress: { street: '3 Awolowo Road', city: 'Ikoyi', state: 'Lagos' },
+    shippingAddress: { street: '45 Aba Road', city: 'Old Old GRA', state: '' },
     riderId: 'rider_01',
     trackingHistory: [
       { status: 'pending', timestamp: '2026-06-22T12:20:00Z' },
@@ -128,7 +128,7 @@ export const ORDERS: DashboardOrder[] = [
     ],
     subtotal: 253000, deliveryFee: 0, total: 253000,
     status: 'shipped',
-    shippingAddress: { street: '19 Ajose Adeogun Street', city: 'Victoria Island', state: 'Lagos' },
+    shippingAddress: { street: 'Plot 24 Independence Avenue', city: 'Wuse Zone 5', state: '' },
     riderId: 'rider_04',
     trackingHistory: [
       { status: 'pending', timestamp: '2026-06-19T09:50:00Z' },
@@ -164,7 +164,7 @@ export const ORDERS: DashboardOrder[] = [
     ],
     subtotal: 295000, deliveryFee: 0, total: 295000,
     status: 'delivered',
-    shippingAddress: { street: '22A Glover Road', city: 'Ikoyi', state: 'Lagos' },
+    shippingAddress: { street: '7 Rivers State Secretariat Road', city: 'Old Old GRA', state: '' },
     riderId: 'rider_01',
     trackingHistory: [
       { status: 'pending', timestamp: '2026-06-17T08:09:00Z' },
@@ -182,7 +182,7 @@ export const ORDERS: DashboardOrder[] = [
     ],
     subtotal: 380000, deliveryFee: 0, total: 380000,
     status: 'delivered',
-    shippingAddress: { street: '10 Nkwelle Street', city: 'Onikan', state: 'Lagos' },
+    shippingAddress: { street: 'Plot 5 Aba Road', city: 'Trans Amadi', state: '' },
     riderId: 'rider_02',
     trackingHistory: [
       { status: 'pending', timestamp: '2026-06-16T15:11:00Z' },
@@ -236,7 +236,7 @@ export const ORDERS: DashboardOrder[] = [
     ],
     subtotal: 275000, deliveryFee: 0, total: 275000,
     status: 'delivered',
-    shippingAddress: { street: '6B Ahmadu Bello Way', city: 'GRA', state: 'Kano' },
+    shippingAddress: { street: '6B Ahmadu Bello Way', city: 'Old GRA', state: 'Kano' },
     riderId: 'rider_05',
     trackingHistory: [
       { status: 'pending', timestamp: '2026-06-13T09:20:00Z' },
@@ -254,7 +254,7 @@ export const ORDERS: DashboardOrder[] = [
     ],
     subtotal: 220000, deliveryFee: 0, total: 220000,
     status: 'cancelled',
-    shippingAddress: { street: '10 Isaac John Street', city: 'GRA', state: 'Ikeja, Lagos' },
+    shippingAddress: { street: '32 Forces Avenue', city: 'Old GRA', state: 'Abuja' },
     trackingHistory: [
       { status: 'pending', timestamp: '2026-06-12T16:30:00Z' },
       { status: 'cancelled', timestamp: '2026-06-12T18:00:00Z', note: 'Customer request' },
@@ -286,7 +286,7 @@ export const RETURNS: ReturnRequest[] = [
     description: 'The jacket runs smaller than expected. Need an XL instead.',
     images: ['/images/products/tuxedo-jacket.jpg'],
     status: 'pending', date: '2026-06-23T07:00:00Z',
-    pickupAddress: { street: '22A Glover Road', city: 'Ikoyi', state: 'Lagos' },
+    pickupAddress: { street: '7 Rivers State Secretariat Road', city: 'Old Old GRA', state: '' },
   },
   {
     id: 'RET-902',
@@ -326,7 +326,7 @@ export const RETURNS: ReturnRequest[] = [
     description: 'Need a size M instead of L.',
     images: ['/images/products/suit-pinstripe.jpg'],
     status: 'rider_scheduled', date: '2026-06-20T11:00:00Z',
-    pickupAddress: { street: '6B Ahmadu Bello Way', city: 'GRA', state: 'Kano' },
+    pickupAddress: { street: '6B Ahmadu Bello Way', city: 'Old GRA', state: 'Kano' },
     riderId: 'rider_05',
   },
   {
@@ -337,7 +337,7 @@ export const RETURNS: ReturnRequest[] = [
     description: 'Image online looks charcoal but actual is jet black.',
     images: ['/images/products/suit-three-piece.jpg'],
     status: 'rider_scheduled', date: '2026-06-19T08:00:00Z',
-    pickupAddress: { street: '10 Nkwelle Street', city: 'Onikan', state: 'Lagos' },
+    pickupAddress: { street: 'Plot 5 Aba Road', city: 'Trans Amadi', state: '' },
     riderId: 'rider_02',
   },
   {
@@ -348,7 +348,7 @@ export const RETURNS: ReturnRequest[] = [
     description: 'Order was cancelled but refund not processed.',
     images: ['/images/products/tuxedo-jacket.jpg'],
     status: 'completed', date: '2026-06-15T10:00:00Z',
-    pickupAddress: { street: '10 Isaac John Street', city: 'GRA', state: 'Ikeja, Lagos' },
+    pickupAddress: { street: '32 Forces Avenue', city: 'Old GRA', state: 'Abuja' },
     adminNote: 'Refund issued on 2026-06-15 via Paystack.',
   },
   {
@@ -367,7 +367,7 @@ export const RETURNS: ReturnRequest[] = [
 export const RIDERS: Rider[] = [
   {
     id: 'rider_01', name: 'Tunde Adewale', email: 'tunde.a@havanat.com', phone: '+234 803 111 0001',
-    address: '12 Allen Avenue, Ikeja, Lagos',
+    address: '12 Allen Avenue, Abuja',
     vehicleType: 'Bike', plateNumber: 'LSD-123-AB',
     status: 'active', idVerified: true, rating: 4.9, totalDeliveries: 142, totalEarnings: 284000,
     joinedAt: '2025-08-12T00:00:00Z',
@@ -375,7 +375,7 @@ export const RIDERS: Rider[] = [
   },
   {
     id: 'rider_02', name: 'Kunle Bello', email: 'kunle.b@havanat.com', phone: '+234 805 222 0002',
-    address: '8 Admiralty Way, Lekki Phase 1, Lagos',
+    address: 'Plot 8 Wuse Zone 6, Abuja',
     vehicleType: 'Car', plateNumber: 'EKY-441-CD',
     status: 'active', idVerified: true, rating: 4.8, totalDeliveries: 98, totalEarnings: 215000,
     joinedAt: '2025-09-04T00:00:00Z',
@@ -391,7 +391,7 @@ export const RIDERS: Rider[] = [
   },
   {
     id: 'rider_04', name: 'Femi Akinola', email: 'femi.a@havanat.com', phone: '+234 813 444 0004',
-    address: '22 Awolowo Road, Ikoyi, Lagos',
+    address: '22 Awolowo Road, Old Old GRA, ',
     vehicleType: 'Van', plateNumber: 'LSR-998-GH',
     status: 'active', idVerified: true, rating: 5.0, totalDeliveries: 54, totalEarnings: 142000,
     joinedAt: '2026-01-15T00:00:00Z',
@@ -409,15 +409,15 @@ export const RIDERS: Rider[] = [
 
 export const DELIVERIES: Delivery[] = [
   // Today's
-  { id: 'DLV-7001', orderId: 'ORD-2026-1145', riderId: 'rider_01', type: 'delivery', status: 'in_transit', customerName: 'Tunde Bakare', customerPhone: '+234 802 318 0099', address: '3 Awolowo Road', city: 'Ikoyi', state: 'Lagos', itemSummary: 'Heritage Three-Piece Suit', itemCount: 1, scheduledFor: '2026-06-23T10:00:00Z', deliveryFee: 2500, pickupOtp: '4821', deliveryOtp: '9173' },
-  { id: 'DLV-7002', orderId: 'ORD-2026-1146', riderId: 'rider_02', type: 'delivery', status: 'assigned', customerName: 'Aisha Bello', customerPhone: '+234 706 882 4400', address: '11 Raymond Njoku Street', city: 'South West', state: 'Ikeja, Lagos', itemSummary: 'Gala Tuxedo Jacket', itemCount: 1, scheduledFor: '2026-06-23T13:00:00Z', deliveryFee: 2000, pickupOtp: '5512', deliveryOtp: '3360' },
-  { id: 'DLV-7003', returnId: 'RET-905', riderId: 'rider_05', type: 'pickup', status: 'picked_up', customerName: 'Yusuf Abdullahi', customerPhone: '+234 805 882 1100', address: '6B Ahmadu Bello Way', city: 'GRA', state: 'Kano', itemSummary: 'Pinstripe Power Suit', itemCount: 1, scheduledFor: '2026-06-23T09:00:00Z', deliveryFee: 3500 },
-  { id: 'DLV-7004', returnId: 'RET-906', riderId: 'rider_02', type: 'pickup', status: 'assigned', customerName: 'Emeka Obi', customerPhone: '+234 803 220 1188', address: '10 Nkwelle Street', city: 'Onikan', state: 'Lagos', itemSummary: 'Heritage Three-Piece Suit', itemCount: 1, scheduledFor: '2026-06-23T15:30:00Z', deliveryFee: 2000 },
-  { id: 'DLV-7005', orderId: 'ORD-2026-1148', riderId: 'rider_03', type: 'delivery', status: 'assigned', customerName: 'Chioma Okafor', customerPhone: '+234 803 111 2233', address: '7B Banana Island Road', city: 'Ikoyi', state: 'Lagos', itemSummary: 'Architect Oversized Suit', itemCount: 1, scheduledFor: '2026-06-23T16:00:00Z', deliveryFee: 2500, pickupOtp: '7129', deliveryOtp: '2248' },
+  { id: 'DLV-7001', orderId: 'ORD-2026-1145', riderId: 'rider_01', type: 'delivery', status: 'in_transit', customerName: 'Tunde Bakare', customerPhone: '+234 802 318 0099', address: '45 Aba Road', city: 'Old Old GRA', state: '', itemSummary: 'Heritage Three-Piece Suit', itemCount: 1, scheduledFor: '2026-06-23T10:00:00Z', deliveryFee: 2500, pickupOtp: '4821', deliveryOtp: '9173' },
+  { id: 'DLV-7002', orderId: 'ORD-2026-1146', riderId: 'rider_02', type: 'delivery', status: 'assigned', customerName: 'Aisha Bello', customerPhone: '+234 706 882 4400', address: '12 Gwani Street', city: 'Wuse Zone 5', state: 'Abuja', itemSummary: 'Gala Tuxedo Jacket', itemCount: 1, scheduledFor: '2026-06-23T13:00:00Z', deliveryFee: 2000, pickupOtp: '5512', deliveryOtp: '3360' },
+  { id: 'DLV-7003', returnId: 'RET-905', riderId: 'rider_05', type: 'pickup', status: 'picked_up', customerName: 'Yusuf Abdullahi', customerPhone: '+234 805 882 1100', address: '6B Ahmadu Bello Way', city: 'Old GRA', state: 'Kano', itemSummary: 'Pinstripe Power Suit', itemCount: 1, scheduledFor: '2026-06-23T09:00:00Z', deliveryFee: 3500 },
+  { id: 'DLV-7004', returnId: 'RET-906', riderId: 'rider_02', type: 'pickup', status: 'assigned', customerName: 'Emeka Obi', customerPhone: '+234 803 220 1188', address: 'Plot 5 Aba Road', city: 'Trans Amadi', state: '', itemSummary: 'Heritage Three-Piece Suit', itemCount: 1, scheduledFor: '2026-06-23T15:30:00Z', deliveryFee: 2000 },
+  { id: 'DLV-7005', orderId: 'ORD-2026-1148', riderId: 'rider_03', type: 'delivery', status: 'assigned', customerName: 'Chioma Okafor', customerPhone: '+234 803 111 2233', address: 'Plot 132 Old Aba Road', city: 'Old Old GRA', state: '', itemSummary: 'Architect Oversized Suit', itemCount: 1, scheduledFor: '2026-06-23T16:00:00Z', deliveryFee: 2500, pickupOtp: '7129', deliveryOtp: '2248' },
   // Yesterday
   { id: 'DLV-6998', orderId: 'ORD-2026-1144', riderId: 'rider_02', type: 'delivery', status: 'delivered', customerName: 'Ngozi Eze', customerPhone: '+234 909 661 2200', address: '88 Aba Road', city: 'Port Harcourt', state: 'Rivers', itemSummary: 'Metropolitan Overcoat + Vanguard Vest', itemCount: 2, scheduledFor: '2026-06-22T10:00:00Z', deliveryFee: 4000, completedAt: '2026-06-22T15:42:00Z', proofOfDelivery: { timestamp: '2026-06-22T15:42:00Z' } },
   { id: 'DLV-6997', orderId: 'ORD-2026-1143', riderId: 'rider_03', type: 'delivery', status: 'delivered', customerName: 'Ifeanyi Umeh', customerPhone: '+234 813 700 1144', address: '5A Independence Avenue', city: 'CBD', state: 'FCT Abuja', itemSummary: 'Executive Wide-Leg Trousers x2', itemCount: 2, scheduledFor: '2026-06-21T11:00:00Z', deliveryFee: 3500, completedAt: '2026-06-21T17:30:00Z' },
-  { id: 'DLV-6996', orderId: 'ORD-2026-1142', riderId: 'rider_04', type: 'delivery', status: 'delivered', customerName: 'Folake Adesanya', customerPhone: '+234 706 555 8800', address: '19 Ajose Adeogun Street', city: 'Victoria Island', state: 'Lagos', itemSummary: 'Modernist Cropped Blazer + Pleated Trousers', itemCount: 2, scheduledFor: '2026-06-19T14:00:00Z', deliveryFee: 2500, completedAt: '2026-06-19T18:10:00Z' },
+  { id: 'DLV-6996', orderId: 'ORD-2026-1142', riderId: 'rider_04', type: 'delivery', status: 'delivered', customerName: 'Folake Adesanya', customerPhone: '+234 706 555 8800', address: 'Plot 24 Independence Avenue', city: 'Wuse Zone 5', state: '', itemSummary: 'Modernist Cropped Blazer + Pleated Trousers', itemCount: 2, scheduledFor: '2026-06-19T14:00:00Z', deliveryFee: 2500, completedAt: '2026-06-19T18:10:00Z' },
 ];
 
 export const PAYOUTS: Payout[] = [
@@ -548,7 +548,7 @@ export const BRANDING: Branding = {
 };
 
 export const DELIVERY_ZONES: DeliveryZone[] = [
-  { id: 'zone-01', state: 'Lagos', fee: 2500, eta: '1-2 business days' },
+  { id: 'zone-01', state: '', fee: 2500, eta: '1-2 business days' },
   { id: 'zone-02', state: 'FCT Abuja', fee: 3500, eta: '2-3 business days' },
   { id: 'zone-03', state: 'Rivers', fee: 4000, eta: '3-4 business days' },
   { id: 'zone-04', state: 'Oyo', fee: 3500, eta: '2-3 business days' },

@@ -39,7 +39,7 @@ export default function AboutPage() {
               the global elite take for granted.
             </p>
             <p>
-              Starting from a single atelier in Lagos, we have grown into Nigeria&apos;s premier destination for
+              Starting from a single atelier in Port Harcourt, we have grown into Nigeria&apos;s premier destination for
               affordable luxury corporate wear. Our journey is defined by an unwavering commitment to quality,
               craftsmanship, and the belief that every professional deserves to look extraordinary.
             </p>
