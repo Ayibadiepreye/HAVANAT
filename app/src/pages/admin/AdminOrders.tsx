@@ -50,9 +50,9 @@ function exportOrdersCsv(orders: DashboardOrder[]): void {
 
 const TABS: { label: string; status: OrderStatus | 'all' }[] = [
   { label: 'All', status: 'all' },
-  { label: 'Pending Payment', status: 'pending' },
+  { label: 'Received', status: 'received' },
   { label: 'Processing', status: 'processing' },
-  { label: 'Shipped', status: 'shipped' },
+  { label: 'In Transit', status: 'in_transit' },
   { label: 'Delivered', status: 'delivered' },
   { label: 'Cancelled', status: 'cancelled' },
 ];
@@ -207,7 +207,7 @@ export default function AdminOrders() {
           onAssignRider={(riderId, riderName) => {
             if (!dashboardUser) return;
             assignRider(details.id, riderId, riderName, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' });
-            updateStatus(details.id, 'shipped', { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' }, `Assigned to ${riderName}`);
+            updateStatus(details.id, 'in_transit', { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' }, `Assigned to ${riderName}`);
             showToast(`Rider ${riderName} assigned`, 'success');
             setDetails(null);
           }}
@@ -305,9 +305,9 @@ function OrderDetailsModal({ order, riders, onClose, onStatusChange, onAssignRid
                   onChange={(e) => onStatusChange(e.target.value as OrderStatus)}
                   className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none bg-white"
                 >
-                  <option value="pending">Pending</option>
+                  <option value="received">Received</option>
                   <option value="processing">Processing</option>
-                  <option value="shipped">Shipped</option>
+                  <option value="in_transit">In Transit</option>
                   <option value="delivered">Delivered</option>
                   <option value="cancelled">Cancelled</option>
                 </select>

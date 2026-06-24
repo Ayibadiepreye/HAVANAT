@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Package, CheckCircle2, Truck, MapPin, Phone, ArrowRight, Clock } from 'lucide-react';
 
-type OrderStatus = 'processing' | 'shipped' | 'delivered';
+type OrderStatus = 'received' | 'processing' | 'in_transit' | 'delivered';
 
 interface TrackingEvent {
   time: string;
@@ -25,12 +25,12 @@ interface MockResult {
 
 const MOCK_DATA: MockResult = {
   orderNumber: 'HVN-2026-0142',
-  status: 'shipped',
-  statusLabel: 'Shipped — Out for Delivery',
+  status: 'in_transit',
+  statusLabel: 'Out for Delivery',
   rider: {
     name: 'Tunde Bakare',
     phone: '+234 803 555 0188',
-    vehicle: 'Lagos Island Route 4 · Motorcycle · KJA-482-QG',
+    vehicle: 'Route 4 · Motorcycle · KJA-482-QG',
   },
   eta: 'Today by 5:30 PM WAT',
   destination: '12B Bishop Aboyade Cole, Victoria Island, Lagos',
@@ -152,7 +152,8 @@ export default function TrackPage() {
                 <h2 className="font-serif text-2xl sm:text-3xl mb-3">{result.orderNumber}</h2>
                 <div className="flex items-center gap-3">
                   {result.status === 'processing' && <Clock size={16} className="text-white/60" />}
-                  {result.status === 'shipped' && <Truck size={16} className="text-white" />}
+                  {result.status === 'in_transit' && <Truck size={16} className="text-white" />}
+                  {result.status === 'received' && <Clock size={16} className="text-white/60" />}
                   {result.status === 'delivered' && <CheckCircle2 size={16} className="text-green-400" />}
                   <span className="text-sm font-medium">{result.statusLabel}</span>
                 </div>

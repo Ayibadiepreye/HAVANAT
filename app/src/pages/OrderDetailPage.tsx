@@ -19,26 +19,26 @@ import { BRAND } from '@/config/brand';
 import type { OrderStatus } from '@/types/dashboard';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: 'Pending',
+  received: 'Received',
   processing: 'Processing',
-  shipped: 'Shipped',
+  in_transit: 'In Transit',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
-  pending: 'bg-gray-100 text-gray-800',
+  received: 'bg-gray-100 text-gray-800',
   processing: 'bg-yellow-100 text-yellow-800',
-  shipped: 'bg-blue-100 text-blue-800',
+  in_transit: 'bg-blue-100 text-blue-800',
   delivered: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
 };
 
 // Timeline visual order. Items appear stacked top-to-bottom.
 const TIMELINE: Array<{ key: OrderStatus; label: string; icon: typeof Clock }> = [
-  { key: 'pending', label: 'Order placed', icon: Clock },
+  { key: 'received', label: 'Order received', icon: Clock },
   { key: 'processing', label: 'Processing', icon: Package },
-  { key: 'shipped', label: 'Shipped', icon: Truck },
+  { key: 'in_transit', label: 'In transit', icon: Truck },
   { key: 'delivered', label: 'Delivered', icon: PackageCheck },
 ];
 
@@ -290,6 +290,28 @@ export default function OrderDetailPage() {
               </div>
             </section>
 
+            {/* Customer-facing delivery OTP */}
+            {order.status === 'processing' && order.deliveryOtp && (
+              <section className="bg-white border border-black p-6">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-gray-500 mb-1">Delivery code</p>
+                <p className="text-sm text-gray-700 mb-3">
+                  Show this 4-digit code to the rider when they arrive. It is also in your order email.
+                </p>
+                <p className="font-serif text-4xl font-light tracking-[0.4em] text-center">{order.deliveryOtp}</p>
+              </section>
+            )}
+            {order.status === 'in_transit' && (
+              <section className="bg-white border border-black p-6">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-gray-500 mb-1">Rider is on the way</p>
+                <p className="text-sm text-gray-700 mb-4">
+                  When your rider arrives, they&apos;ll enter the 4-digit code from your order email to confirm delivery. You don&apos;t need to do anything.
+                </p>
+                {order.deliveryOtp && (
+                  <p className="text-xs text-gray-500">Your code (for reference): <span className="font-mono font-medium">{order.deliveryOtp}</span></p>
+                )}
+              </section>
+            )}
+
             {/* Actions */}
             <section className="flex flex-wrap gap-3">
               {order.status === 'processing' && (
@@ -301,7 +323,7 @@ export default function OrderDetailPage() {
                   <XCircle size={14} /> Cancel Order
                 </button>
               )}
-              {(order.status === 'delivered' || order.status === 'shipped') && (
+              {(order.status === 'delivered' || order.status === 'in_transit') && (
                 <Link
                   to="/returns"
                   className="inline-flex items-center gap-2 px-5 py-3 border text-xs uppercase tracking-[0.2em] hover:bg-gray-50 transition-colors"

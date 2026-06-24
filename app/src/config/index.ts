@@ -5,11 +5,12 @@ export const CONFIG = {
   BRAND_NAME: 'HAVANAT',
   BRAND_TAGLINE: 'Where Style Meets Elegance',
   CURRENCY: '₦',
-  DEFAULT_DELIVERY_FEE: 3500,
-  FREE_DELIVERY_THRESHOLD: 150000,
+  DEFAULT_DELIVERY_FEE: 2500,
+  EXPRESS_DELIVERY_FEE: 5000,
+  // No free delivery — all orders pay the delivery fee.
   CONTACT: {
     PHONE: '+234 803 000 0000',
-    EMAIL: 'concierge@havanat.ng',
+    EMAIL: 'concierge@havanat.store',
     ADDRESS: 'Port Harcourt, Rivers State, Nigeria',
   },
   SOCIAL: {

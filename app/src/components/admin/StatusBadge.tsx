@@ -2,9 +2,9 @@ import { cn } from '@/lib/utils';
 import type { OrderStatus, ReturnStatus, DeliveryStatus, RiderStatus, AuditAction, CustomerTier } from '@/types/dashboard';
 
 const ORDER_STYLES: Record<OrderStatus, string> = {
-  pending: 'bg-gray-100 text-gray-800',
+  received: 'bg-gray-100 text-gray-800',
   processing: 'bg-yellow-100 text-yellow-800',
-  shipped: 'bg-blue-100 text-blue-800',
+  in_transit: 'bg-blue-100 text-blue-800',
   delivered: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
 };
@@ -64,7 +64,7 @@ type BadgeType = 'order' | 'return' | 'delivery' | 'rider' | 'action' | 'tier' |
 function inferType(key: string): BadgeType {
   if (['create', 'update', 'delete', 'revert', 'login', 'status_change', 'assign'].includes(key)) return 'action';
   if (['standard', 'deluxe', 'elite'].includes(key)) return 'tier';
-  if (['pending', 'processing', 'shipped', 'delivered', 'cancelled'].includes(key)) return 'order';
+  if (['received', 'processing', 'in_transit', 'delivered', 'cancelled'].includes(key)) return 'order';
   if (['approved', 'rider_scheduled', 'completed', 'rejected'].includes(key)) return 'return';
   if (['assigned', 'picked_up', 'in_transit', 'failed'].includes(key)) return 'delivery';
   if (['active', 'suspended'].includes(key)) return 'rider';

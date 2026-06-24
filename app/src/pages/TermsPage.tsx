@@ -21,7 +21,7 @@ const SECTIONS: Section[] = [
     title: '2. Your Account',
     paragraphs: [
       'To place an order or access membership features, you must create an account. You agree to provide accurate, current, and complete information and to keep it updated.',
-      'You are responsible for safeguarding your password and for all activity that occurs under your account. Notify us immediately at concierge@havanat.ng if you suspect any unauthorised access.',
+      'You are responsible for safeguarding your password and for all activity that occurs under your account. Notify us immediately at concierge@havanat.store if you suspect any unauthorised access.',
     ],
   },
   {

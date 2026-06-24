@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRiderStore } from '@/stores/useRiderStore';
+import { useOrderStore } from '@/stores/useOrderStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { X, MapPin, Phone, ArrowLeft, Camera, Check } from 'lucide-react';
@@ -12,7 +14,13 @@ export default function RiderDeliveryDetails() {
   const delivery = useRiderStore((s) => (id ? s.getDeliveryById(id) : undefined));
   const updateStatus = useRiderStore((s) => s.updateDeliveryStatus);
   const setProof = useRiderStore((s) => s.setDeliveryProof);
+  const updateOrderStatus = useOrderStore((s) => s.updateStatus);
+  const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
+
+  const riderActor = dashboardUser
+    ? { id: dashboardUser.id, name: dashboardUser.name, role: 'rider' as const }
+    : null;
 
   const [otp, setOtp] = useState(['', '', '', '']);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -57,11 +65,19 @@ export default function RiderDeliveryDetails() {
       return;
     }
     updateStatus(delivery.id, 'picked_up');
+    // Mirror the order status
+    if (delivery.orderId && riderActor) {
+      updateOrderStatus(delivery.orderId, 'processing', riderActor, 'Rider picked up from warehouse');
+    }
     showToast('Marked as picked up', 'success');
   };
 
   const markInTransit = () => {
     updateStatus(delivery.id, 'in_transit');
+    // Mirror the order status so the customer sees the change immediately
+    if (delivery.orderId && riderActor) {
+      updateOrderStatus(delivery.orderId, 'in_transit', riderActor, 'Rider on the way');
+    }
     showToast('Marked as in transit', 'success');
   };
 
@@ -77,6 +93,9 @@ export default function RiderDeliveryDetails() {
     const proof = { photoUrl: photo, signatureDataUrl: signature ?? undefined, timestamp: new Date().toISOString() };
     setProof(delivery.id, proof);
     updateStatus(delivery.id, 'delivered', proof);
+    if (delivery.orderId && riderActor) {
+      updateOrderStatus(delivery.orderId, 'delivered', riderActor, 'Customer verified OTP');
+    }
     showToast('Delivery completed', 'success');
     navigate('/rider/deliveries');
   };

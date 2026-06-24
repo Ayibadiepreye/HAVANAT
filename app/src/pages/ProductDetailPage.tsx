@@ -208,7 +208,7 @@ export default function ProductDetailPage() {
             {/* Trust badges */}
             <div className="grid grid-cols-3 gap-4 py-6 border-t border-b">
               {[
-                { icon: Truck, label: 'Free Delivery', sub: 'Over ₦150k' },
+                { icon: Truck, label: 'Standard Delivery', sub: '₦2,500' },
                 { icon: RotateCcw, label: 'Easy Returns', sub: '30 Days' },
                 { icon: Check, label: 'Premium Quality', sub: 'Guaranteed' },
               ].map(({ icon: Icon, label, sub }) => (

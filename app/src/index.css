@@ -4,6 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide scrollbars globally while keeping scroll behaviour. */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

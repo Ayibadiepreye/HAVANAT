@@ -24,7 +24,7 @@ export const VALUES = [
   {
     icon: Award,
     title: 'Uncompromising Quality',
-    desc: 'Every garment is cut from the finest Italian and British fabrics, and finished by hand in our Port Harcourt atelier.',
+    desc: 'Every garment is cut from the finest Italian and British fabrics, and finished by hand in our studio.',
   },
   {
     icon: Users,

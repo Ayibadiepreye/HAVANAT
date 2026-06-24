@@ -15,7 +15,7 @@ const SECTIONS: Section[] = [
     title: '1. Information We Collect',
     body: [
       'We collect information you provide when creating an account, placing an order, or contacting our concierge — including your name, email, phone number, delivery address, and payment details.',
-      'We also collect usage data automatically when you visit havanat.ng: pages viewed, products browsed, referral source, device type, and approximate location (derived from IP address).',
+      'We also collect usage data automatically when you visit havanat.store: pages viewed, products browsed, referral source, device type, and approximate location (derived from IP address).',
     ],
   },
   {

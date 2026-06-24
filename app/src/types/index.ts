@@ -1,3 +1,5 @@
+export type ProductOccasion = 'corporate' | 'formal-event' | 'social' | 'everyday';
+
 export interface Product {
   id: number;
   name: string;
@@ -13,6 +15,12 @@ export interface Product {
   inStock: boolean;
   isNew?: boolean;
   isBestseller?: boolean;
+  /** Occasions this garment fits. Shown as "Best For" badges on PDP. */
+  occasion?: ProductOccasion[];
+  /** Per-item discount (0-1) applied for Deluxe members. Defaults to 5%. */
+  deluxeDiscount?: number;
+  /** Per-item discount (0-1) applied for Elite members. Defaults to 10%. */
+  eliteDiscount?: number;
   details?: {
     material: string;
     care: string;
@@ -41,7 +49,7 @@ export interface Order {
   date: string;
   items: CartItem[];
   total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'received' | 'processing' | 'in_transit' | 'delivered' | 'cancelled';
   shippingAddress: Address;
 }
 

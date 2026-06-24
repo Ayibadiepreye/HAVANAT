@@ -13,7 +13,7 @@ export const BRAND = {
       'Founded Havanat to solve a single problem: brilliant Nigerian professionals in suits that did them a disservice.',
   },
   contact: {
-    email: 'concierge@havanat.ng',
+    email: 'concierge@havanat.store',
     phone: '+234 803 000 0000',
     address: 'Port Harcourt, Rivers State, Nigeria',
   },

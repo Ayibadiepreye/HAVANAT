@@ -114,7 +114,7 @@ export default function CartPage() {
                   <span>{deliveryFee() === 0 ? 'Free' : formatNaira(deliveryFee())}</span>
                 </div>
                 {deliveryFee() === 0 && subtotal() > 0 && (
-                  <p className="text-[10px] text-green-600 tracking-wide">You qualify for free delivery!</p>
+                  <p className="text-[10px] text-green-600 tracking-wide"></p>
                 )}
               </div>
               <div className="flex justify-between text-base font-semibold py-4 border-t">

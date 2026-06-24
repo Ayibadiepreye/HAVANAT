@@ -14,9 +14,25 @@ interface CartState {
   openCart: () => void;
   closeCart: () => void;
   totalItems: () => number;
+  /** Sum of line-item price × qty BEFORE any tier discount. */
   subtotal: () => number;
+  /** Total discount amount applied based on the customer's membership tier. */
+  tierDiscount: (tier?: 'standard' | 'deluxe' | 'elite') => number;
+  /** Subtotal after applying tier discounts. */
+  discountedSubtotal: (tier?: 'standard' | 'deluxe' | 'elite') => number;
+  /** Delivery fee — flat rate, no free delivery. */
   deliveryFee: () => number;
-  total: () => number;
+  /** Total = discountedSubtotal + deliveryFee. */
+  total: (tier?: 'standard' | 'deluxe' | 'elite') => number;
+}
+
+const DEFAULT_DELUXE_DISCOUNT = 0.05; // 5%
+const DEFAULT_ELITE_DISCOUNT = 0.10;  // 10%
+
+function discountFor(product: Product, tier?: 'standard' | 'deluxe' | 'elite'): number {
+  if (tier === 'deluxe') return product.deluxeDiscount ?? DEFAULT_DELUXE_DISCOUNT;
+  if (tier === 'elite') return product.eliteDiscount ?? DEFAULT_ELITE_DISCOUNT;
+  return 0;
 }
 
 export const useCartStore = create<CartState>()(
@@ -74,17 +90,21 @@ export const useCartStore = create<CartState>()(
       totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
 
       subtotal: () =>
-        get().items.reduce(
-          (sum, item) => sum + item.product.price * item.quantity,
-          0
-        ),
+        get().items.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
 
-      deliveryFee: () => {
-        const sub = get().subtotal();
-        return sub >= CONFIG.FREE_DELIVERY_THRESHOLD ? 0 : CONFIG.DEFAULT_DELIVERY_FEE;
+      tierDiscount: (tier) => {
+        if (!tier || tier === 'standard') return 0;
+        return get().items.reduce((sum, item) => {
+          const d = discountFor(item.product, tier);
+          return sum + item.product.price * item.quantity * d;
+        }, 0);
       },
 
-      total: () => get().subtotal() + get().deliveryFee(),
+      discountedSubtotal: (tier) => get().subtotal() - get().tierDiscount(tier),
+
+      deliveryFee: () => CONFIG.DEFAULT_DELIVERY_FEE,
+
+      total: (tier) => get().discountedSubtotal(tier) + get().deliveryFee(),
     }),
     { name: 'havanat-cart' }
   )

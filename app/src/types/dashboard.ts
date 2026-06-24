@@ -14,10 +14,16 @@ export interface DashboardUser {
   createdAt: string;
 }
 
+// Order lifecycle:
+//   received    — order placed & payment confirmed, awaiting rider
+//   processing  — rider accepted, order picked up from warehouse
+//   in_transit  — rider on the way to deliver to customer
+//   delivered   — customer confirmed via OTP
+//   cancelled   — order cancelled (admin or customer)
 export type OrderStatus =
-  | 'pending'
+  | 'received'
   | 'processing'
-  | 'shipped'
+  | 'in_transit'
   | 'delivered'
   | 'cancelled';
 
@@ -50,6 +56,8 @@ export interface DashboardOrder {
   riderId?: string;
   trackingHistory: TrackingEvent[];
   notes?: string;
+  /** 4-digit delivery OTP. Generated when the order enters `processing`. Customer shows it to the rider. */
+  deliveryOtp?: string;
 }
 
 export interface TrackingEvent {
