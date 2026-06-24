@@ -35,6 +35,7 @@ interface ContentState {
   removeLookbookImage: (id: string, actor: ContentActor) => void;
   addTestimonial: (t: Omit<DashboardTestimonial, 'id'>, actor: ContentActor) => void;
   updateTestimonial: (id: string, t: Partial<DashboardTestimonial>, actor: ContentActor) => void;
+  approveTestimonial: (id: string, approved: boolean, actor: ContentActor) => void;
   removeTestimonial: (id: string, actor: ContentActor) => void;
   addBanner: (b: Omit<Banner, 'id'>, actor: ContentActor) => void;
   updateBanner: (id: string, b: Partial<Banner>, actor: ContentActor) => void;
@@ -114,6 +115,17 @@ export const useContentStore = create<ContentState>()(
           changes: { before: { ...before }, after: { ...before, ...t } },
         });
       },
+      approveTestimonial: (id, approved, actor) => {
+        const before = get().testimonials.find((x) => x.id === id);
+        if (!before) return;
+        set({ testimonials: get().testimonials.map((x) => (x.id === id ? { ...x, approved } : x)) });
+        logAuditAction({
+          userId: actor.id, userName: actor.name, userRole: actor.role,
+          action: 'update', entityType: 'testimonial', entityId: id, entityLabel: `Testimonial: ${before.name}`,
+          summary: approved ? 'Approved testimonial' : 'Un-approved testimonial',
+          changes: { before: { approved: before.approved }, after: { approved } },
+        });
+      },
       removeTestimonial: (id, actor) => {
         const t = get().testimonials.find((x) => x.id === id);
         if (!t) return;
@@ -122,7 +134,7 @@ export const useContentStore = create<ContentState>()(
           userId: actor.id, userName: actor.name, userRole: actor.role,
           action: 'delete', entityType: 'testimonial', entityId: id, entityLabel: `Testimonial: ${t.name}`,
           summary: 'Removed testimonial',
-          changes: { before: { name: t.name, rating: t.rating }, after: null },
+          changes: { before: { name: t.name }, after: null },
         });
       },
       addBanner: (b, actor) => {

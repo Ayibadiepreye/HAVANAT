@@ -19,7 +19,7 @@ interface MockAccount {
 export const MOCK_ACCOUNTS: MockAccount[] = [
   { email: 'standard@havanat.com', password: 'password', name: 'Tunde Bakare', role: 'customer', tier: 'standard', phone: '+234 802 318 0099' },
   { email: 'deluxe@havanat.com', password: 'password', name: 'Folake Adesanya', role: 'customer', tier: 'deluxe', phone: '+234 706 555 8800' },
-  { email: 'elite@havanat.com', password: 'password', name: 'Emmanuel Adeyemi', role: 'customer', tier: 'elite', phone: '+234 803 456 7890' },
+  { email: 'elite@havanat.com', password: 'password', name: 'Rapheal Ebipado Otele', role: 'customer', tier: 'elite', phone: '+234 803 456 7890' },
   { email: 'admin@havanat.com', password: 'password', name: 'Adaeze Nwosu', role: 'admin', phone: '+234 803 000 0001' },
   { email: 'moderator@havanat.com', password: 'password', name: 'Folake Adetunji', role: 'moderator', phone: '+234 803 000 0002' },
   { email: 'rider@havanat.com', password: 'password', name: 'Tunde Adewale', role: 'rider', phone: '+234 803 111 0001' },

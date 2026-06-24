@@ -5,9 +5,48 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import StatusBadge from '@/components/admin/StatusBadge';
-import { Search, MapPin, Phone, X, Bike, Mail } from 'lucide-react';
+import { Search, MapPin, Phone, X, Bike, Mail, Printer, Copy, Download } from 'lucide-react';
 import { formatDateTime, formatNaira } from '@/utils/formatters';
+import { logAuditAction } from '@/utils/auditLogger';
 import type { DashboardOrder, OrderStatus } from '@/types/dashboard';
+
+function escapeCsv(value: string | number): string {
+  const s = String(value);
+  if (/[",\n]/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function exportOrdersCsv(orders: DashboardOrder[]): void {
+  const headers = ['Order #', 'Customer', 'Email', 'Phone', 'Date', 'Items', 'Subtotal', 'Delivery', 'Total', 'Status', 'City', 'State'];
+  const rows = orders.map((o) => [
+    o.id,
+    o.customerName,
+    o.customerEmail,
+    o.customerPhone,
+    o.date,
+    o.items.length,
+    o.subtotal,
+    o.deliveryFee,
+    o.total,
+    o.status,
+    o.shippingAddress.city,
+    o.shippingAddress.state,
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map((cell) => escapeCsv(cell)).join(','))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `havanat-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 const TABS: { label: string; status: OrderStatus | 'all' }[] = [
   { label: 'All', status: 'all' },
@@ -47,6 +86,51 @@ export default function AdminOrders() {
     { key: 'items', label: 'Items', render: (o) => `${o.items.length} item${o.items.length !== 1 ? 's' : ''}` },
     { key: 'total', label: 'Total', render: (o) => formatNaira(o.total), align: 'right' },
     { key: 'status', label: 'Status', render: (o) => <StatusBadge status={o.status} type="order" /> },
+    {
+      key: 'actions',
+      label: '',
+      align: 'right',
+      width: '180px',
+      render: (o) => (
+        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => {
+              if (!dashboardUser) return;
+              window.print();
+              logAuditAction({
+                userId: dashboardUser.id, userName: dashboardUser.name, userRole: 'admin',
+                action: 'update', entityType: 'order', entityId: o.id, entityLabel: `Order ${o.id}`,
+                summary: `Printed invoice for ${o.id}`,
+                changes: { before: null, after: { printedAt: new Date().toISOString() } },
+              });
+            }}
+            className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] uppercase tracking-wider border border-gray-200 hover:border-black transition-colors"
+            aria-label="Print invoice"
+            title="Print invoice"
+          >
+            <Printer className="h-3.5 w-3.5" /> Invoice
+          </button>
+          <button
+            onClick={() => {
+              if (!dashboardUser) return;
+              const newId = `${o.id}-DUP-${Date.now().toString().slice(-4)}`;
+              logAuditAction({
+                userId: dashboardUser.id, userName: dashboardUser.name, userRole: 'admin',
+                action: 'create', entityType: 'order', entityId: newId, entityLabel: `Order ${newId}`,
+                summary: `Duplicated order from ${o.id}`,
+                changes: { before: null, after: { sourceOrderId: o.id, newOrderId: newId, total: o.total } },
+              });
+              showToast(`Duplicated ${o.id} as ${newId}`, 'success');
+            }}
+            className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] uppercase tracking-wider border border-gray-200 hover:border-black transition-colors"
+            aria-label="Duplicate order"
+            title="Duplicate order"
+          >
+            <Copy className="h-3.5 w-3.5" /> Duplicate
+          </button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -81,6 +165,24 @@ export default function AdminOrders() {
             className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none"
           />
         </div>
+        <button
+          onClick={() => {
+            exportOrdersCsv(filtered);
+            if (dashboardUser) {
+              logAuditAction({
+                userId: dashboardUser.id, userName: dashboardUser.name, userRole: 'admin',
+                action: 'update', entityType: 'order', entityId: 'csv-export', entityLabel: 'Orders CSV export',
+                summary: `Exported ${filtered.length} orders to CSV`,
+                changes: { before: null, after: { count: filtered.length, exportedAt: new Date().toISOString() } },
+              });
+            }
+            showToast(`Exported ${filtered.length} orders`, 'success');
+          }}
+          disabled={filtered.length === 0}
+          className="inline-flex items-center gap-2 px-4 py-2.5 text-[10px] uppercase tracking-[0.2em] font-medium bg-white border border-gray-200 hover:border-black transition-colors disabled:opacity-50"
+        >
+          <Download className="h-3.5 w-3.5" /> Export CSV
+        </button>
       </div>
 
       <AdminTable<DashboardOrder>

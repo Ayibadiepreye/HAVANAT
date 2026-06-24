@@ -5,6 +5,7 @@ import { useCartStore } from '@/stores/useCartStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { ROLE_HOME } from '@/utils/permissions';
+import { BRAND } from '@/config/brand';
 import MobileMenu from './MobileMenu';
 
 export default function Navbar() {
@@ -22,49 +23,40 @@ export default function Navbar() {
   const onDashboard = location.pathname.startsWith('/admin') || location.pathname.startsWith('/moderator') || location.pathname.startsWith('/rider');
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 80);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 80);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navBg = scrolled || !isHome
-    ? 'bg-black/95 backdrop-blur-md'
-    : 'bg-transparent';
+  const navBg = scrolled || !isHome ? 'bg-black/95 backdrop-blur-md' : 'bg-transparent';
 
   if (onDashboard) return null;
 
   return (
     <>
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${navBg}`}
-      >
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${navBg}`}>
         <div className="w-full px-4 sm:px-6 lg:px-12">
           <div className="flex items-center justify-between h-16 lg:h-20">
-            {/* Left: Menu button (mobile) + Logo */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={toggleMobileMenu}
-                className="lg:hidden p-2 text-white hover:opacity-70 transition-opacity"
-                aria-label="Toggle menu"
-              >
+            {/* Left: Menu (mobile) + Logo */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              <button onClick={toggleMobileMenu} className="lg:hidden p-2 text-white hover:opacity-70 transition-opacity" aria-label="Toggle menu">
                 {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
-              <Link
-                to="/"
-                className="font-sans text-white text-lg sm:text-xl tracking-[0.2em] font-medium hover:opacity-80 transition-opacity"
-              >
-                HAVANAT
+              <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <img
+                  src={BRAND.assets.dark}
+                  alt={BRAND.name}
+                  className="h-7 sm:h-8 lg:h-9 w-auto"
+                />
               </Link>
             </div>
 
-            {/* Center: Desktop Nav Links */}
+            {/* Center: Desktop Nav */}
             <div className="hidden lg:flex items-center gap-10">
               {[
                 { label: 'SHOP', href: '/shop' },
-                { label: 'COLLECTIONS', href: '/shop' },
                 { label: 'MEMBERSHIP', href: '/membership' },
+                { label: 'BESPOKE', href: '/custom-request' },
                 { label: 'ABOUT', href: '/about' },
                 { label: 'CONTACT', href: '/contact' },
               ].map((item) => (
@@ -79,7 +71,7 @@ export default function Navbar() {
               ))}
             </div>
 
-            {/* Right: Bespoke CTA + Cart + Account */}
+            {/* Right */}
             <div className="flex items-center gap-3 sm:gap-5">
               {isAuthenticated && dashboardUser && (dashboardUser.role === 'admin' || dashboardUser.role === 'moderator' || dashboardUser.role === 'rider') && (
                 <Link
@@ -96,7 +88,7 @@ export default function Navbar() {
                 to="/custom-request"
                 className="hidden sm:inline-flex items-center px-4 py-2 bg-white text-black text-[10px] tracking-[0.15em] font-semibold hover:bg-white/90 transition-colors"
               >
-                BESPOKE CUSTOMIZATION
+                BESPOKE
               </Link>
               <button
                 onClick={() => navigate(isAuthenticated ? '/account' : '/login')}
@@ -104,11 +96,7 @@ export default function Navbar() {
               >
                 {isAuthenticated ? 'ACCOUNT' : 'SIGN IN'}
               </button>
-              <button
-                onClick={toggleCart}
-                className="relative p-2 text-white hover:opacity-70 transition-opacity"
-                aria-label="Cart"
-              >
+              <button onClick={toggleCart} className="relative p-2 text-white hover:opacity-70 transition-opacity" aria-label="Cart">
                 <ShoppingBag size={18} strokeWidth={1.5} />
                 {totalItems > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-white text-black text-[9px] font-bold flex items-center justify-center rounded-full">
