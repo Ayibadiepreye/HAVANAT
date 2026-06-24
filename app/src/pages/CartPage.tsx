@@ -1,7 +1,14 @@
 import { Link } from 'react-router-dom';
-import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingBag, MessageCircle } from 'lucide-react';
 import { useCartStore } from '@/stores/useCartStore';
-import { formatNaira } from '@/config';
+import { formatNaira, CONFIG } from '@/config';
+
+function buildWhatsAppOrderMessage(): string {
+  const { items, subtotal } = useCartStore.getState();
+  const lines = items.map((i) => `• ${i.product.name} (Size ${i.size}) ×${i.quantity} — ${formatNaira(i.product.price * i.quantity)}`);
+  const total = formatNaira(subtotal());
+  return `Hi Havanat, I'd like to place an order:%0A%0A${encodeURIComponent(lines.join('\n'))}%0A%0ATotal: ${total}%0A%0APlease confirm availability and delivery.`;
+}
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, subtotal, deliveryFee, total } = useCartStore();
@@ -120,6 +127,17 @@ export default function CartPage() {
               >
                 PROCEED TO CHECKOUT
               </Link>
+              <a
+                href={`https://wa.me/${CONFIG.SOCIAL.WHATSAPP.replace('https://wa.me/', '')}?text=${buildWhatsAppOrderMessage()}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3 mt-3 text-center text-xs tracking-[0.1em] border border-green-600 text-green-700 hover:bg-green-50 transition-colors font-medium"
+              >
+                <MessageCircle className="h-3.5 w-3.5" /> Order via WhatsApp
+              </a>
+              <p className="text-[10px] text-gray-500 text-center mt-2 px-2">
+                First-time customer? WhatsApp lets you confirm availability and ask questions before paying.
+              </p>
               <Link
                 to="/shop"
                 className="block w-full py-3 mt-3 text-center text-xs tracking-[0.1em] text-gray-400 hover:text-black transition-colors"

@@ -58,6 +58,7 @@ export default function Navbar() {
                 { label: 'MEMBERSHIP', href: '/membership' },
                 { label: 'BESPOKE', href: '/custom-request' },
                 { label: 'ABOUT', href: '/about' },
+                { label: 'TRY AT HOME', href: '/try-at-home' },
                 { label: 'CONTACT', href: '/contact' },
               ].map((item) => (
                 <Link

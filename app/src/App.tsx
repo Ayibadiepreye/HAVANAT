@@ -5,6 +5,7 @@ import CartDrawer from '@/components/CartDrawer';
 import ToastContainer from '@/components/Toast';
 import ChatModal from '@/components/ChatModal';
 import ReturnModal from '@/components/ReturnModal';
+import CookieConsent from '@/components/shared/CookieConsent';
 import HomePage from '@/pages/HomePage';
 import ShopPage from '@/pages/ShopPage';
 import ProductDetailPage from '@/pages/ProductDetailPage';
@@ -31,6 +32,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import OrderDetailPage from '@/pages/OrderDetailPage';
 import AddressesPage from '@/pages/AddressesPage';
 import WishlistPage from '@/pages/WishlistPage';
+import TryAtHomePage from '@/pages/TryAtHomePage';
 
 import AdminLayout, { ModeratorLayout } from '@/pages/admin/AdminLayout';
 import AdminOverview from '@/pages/admin/AdminOverview';
@@ -144,6 +146,7 @@ function PublicSite() {
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/accessibility" element={<AccessibilityPage />} />
         <Route path="/track" element={<TrackPage />} />
+        <Route path="/try-at-home" element={<TryAtHomePage />} />
 
         <Route path="/admin" element={<Navigate to="/login" replace />} />
         <Route path="/moderator" element={<Navigate to="/login" replace />} />
@@ -152,6 +155,7 @@ function PublicSite() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
       <Footer />
+      <CookieConsent />
     </>
   );
 }
