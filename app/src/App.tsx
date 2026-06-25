@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CartDrawer from '@/components/CartDrawer';
@@ -113,6 +113,8 @@ export default function App() {
 }
 
 function PublicSite() {
+  const location = useLocation();
+  const hideFooter = location.pathname.startsWith('/account');
   return (
     <>
       <Navbar />
@@ -158,7 +160,7 @@ function PublicSite() {
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-      <Footer />
+      {!hideFooter && <Footer />}
       <CookieConsent />
     </>
   );
