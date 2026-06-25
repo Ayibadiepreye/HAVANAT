@@ -225,29 +225,9 @@ export default function AccountPage() {
 
             {/* Settings Tab */}
             {activeTab === 'settings' && (
-              <div>
-                <h2 className="text-xs tracking-[0.15em] font-semibold uppercase mb-6">Account Settings</h2>
-                <form className="max-w-md space-y-4">
-                  <div>
-                    <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-2 uppercase">Full Name</label>
-                    <input type="text" defaultValue={user.name} className="w-full px-4 py-3 border text-sm focus:outline-none focus:border-black transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-2 uppercase">Email</label>
-                    <input type="email" defaultValue={user.email} className="w-full px-4 py-3 border text-sm focus:outline-none focus:border-black transition-colors" readOnly />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-2 uppercase">Phone</label>
-                    <input type="tel" defaultValue={user.phone || ''} className="w-full px-4 py-3 border text-sm focus:outline-none focus:border-black transition-colors" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => useUIStore.getState().showToast('Profile updated', 'success')}
-                    className="px-6 py-3 bg-black text-white text-xs tracking-[0.15em] font-semibold"
-                  >
-                    SAVE CHANGES
-                  </button>
-                </form>
+              <div className="text-center py-12">
+                <p className="text-sm text-gray-500 mb-5">Manage your password, email, and membership from the dedicated settings page.</p>
+                <Link to="/account/settings" className="inline-block px-8 py-3 bg-black text-white text-[10px] uppercase tracking-[0.15em] font-semibold">Open Settings</Link>
               </div>
             )}
           </div>

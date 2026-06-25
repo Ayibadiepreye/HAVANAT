@@ -177,13 +177,21 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
+            {/* Stock indicator */}
+            {product.stock <= 0 ? (
+              <div className="mb-4 px-4 py-2.5 bg-red-50 border border-red-200 text-[10px] uppercase tracking-[0.15em] text-red-700 font-semibold inline-block">Out of stock</div>
+            ) : product.stock <= (product.lowStockThreshold ?? 5) ? (
+              <div className="mb-4 px-4 py-2.5 bg-amber-50 border border-amber-200 text-[10px] uppercase tracking-[0.15em] text-amber-800 font-semibold inline-block">Only {product.stock} left</div>
+            ) : null}
+
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
               <button
                 onClick={handleAddToCart}
-                className="flex-1 py-4 bg-black text-white text-xs tracking-[0.15em] font-semibold hover:bg-black/80 transition-colors"
+                disabled={product.stock <= 0}
+                className="flex-1 py-4 bg-black text-white text-xs tracking-[0.15em] font-semibold hover:bg-gray-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                ADD TO CART
+                {product.stock <= 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
               </button>
               <button
                 onClick={handleWishlist}

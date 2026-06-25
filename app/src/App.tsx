@@ -34,6 +34,7 @@ import OrderDetailPage from '@/pages/OrderDetailPage';
 import AddressesPage from '@/pages/AddressesPage';
 import WishlistPage from '@/pages/WishlistPage';
 import NotificationsPage from '@/pages/NotificationsPage';
+import AccountSettingsPage from '@/pages/AccountSettingsPage';
 
 import AdminLayout, { ModeratorLayout } from '@/pages/admin/AdminLayout';
 import AdminOverview from '@/pages/admin/AdminOverview';
@@ -139,6 +140,7 @@ function PublicSite() {
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="/account/orders/:id" element={<Protected><OrderDetailPage /></Protected>} />
         <Route path="/account/addresses" element={<Protected><AddressesPage /></Protected>} />
+        <Route path="/account/settings" element={<Protected><AccountSettingsPage /></Protected>} />
         <Route path="/wishlist" element={<Protected><WishlistPage /></Protected>} />
         <Route path="/notifications" element={<NotificationsPage />} />
 

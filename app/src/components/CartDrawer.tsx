@@ -1,14 +1,19 @@
 import { Link } from 'react-router-dom';
 import { X, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { useCartStore } from '@/stores/useCartStore';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useDeliveryZones } from '@/hooks/useDeliveryZones';
 import { formatNaira } from '@/config';
 
 export default function CartDrawer() {
   const {
     items, isOpen, closeCart, removeItem, updateQuantity, subtotal, deliveryFee, total, clearCart
   } = useCartStore();
+  const user = useAuthStore((s) => s.user);
+  const { zoneFeeByState } = useDeliveryZones();
 
   if (!isOpen) return null;
+  const tier = user?.membershipTier ?? 'standard';
 
   return (
     <div className="fixed inset-0 z-[70]">
@@ -98,11 +103,11 @@ export default function CartDrawer() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Delivery</span>
-                <span>{deliveryFee() === 0 ? 'Free' : formatNaira(deliveryFee())}</span>
+                <span>{formatNaira(deliveryFee(zoneFeeByState))}</span>
               </div>
               <div className="flex justify-between font-semibold text-base pt-2 border-t">
                 <span>Total</span>
-                <span>{formatNaira(total())}</span>
+                <span>{formatNaira(total(tier, zoneFeeByState))}</span>
               </div>
             </div>
             <Link

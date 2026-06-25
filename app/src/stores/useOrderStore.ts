@@ -24,7 +24,7 @@ interface CreateOrderInput {
   total: number;
   shippingAddress: { street: string; city: string; state: string };
   status: OrderStatus;
-  paymentMethod: 'card' | 'transfer' | 'pod';
+  paymentMethod: 'paystack';
 }
 
 interface OrderState {

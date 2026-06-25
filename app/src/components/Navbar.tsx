@@ -49,12 +49,10 @@ export default function Navbar() {
               <button onClick={toggleMobileMenu} className="lg:hidden p-2 text-white hover:opacity-70 transition-opacity" aria-label="Toggle menu">
                 {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
-              <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                <img
-                  src={BRAND.assets.dark}
-                  alt={BRAND.name}
-                  className="h-7 sm:h-8 lg:h-9 w-auto"
-                />
+              <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+                <span className="text-white font-serif text-lg sm:text-xl tracking-[0.2em] uppercase">
+                  {BRAND.name}
+                </span>
               </Link>
             </div>
 

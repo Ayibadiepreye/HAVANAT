@@ -23,6 +23,10 @@ export interface Product {
   eliteDiscount?: number;
   /** Per-unit delivery fee set by admin/moderator (₦). Optional — falls back to a config default. */
   deliveryFee?: number;
+  /** Units in stock. 0 = out of stock. */
+  stock: number;
+  /** Threshold below which the product is flagged "Low stock" and a notification is dispatched. Default 5. */
+  lowStockThreshold?: number;
   details?: {
     material: string;
     care: string;

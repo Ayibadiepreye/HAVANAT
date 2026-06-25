@@ -50,7 +50,7 @@ export interface DashboardOrder {
   deliveryFee: number;
   total: number;
   status: OrderStatus;
-  paymentMethod?: 'card' | 'transfer' | 'pod';
+  paymentMethod?: 'paystack';
   shippingAddress: {
     street: string;
     city: string;

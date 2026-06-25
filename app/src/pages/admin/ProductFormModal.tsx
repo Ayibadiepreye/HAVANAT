@@ -35,6 +35,12 @@ export default function ProductFormModal({ product, onClose }: Props) {
           colors: ['Black'],
           description: '',
           inStock: true,
+          stock: 10,
+          lowStockThreshold: 5,
+          deliveryFee: 2500,
+          deluxeDiscount: 0.05,
+          eliteDiscount: 0.10,
+          occasion: ['corporate'],
           details: { material: '', care: '', shipping: '', sizeGuide: '' },
         }
   );
@@ -58,6 +64,12 @@ export default function ProductFormModal({ product, onClose }: Props) {
       name,
       slug: form.slug as string,
       price: Number(form.price ?? 0),
+      stock: Number(form.stock ?? 0),
+      lowStockThreshold: Number(form.lowStockThreshold ?? 5),
+      deliveryFee: Number(form.deliveryFee ?? 2500),
+      deluxeDiscount: Number(form.deluxeDiscount ?? 0.05),
+      eliteDiscount: Number(form.eliteDiscount ?? 0.10),
+      occasion: form.occasion ?? ['corporate'],
       originalPrice: form.originalPrice,
       images: form.images as string[],
       category: form.category as Product['category'],
@@ -134,11 +146,31 @@ export default function ProductFormModal({ product, onClose }: Props) {
               <input type="number" value={form.price ?? 0} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className={inputCls} />
             </div>
             <div>
-              <Label>Stock Status</Label>
+              <Label>Stock (units)</Label>
+              <input type="number" min={0} value={form.stock ?? 0} onChange={(e) => setForm({ ...form, stock: Math.max(0, Number(e.target.value)) })} className={inputCls} />
+            </div>
+            <div>
+              <Label>Low-stock alert below</Label>
+              <input type="number" min={0} value={form.lowStockThreshold ?? 5} onChange={(e) => setForm({ ...form, lowStockThreshold: Math.max(0, Number(e.target.value)) })} className={inputCls} />
+            </div>
+            <div>
+              <Label>Per-unit delivery fee (₦)</Label>
+              <input type="number" min={0} value={form.deliveryFee ?? 2500} onChange={(e) => setForm({ ...form, deliveryFee: Math.max(0, Number(e.target.value)) })} className={inputCls} />
+            </div>
+            <div>
+              <Label>Stock status</Label>
               <select value={form.inStock ? '1' : '0'} onChange={(e) => setForm({ ...form, inStock: e.target.value === '1' })} className={inputCls}>
-                <option value="1">In Stock</option>
+                <option value="1">Published</option>
                 <option value="0">Draft</option>
               </select>
+            </div>
+            <div>
+              <Label>Deluxe discount (0-1)</Label>
+              <input type="number" min={0} max={1} step={0.01} value={form.deluxeDiscount ?? 0.05} onChange={(e) => setForm({ ...form, deluxeDiscount: Math.max(0, Math.min(1, Number(e.target.value))) })} className={inputCls} />
+            </div>
+            <div>
+              <Label>Elite discount (0-1)</Label>
+              <input type="number" min={0} max={1} step={0.01} value={form.eliteDiscount ?? 0.10} onChange={(e) => setForm({ ...form, eliteDiscount: Math.max(0, Math.min(1, Number(e.target.value))) })} className={inputCls} />
             </div>
           </div>
 
