@@ -255,7 +255,7 @@ export default function CheckoutPage() {
                         </div>
                         <button
                           type="button"
-                          onClick={(e) => { e.preventDefault(); navigate('/account/addresses'); }}
+                          onClick={(e) => { e.preventDefault(); navigate('/account'); }}
                           className="text-gray-400 hover:text-black flex-shrink-0"
                           aria-label="Edit addresses"
                         >

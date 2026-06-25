@@ -31,7 +31,6 @@ import AccessibilityPage from '@/pages/AccessibilityPage';
 import TrackPage from '@/pages/TrackPage';
 import ProfilePage from '@/pages/ProfilePage';
 import OrderDetailPage from '@/pages/OrderDetailPage';
-import AddressesPage from '@/pages/AddressesPage';
 import WishlistPage from '@/pages/WishlistPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 
@@ -138,7 +137,6 @@ function PublicSite() {
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="/account/orders/:id" element={<Protected><OrderDetailPage /></Protected>} />
-        <Route path="/account/addresses" element={<Protected><AddressesPage /></Protected>} />
         <Route path="/wishlist" element={<Protected><WishlistPage /></Protected>} />
         <Route path="/notifications" element={<NotificationsPage />} />
 
