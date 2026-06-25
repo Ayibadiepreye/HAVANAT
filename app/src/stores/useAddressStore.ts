@@ -27,20 +27,8 @@ interface AddressState {
   setDefault: (id: string) => void;
   getDefault: () => Address | undefined;
   clearAll: () => void;
+  fetchAddresses: () => Promise<void>;
 }
-
-const SEED: Address[] = [
-  {
-    id: 'a-default',
-    label: 'Home',
-    fullName: 'Demo Customer',
-    phone: '+234 803 000 0001',
-    street: '12B Demo Street, GRA Phase 2',
-    city: 'Port Harcourt',
-    state: 'Rivers',
-    isDefault: true,
-  },
-];
 
 function newId() {
   return `a-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -49,7 +37,7 @@ function newId() {
 export const useAddressStore = create<AddressState>()(
   persist(
     (set, get) => ({
-      addresses: SEED,
+      addresses: [],
       addAddress: async (input, actor) => {
         if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
           try {

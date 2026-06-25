@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { User as UserIcon, Shield, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import { useTotpStore, totpHelpers, totpActions } from '@/stores/useTotpStore';
+import { useTwoFactorStore, twoFactorActions } from '@/stores/useTwoFactorStore';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { Smartphone } from 'lucide-react';
 import { BRAND } from '@/config/brand';
@@ -321,15 +321,16 @@ function SecurityTab({
   const inputClass =
     'w-full px-4 py-3.5 border text-sm focus:outline-none focus:border-black transition-colors bg-white';
 
-  // TOTP
-  const totp = useTotpStore();
-  const totpEnabled = totp.enabledAt !== null;
-  const [totpEnroll, setTotpEnroll] = useState<{ secret: string; recoveryCodes: string[] } | null>(null);
-  const [totpCode, setTotpCode] = useState('');
-  const [totpBusy, setTotpBusy] = useState(false);
-  const [totpErr, setTotpErr] = useState<string | null>(null);
+  // Two-factor (email OTP)
+  const twoFactor = useTwoFactorStore();
+  const twoFactorEnabled = twoFactor.enabled;
+  const [enrolling, setEnrolling] = useState(false);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [resendIn, setResendIn] = useState(0);
   const [showCodes, setShowCodes] = useState(false);
-  const [liveOtp, setLiveOtp] = useState('');
+  const [justEnabled, setJustEnabled] = useState(false);
 
   // Sessions
   const sessions = useSessionStore((s) => s.sessions);
@@ -337,47 +338,64 @@ function SecurityTab({
   const revokeAllOthers = useSessionStore((s) => s.revokeAllOthers);
   const showToast = useUIStore((s) => s.showToast);
 
-  // Tick live OTP preview every second when enroll is open
+  // Resend cooldown ticker
   useEffect(() => {
-    if (!totpEnroll || !totp.secret) return;
-    const tick = () => {
-      totpHelpers.generateCode(totp.secret!).then(setLiveOtp).catch(() => {});
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [totpEnroll, totp.secret]);
+    if (resendIn <= 0) return;
+    const id = setTimeout(() => setResendIn((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendIn]);
 
   function startEnroll() {
-    setTotpErr(null);
-    const result = totpActions.enable();
-    setTotpEnroll(result);
-    setShowCodes(true);
+    setErr(null);
+    setCode('');
+    setEnrolling(true);
+    setResendIn(30);
+    if (user?.email) {
+      twoFactorActions.sendCode(user.email);
+      showToast('Verification code sent to your email', 'success');
+    }
   }
 
-  async function confirmEnroll(e: React.FormEvent) {
+  function resendCode() {
+    if (resendIn > 0) return;
+    setErr(null);
+    setCode('');
+    setResendIn(30);
+    if (user?.email) {
+      twoFactorActions.sendCode(user.email);
+      showToast('A new code was sent to your email', 'success');
+    }
+  }
+
+  function confirmEnroll(e: React.FormEvent) {
     e.preventDefault();
-    setTotpBusy(true);
-    setTotpErr(null);
-    const ok = await totpActions.verify(totpCode);
+    setBusy(true);
+    setErr(null);
+    const ok = twoFactorActions.verify(code);
     if (!ok) {
-      setTotpErr('Code didn’t match. Try again.');
-      setTotpBusy(false);
+      setErr('That code didn’t match. Try again or resend.');
+      setBusy(false);
       return;
     }
+    twoFactorActions.enable();
     showToast('Two-factor authentication enabled', 'success');
-    setTotpEnroll(null);
-    setTotpCode('');
-    setTotpBusy(false);
+    setEnrolling(false);
+    setCode('');
+    setJustEnabled(true);
+    setShowCodes(true);
+    setBusy(false);
   }
 
-  function disableTotp() {
-    totpActions.disable();
+  function disable2FA() {
+    if (!window.confirm('Disable two-factor authentication? You will only need your password to sign in.')) return;
+    twoFactorActions.disable();
+    setJustEnabled(false);
+    setShowCodes(false);
     showToast('Two-factor authentication disabled', 'info');
   }
 
   function regenerateCodes() {
-    totpActions.regenerateRecoveryCodes();
+    twoFactorActions.regenerateRecoveryCodes();
     showToast('Recovery codes regenerated', 'success');
   }
 
@@ -417,89 +435,105 @@ function SecurityTab({
         </form>
       </section>
 
-      {/* Two-factor */}
+      {/* Two-factor (email OTP) */}
       <section className="border-t border-gray-200 pt-8">
         <div className="flex items-start justify-between gap-4 max-w-2xl mb-5">
           <div>
             <h2 className="text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-1">Two-Factor Authentication</h2>
-            <p className="text-sm font-medium">Authenticator app (TOTP)</p>
-            <p className="text-xs text-gray-500 mt-1">Use Google Authenticator, Authy, 1Password, or any other TOTP app. We use TOTP instead of SMS because SMS is the most common phishing vector in 2025.</p>
+            <p className="text-sm font-medium">Email verification code</p>
+            <p className="text-xs text-gray-500 mt-1">
+              We&apos;ll send a 6-digit code to <strong className="text-black">{user?.email ?? 'your email'}</strong> when you sign in. Code expires in 10 minutes.
+            </p>
           </div>
-          {totpEnabled && !totpEnroll ? (
-            <button onClick={disableTotp} className="text-[10px] uppercase tracking-[0.15em] text-red-600 hover:underline flex-shrink-0">
+          {twoFactorEnabled && !enrolling ? (
+            <button onClick={disable2FA} className="text-[10px] uppercase tracking-[0.15em] text-red-600 hover:underline flex-shrink-0">
               Disable
             </button>
-          ) : !totpEnabled && !totpEnroll ? (
+          ) : !twoFactorEnabled && !enrolling ? (
             <button onClick={startEnroll} className="px-5 py-2.5 bg-black text-white text-[10px] uppercase tracking-[0.15em] font-medium flex-shrink-0">
               Enable 2FA
             </button>
           ) : null}
         </div>
 
-        {totpEnroll && (
+        {enrolling && (
           <div className="max-w-2xl border border-black p-5 bg-gray-50">
-            <p className="text-sm font-medium mb-3">Scan this with your authenticator app</p>
-            <p className="text-xs text-gray-600 mb-4">If you can&apos;t scan, enter the secret below manually.</p>
-            <div className="bg-white border p-4 mb-4 font-mono text-sm break-all">
-              {totpEnroll.secret}
-            </div>
-            <p className="text-xs text-gray-500 mb-4">Account: {user?.email || 'you@havanat.store'} · Issuer: Havanat</p>
+            <p className="text-sm font-medium mb-1">Enter the verification code</p>
+            <p className="text-xs text-gray-600 mb-4">
+              We sent a 6-digit code to <strong>{user?.email}</strong>. Check your inbox (and spam folder).
+            </p>
             <form onSubmit={confirmEnroll} className="space-y-3">
-              <div>
-                <label className="block text-[10px] uppercase tracking-[0.15em] text-gray-500 mb-1 font-semibold">Enter the 6-digit code from your app</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none bg-white tracking-[0.4em] text-center font-serif text-xl"
-                  required
-                />
-                {liveOtp && (
-                  <p className="text-[10px] text-gray-400 mt-1.5">Live OTP from secret (for demo): <span className="font-mono">{liveOtp}</span></p>
-                )}
-              </div>
-              {totpErr && <p className="text-sm text-red-600">{totpErr}</p>}
-              <div className="flex gap-2">
-                <button type="submit" disabled={totpBusy || totpCode.length !== 6} className="px-5 py-2.5 bg-black text-white text-[10px] uppercase tracking-[0.15em] font-medium disabled:opacity-30">
-                  {totpBusy ? 'Verifying…' : 'Confirm & enable'}
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000"
+                className="w-full px-3 py-3 text-base border border-gray-200 focus:border-black focus:outline-none bg-white tracking-[0.4em] text-center font-serif text-2xl"
+                required
+              />
+              {err && <p className="text-sm text-red-600">{err}</p>}
+              <div className="flex gap-2 items-center">
+                <button
+                  type="submit"
+                  disabled={busy || code.length !== 6}
+                  className="px-5 py-2.5 bg-black text-white text-[10px] uppercase tracking-[0.15em] font-medium disabled:opacity-30"
+                >
+                  {busy ? 'Verifying…' : 'Confirm & enable'}
                 </button>
-                <button type="button" onClick={() => { setTotpEnroll(null); setTotpCode(''); totpActions.disable(); }} className="px-5 py-2.5 border text-[10px] uppercase tracking-[0.15em] font-medium">
+                <button
+                  type="button"
+                  onClick={resendCode}
+                  disabled={resendIn > 0}
+                  className="px-5 py-2.5 border text-[10px] uppercase tracking-[0.15em] font-medium disabled:opacity-30"
+                >
+                  {resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend code'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEnrolling(false); setCode(''); }}
+                  className="px-5 py-2.5 border text-[10px] uppercase tracking-[0.15em] font-medium"
+                >
                   Cancel
                 </button>
               </div>
             </form>
-
-            <div className="mt-5 pt-5 border-t border-gray-200">
-              <p className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-semibold mb-2">Recovery codes</p>
-              <p className="text-xs text-gray-600 mb-3">Save these somewhere safe. Each one can be used once if you lose your authenticator app.</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-sm">
-                {totpEnroll.recoveryCodes.map((c) => (
-                  <div key={c} className="bg-white border px-3 py-2 text-center">{c}</div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
-        {totpEnabled && !totpEnroll && (
+        {twoFactorEnabled && !enrolling && (
           <div className="max-w-2xl space-y-3">
             <div className="bg-green-50 border border-green-200 p-3 text-sm text-green-800 flex items-center gap-2">
-              <Shield size={14} /> Two-factor authentication is active. Enabled {new Date(totp.enabledAt!).toLocaleDateString()}.
+              <Shield size={14} /> Two-factor authentication is active.
+              {justEnabled && ' Codes printed below — save them now.'}
             </div>
-            <button onClick={() => setShowCodes((v) => !v)} className="text-[10px] uppercase tracking-[0.15em] underline text-gray-600 hover:text-black">
-              {showCodes ? 'Hide recovery codes' : `View recovery codes (${totp.recoveryCodes.length - totp.usedRecoveryCodes.length} of ${totp.recoveryCodes.length} left)`}
+            <button
+              onClick={() => setShowCodes((v) => !v)}
+              className="text-[10px] uppercase tracking-[0.15em] underline text-gray-600 hover:text-black"
+            >
+              {showCodes ? 'Hide recovery codes' : `View recovery codes (${twoFactor.recoveryCodes.length - twoFactor.usedRecoveryCodes.length} of ${twoFactor.recoveryCodes.length} left)`}
             </button>
             {showCodes && (
               <div className="space-y-3 border border-gray-200 p-4 bg-gray-50">
+                <p className="text-xs text-gray-600">
+                  Use a recovery code if you ever lose access to your email. Each code works once.
+                </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-sm">
-                  {totp.recoveryCodes.map((c) => (
-                    <div key={c} className={`px-3 py-2 text-center border ${totp.usedRecoveryCodes.includes(c) ? 'opacity-30 line-through' : 'bg-white'}`}>{c}</div>
+                  {twoFactor.recoveryCodes.map((c) => (
+                    <div
+                      key={c}
+                      className={`px-3 py-2 text-center border ${twoFactor.usedRecoveryCodes.includes(c) ? 'opacity-30 line-through' : 'bg-white'}`}
+                    >
+                      {c}
+                    </div>
                   ))}
                 </div>
-                <button onClick={regenerateCodes} className="text-[10px] uppercase tracking-[0.15em] underline text-red-600 hover:text-red-700">
+                <button
+                  onClick={regenerateCodes}
+                  className="text-[10px] uppercase tracking-[0.15em] underline text-red-600 hover:text-red-700"
+                >
                   Regenerate codes (revokes all current)
                 </button>
               </div>

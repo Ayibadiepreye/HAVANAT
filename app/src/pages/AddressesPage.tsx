@@ -15,6 +15,8 @@ export default function AddressesPage() {
   const updateAddress = useAddressStore((s) => s.updateAddress);
   const removeAddress = useAddressStore((s) => s.removeAddress);
   const setDefault = useAddressStore((s) => s.setDefault);
+  const fetchAddresses = useAddressStore((s) => s.fetchAddresses);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const [editing, setEditing] = useState<Address | null>(null);
   const [showForm, setShowForm] = useState(addresses.length === 0);
@@ -30,6 +32,11 @@ export default function AddressesPage() {
     isDefault: false,
   });
 
+  // Fetch real addresses from backend when authenticated
+  useEffect(() => {
+    if (isAuthenticated) fetchAddresses();
+  }, [isAuthenticated, fetchAddresses]);
+
   // When opening the form for editing, prefill
   useEffect(() => {
     if (editing) {
@@ -40,7 +47,7 @@ export default function AddressesPage() {
 
   const inputClass = 'w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none bg-white';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const actor = { id: user?.id ?? 'guest', name: user?.name ?? 'Customer', role: 'system' as const };
     if (editing) {

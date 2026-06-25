@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Package, Crown, MapPin, Heart, LogOut } from 'lucide-react';
+import { Package, Crown, MapPin, Heart, LogOut, Bell } from 'lucide-react';
+import MobileBottomNav, { type MobileBottomNavItem } from '@/components/MobileBottomNav';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useProductStore } from '@/stores/useProductStore';
@@ -28,6 +30,18 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AccountPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('orders');
+  const userId = useAuthStore((s) => s.user?.id);
+  const unread = useNotificationStore((s) =>
+    s.notifications.filter((n) => userId ? !n.readBy[userId] : true).length
+  );
+
+  const navItems: MobileBottomNavItem[] = [
+    { key: 'orders', label: 'Orders', icon: Package, onClick: () => setActiveTab('orders') },
+    { key: 'membership', label: 'Membership', icon: Crown, onClick: () => setActiveTab('membership') },
+    { key: 'addresses', label: 'Addresses', icon: MapPin, onClick: () => setActiveTab('addresses') },
+    { key: 'wishlist', label: 'Wishlist', icon: Heart, onClick: () => setActiveTab('wishlist') },
+    { key: 'notifications', label: 'Alerts', icon: Bell, onClick: () => (window.location.href = '/notifications'), badge: unread },
+  ];
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const wishlist = useProductStore((s) => s.wishlist);
@@ -54,6 +68,7 @@ export default function AccountPage() {
 
   return (
     <main className="min-h-screen pt-20 lg:pt-24 pb-24 lg:pb-12 bg-white">
+        <div className="lg:hidden h-0" />
       <div className="px-4 sm:px-6 lg:px-12 py-8 lg:py-12">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8 lg:mb-12">
@@ -219,24 +234,10 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* Mobile bottom tab bar — sleek separate navigation for account sub-pages */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200">
-        <div className="grid grid-cols-5">
-          {TABS.map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex flex-col items-center gap-1 py-3 transition-colors ${
-                activeTab === key ? 'text-black' : 'text-gray-400 hover:text-gray-600'
-              }`}
-              aria-label={label}
-            >
-              <Icon size={18} strokeWidth={activeTab === key ? 2 : 1.5} />
-              <span className="text-[9px] uppercase tracking-[0.1em] font-medium">{label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
+      <MobileBottomNav
+        activeKey={activeTab}
+        items={navItems}
+      />
     </main>
   );
 }
