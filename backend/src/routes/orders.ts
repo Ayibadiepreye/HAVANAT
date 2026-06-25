@@ -64,11 +64,11 @@ ordersRouter.post('/', requireAuth, async (req, res) => {
   const total = String(subtotal + Number(shippingFee));
   const orderNumber = `ORD-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
   const [order] = await db.insert(orders).values({
-    orderNumber, userId: Number(req.user!.sub), status: 'pending',
+    orderNumber, userId: Number(req.user!.sub), status: 'received',
     subtotal: String(subtotal), shippingFee, total,
     paymentMethod, addressId,
     customerName, customerPhone, customerEmail: req.user!.email,
-    tracking: [{ status: 'pending', timestamp: new Date().toISOString() }],
+    tracking: [{ status: 'received', timestamp: new Date().toISOString() }],
   }).returning();
   if (!order) return res.status(500).json({ error: 'Failed to create order' });
   await db.insert(orderItems).values(orderItemsToInsert.map((i) => ({ ...i, orderId: order.id })));

@@ -8,4 +8,5 @@ export const pool = new Pool({ connectionString: config.databaseUrl });
 
 export const db = drizzle(pool, { schema });
 
+export const client = pool;
 export type DB = typeof db;

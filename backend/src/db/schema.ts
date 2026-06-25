@@ -1,10 +1,19 @@
-// Full Drizzle schema for Havanat. All tables. Use `npm run db:generate` to create migrations.
-import { pgTable, serial, text, varchar, integer, decimal, boolean, timestamp, jsonb, pgEnum, uniqueIndex, index } from 'drizzle-orm/pg-core';
+// Havanat — full Drizzle schema. All 21 tables.
+//
+// Run `npm run db:generate` to produce a migration, then `npm run db:migrate` to apply.
+// Run `npm run db:seed` to populate baseline data.
+
+import {
+  pgTable, serial, text, varchar, integer, decimal, boolean, timestamp,
+  jsonb, pgEnum, uniqueIndex, index,
+} from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+
+// ─────────────────────────── Enums ───────────────────────────
 
 export const userRole = pgEnum('user_role', ['customer', 'admin', 'moderator', 'rider']);
 export const customerTier = pgEnum('customer_tier', ['standard', 'deluxe', 'elite']);
-export const orderStatus = pgEnum('order_status', ['pending', 'processing', 'shipped', 'delivered', 'cancelled']);
+export const orderStatus = pgEnum('order_status', ['received', 'processing', 'in_transit', 'delivered', 'cancelled']);
 export const returnStatus = pgEnum('return_status', ['pending', 'approved', 'rider_scheduled', 'completed', 'rejected']);
 export const deliveryStatus = pgEnum('delivery_status', ['assigned', 'picked_up', 'in_transit', 'delivered', 'failed']);
 export const deliveryType = pgEnum('delivery_type', ['delivery', 'pickup']);
@@ -15,332 +24,358 @@ export const billingCycle = pgEnum('billing_cycle', ['monthly', 'quarterly', 'ye
 export const auditAction = pgEnum('audit_action', ['create', 'update', 'delete', 'revert']);
 export const memberStatus = pgEnum('member_status', ['active', 'cancelled', 'paused']);
 
-// ─── Users & Auth ──────────────────────────────────────────────────────
+// ─────────────────────────── Users & Auth ───────────────────────────
+
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   email: varchar('email', { length: 200 }).notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
-  name: varchar('name', { length: 120 }).notNull(),
-  phone: varchar('phone', { length: 30 }),
-  avatar: text('avatar'),
+  passwordHash: text('password_hash'),
+  googleId: varchar('google_id', { length: 200 }),
+  name: varchar('name', { length: 200 }).notNull(),
   role: userRole('role').notNull().default('customer'),
-  tier: customerTier('tier').default('standard'),
+  tier: customerTier('tier').notNull().default('standard'),
+  phone: varchar('phone', { length: 30 }),
+  avatarUrl: text('avatar_url'),
   emailVerified: boolean('email_verified').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
+  twoFactorSecret: text('two_factor_secret'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   emailIdx: uniqueIndex('users_email_idx').on(t.email),
+  googleIdx: index('users_google_idx').on(t.googleId),
 }));
 
 export const refreshTokens = pgTable('refresh_tokens', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   tokenHash: text('token_hash').notNull(),
-  expiresAt: timestamp('expires_at').notNull(),
-  revoked: boolean('revoked').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
-
-// ─── Catalog ───────────────────────────────────────────────────────────
-export const categories = pgTable('categories', {
-  id: serial('id').primaryKey(),
-  slug: varchar('slug', { length: 80 }).notNull().unique(),
-  name: varchar('name', { length: 120 }).notNull(),
-  description: text('description'),
-});
-
-export const products = pgTable('products', {
-  id: serial('id').primaryKey(),
-  sku: varchar('sku', { length: 80 }),
-  slug: varchar('slug', { length: 200 }).notNull().unique(),
-  name: varchar('name', { length: 200 }).notNull(),
-  description: text('description').notNull().default(''),
-  details: text('details').notNull().default(''),
-  care: text('care').notNull().default(''),
-  price: decimal('price', { precision: 12, scale: 2 }).notNull(),
-  originalPrice: decimal('original_price', { precision: 12, scale: 2 }),
-  images: jsonb('images').$type<string[]>().notNull().default([]),
-  sizes: jsonb('sizes').$type<string[]>().notNull().default([]),
-  colors: jsonb('colors').$type<string[]>().notNull().default([]),
-  tags: jsonb('tags').$type<string[]>().notNull().default([]),
-  category: varchar('category', { length: 80 }).notNull(),
-  fit: varchar('fit', { length: 80 }),
-  inStock: boolean('in_stock').notNull().default(true),
-  featured: boolean('featured').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  userAgent: text('user_agent'),
+  ip: varchar('ip', { length: 64 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
-  categoryIdx: index('products_category_idx').on(t.category),
-  inStockIdx: index('products_in_stock_idx').on(t.inStock),
+  tokenIdx: uniqueIndex('refresh_tokens_token_idx').on(t.tokenHash),
+  userIdx: index('refresh_tokens_user_idx').on(t.userId),
 }));
-
-// ─── Cart & Orders ────────────────────────────────────────────────────
-export const cartItems = pgTable('cart_items', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  productId: integer('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
-  size: varchar('size', { length: 20 }),
-  color: varchar('color', { length: 40 }),
-  quantity: integer('quantity').notNull().default(1),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
 
 export const addresses = pgTable('addresses', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  label: varchar('label', { length: 50 }).notNull().default('Home'),
-  street: varchar('street', { length: 200 }).notNull(),
-  city: varchar('city', { length: 100 }).notNull(),
-  state: varchar('state', { length: 80 }).notNull(),
-  country: varchar('country', { length: 80 }).notNull().default('Nigeria'),
-  postalCode: varchar('postal_code', { length: 20 }),
-  phone: varchar('phone', { length: 30 }),
+  label: varchar('label', { length: 60 }).notNull().default('Home'),
+  fullName: varchar('full_name', { length: 200 }).notNull(),
+  phone: varchar('phone', { length: 30 }).notNull(),
+  street: text('street').notNull(),
+  city: varchar('city', { length: 120 }).notNull(),
+  state: varchar('state', { length: 120 }).notNull(),
   isDefault: boolean('is_default').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userIdx: index('addresses_user_idx').on(t.userId),
+}));
+
+// ─────────────────────────── Products & Catalog ───────────────────────────
+
+export const products = pgTable('products', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 200 }).notNull(),
+  slug: varchar('slug', { length: 200 }).notNull().unique(),
+  description: text('description').notNull().default(''),
+  details: jsonb('details').$type<{ material?: string; care?: string; shipping?: string; sizeGuide?: string }>().notNull().default({}),
+  price: decimal('price', { precision: 12, scale: 2 }).notNull(),
+  originalPrice: decimal('original_price', { precision: 12, scale: 2 }),
+  images: jsonb('images').$type<string[]>().notNull().default([]),
+  category: varchar('category', { length: 60 }).notNull().default('suits'),
+  sizes: jsonb('sizes').$type<string[]>().notNull().default([]),
+  colors: jsonb('colors').$type<string[]>().notNull().default([]),
+  fit: varchar('fit', { length: 60 }).notNull().default('Tailored'),
+  occasion: varchar('occasion', { length: 60 }),
+  stock: integer('stock').notNull().default(0),
+  lowStockThreshold: integer('low_stock_threshold').notNull().default(5),
+  deliveryFee: decimal('delivery_fee', { precision: 12, scale: 2 }).notNull().default('2500'),
+  deluxeDiscount: decimal('deluxe_discount', { precision: 5, scale: 4 }).notNull().default('0.05'),
+  eliteDiscount: decimal('elite_discount', { precision: 5, scale: 4 }).notNull().default('0.10'),
+  inStock: boolean('in_stock').notNull().default(true),
+  published: boolean('published').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  slugIdx: uniqueIndex('products_slug_idx').on(t.slug),
+  categoryIdx: index('products_category_idx').on(t.category),
+  occasionIdx: index('products_occasion_idx').on(t.occasion),
+}));
+
+// ─────────────────────────── Logistics ───────────────────────────
+
+export const deliveryZones = pgTable('delivery_zones', {
+  id: serial('id').primaryKey(),
+  state: varchar('state', { length: 120 }).notNull().unique(),
+  fee: decimal('fee', { precision: 12, scale: 2 }).notNull(),
+  eta: varchar('eta', { length: 60 }).notNull().default('3-5 business days'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const riderProfiles = pgTable('rider_profiles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
+  vehicleType: vehicleType('vehicle_type').notNull().default('bike'),
+  plateNumber: varchar('plate_number', { length: 30 }).notNull(),
+  address: text('address'),
+  idVerified: boolean('id_verified').notNull().default(false),
+  status: riderStatus('status').notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const deliveries = pgTable('deliveries', {
+  id: serial('id').primaryKey(),
+  orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  riderId: integer('rider_id').references(() => users.id, { onDelete: 'set null' }),
+  type: deliveryType('type').notNull().default('delivery'),
+  status: deliveryStatus('status').notNull().default('assigned'),
+  deliveryOtp: varchar('delivery_otp', { length: 6 }),
+  assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
+  pickedUpAt: timestamp('picked_up_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  proofOfDeliveryUrl: text('proof_of_delivery_url'),
+  notes: text('notes'),
+}, (t) => ({
+  orderIdx: index('deliveries_order_idx').on(t.orderId),
+  riderIdx: index('deliveries_rider_idx').on(t.riderId),
+}));
+
+export const payouts = pgTable('payouts', {
+  id: serial('id').primaryKey(),
+  riderId: integer('rider_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+  periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  reference: text('reference'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  riderIdx: index('payouts_rider_idx').on(t.riderId),
+}));
+
+// ─────────────────────────── Orders ───────────────────────────
 
 export const orders = pgTable('orders', {
   id: serial('id').primaryKey(),
-  orderNumber: varchar('order_number', { length: 40 }).notNull().unique(),
-  userId: integer('user_id').notNull().references(() => users.id),
-  status: orderStatus('status').notNull().default('pending'),
+  orderNumber: varchar('order_number', { length: 30 }).notNull().unique(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  status: orderStatus('status').notNull().default('received'),
   subtotal: decimal('subtotal', { precision: 12, scale: 2 }).notNull(),
   shippingFee: decimal('shipping_fee', { precision: 12, scale: 2 }).notNull().default('0'),
   total: decimal('total', { precision: 12, scale: 2 }).notNull(),
-  paymentMethod: varchar('payment_method', { length: 40 }),
-  paymentRef: varchar('payment_ref', { length: 200 }),
-  paidAt: timestamp('paid_at'),
-  addressId: integer('address_id').references(() => addresses.id),
-  riderId: integer('rider_id').references(() => users.id),
-  tracking: jsonb('tracking').$type<Array<{ status: string; timestamp: string; note?: string }>>().notNull().default([]),
+  paymentMethod: varchar('payment_method', { length: 30 }).notNull().default('paystack'),
+  paymentReference: varchar('payment_reference', { length: 200 }),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
   customerName: varchar('customer_name', { length: 200 }).notNull(),
   customerEmail: varchar('customer_email', { length: 200 }).notNull(),
   customerPhone: varchar('customer_phone', { length: 30 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  shippingAddress: jsonb('shipping_address').$type<{ fullName: string; phone: string; street: string; city: string; state: string; }>().notNull(),
+  tracking: jsonb('tracking').$type<Array<{ status: string; timestamp: string; note?: string }>>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
-  statusIdx: index('orders_status_idx').on(t.status),
   userIdx: index('orders_user_idx').on(t.userId),
+  statusIdx: index('orders_status_idx').on(t.status),
+  numberIdx: uniqueIndex('orders_number_idx').on(t.orderNumber),
 }));
 
 export const orderItems = pgTable('order_items', {
   id: serial('id').primaryKey(),
   orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
-  productId: integer('product_id').notNull().references(() => products.id),
+  productId: integer('product_id').notNull().references(() => products.id, { onDelete: 'restrict' }),
   productName: varchar('product_name', { length: 200 }).notNull(),
   productImage: text('product_image'),
   size: varchar('size', { length: 20 }),
-  color: varchar('color', { length: 40 }),
+  color: varchar('color', { length: 30 }),
   quantity: integer('quantity').notNull(),
   unitPrice: decimal('unit_price', { precision: 12, scale: 2 }).notNull(),
-});
-
-// ─── Returns ──────────────────────────────────────────────────────────
-export const returns = pgTable('returns', {
-  id: serial('id').primaryKey(),
-  returnNumber: varchar('return_number', { length: 40 }).notNull().unique(),
-  orderId: integer('order_id').notNull().references(() => orders.id),
-  userId: integer('user_id').notNull().references(() => users.id),
-  status: returnStatus('status').notNull().default('pending'),
-  reason: varchar('reason', { length: 80 }).notNull(),
-  description: text('description'),
-  images: jsonb('images').$type<string[]>().notNull().default([]),
-  riderId: integer('rider_id').references(() => users.id),
-  approvedBy: integer('approved_by').references(() => users.id),
-  rejectionReason: text('rejection_reason'),
-  refundedAt: timestamp('refunded_at'),
-  refundAmount: decimal('refund_amount', { precision: 12, scale: 2 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-// ─── Riders & Deliveries ─────────────────────────────────────────────
-export const riderProfiles = pgTable('rider_profiles', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
-  vehicleType: vehicleType('vehicle_type').notNull(),
-  plateNumber: varchar('plate_number', { length: 30 }).notNull(),
-  address: text('address'),
-  idVerified: boolean('id_verified').notNull().default(false),
-  status: riderStatus('status').notNull().default('pending'),
-  rating: decimal('rating', { precision: 3, scale: 2 }).notNull().default('0'),
-  totalDeliveries: integer('total_deliveries').notNull().default(0),
-  bankName: varchar('bank_name', { length: 80 }),
-  accountNumber: varchar('account_number', { length: 20 }),
-  accountName: varchar('account_name', { length: 120 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
-
-export const deliveries = pgTable('deliveries', {
-  id: serial('id').primaryKey(),
-  orderId: integer('order_id').references(() => orders.id),
-  returnId: integer('return_id').references(() => returns.id),
-  riderId: integer('rider_id').references(() => users.id),
-  type: deliveryType('type').notNull(),
-  status: deliveryStatus('status').notNull().default('assigned'),
-  customerName: varchar('customer_name', { length: 200 }).notNull(),
-  customerPhone: varchar('customer_phone', { length: 30 }),
-  address: text('address').notNull(),
-  city: varchar('city', { length: 100 }),
-  state: varchar('state', { length: 80 }),
-  itemSummary: text('item_summary'),
-  itemCount: integer('item_count').notNull().default(1),
-  deliveryFee: decimal('delivery_fee', { precision: 12, scale: 2 }).notNull().default('0'),
-  scheduledFor: timestamp('scheduled_for').notNull(),
-  startedAt: timestamp('started_at'),
-  completedAt: timestamp('completed_at'),
-  proofPhotoUrl: text('proof_photo_url'),
-  proofSignatureUrl: text('proof_signature_url'),
-  otp: varchar('otp', { length: 6 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  totalPrice: decimal('total_price', { precision: 12, scale: 2 }).notNull(),
 }, (t) => ({
-  riderIdx: index('deliveries_rider_idx').on(t.riderId),
-  statusIdx: index('deliveries_status_idx').on(t.status),
+  orderIdx: index('order_items_order_idx').on(t.orderId),
 }));
 
-export const payouts = pgTable('payouts', {
-  id: serial('id').primaryKey(),
-  riderId: integer('rider_id').notNull().references(() => users.id),
-  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
-  status: varchar('status', { length: 20 }).notNull().default('pending'),
-  reference: varchar('reference', { length: 100 }),
-  requestedAt: timestamp('requested_at').notNull().defaultNow(),
-  paidAt: timestamp('paid_at'),
-});
+// ─────────────────────────── Returns ───────────────────────────
 
-// ─── Memberships ─────────────────────────────────────────────────────
+export const returns = pgTable('returns', {
+  id: serial('id').primaryKey(),
+  returnNumber: varchar('return_number', { length: 30 }).notNull().unique(),
+  orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  status: returnStatus('status').notNull().default('pending'),
+  reason: text('reason').notNull(),
+  refundAmount: decimal('refund_amount', { precision: 12, scale: 2 }),
+  refundReference: varchar('refund_reference', { length: 200 }),
+  riderId: integer('rider_id').references(() => users.id, { onDelete: 'set null' }),
+  scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userIdx: index('returns_user_idx').on(t.userId),
+  orderIdx: index('returns_order_idx').on(t.orderId),
+  numberIdx: uniqueIndex('returns_number_idx').on(t.returnNumber),
+}));
+
+// ─────────────────────────── Memberships ───────────────────────────
+
 export const memberships = pgTable('memberships', {
   id: serial('id').primaryKey(),
-  tier: tierName('tier').notNull().unique(),
-  price: decimal('price', { precision: 12, scale: 2 }).notNull(),
-  billingCycles: jsonb('billing_cycles').$type<string[]>().notNull().default(['monthly']),
-  features: jsonb('features').$type<Array<{ label: string; included: boolean }>>().notNull().default([]),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
+  tier: tierName('tier').notNull().default('Standard'),
+  cycle: billingCycle('cycle').notNull().default('monthly'),
+  status: memberStatus('status').notNull().default('active'),
+  amountPaid: decimal('amount_paid', { precision: 12, scale: 2 }).notNull(),
+  currentPeriodStart: timestamp('current_period_start', { withTimezone: true }).notNull().defaultNow(),
+  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }).notNull(),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+  scheduledDowngradeTo: tierName('scheduled_downgrade_to'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userIdx: index('memberships_user_idx').on(t.userId),
+}));
 
 export const members = pgTable('members', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  tier: tierName('tier').notNull(),
-  status: memberStatus('status').notNull().default('active'),
-  billingCycle: billingCycle('billing_cycle').notNull().default('monthly'),
-  nextBillingDate: timestamp('next_billing_date').notNull(),
-  startedAt: timestamp('started_at').notNull().defaultNow(),
-  cancelledAt: timestamp('cancelled_at'),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
+  tier: customerTier('tier').notNull().default('standard'),
+  joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
+  notes: text('notes'),
+}, (t) => ({
+  userIdx: index('members_user_idx').on(t.userId),
+}));
+
+// ─────────────────────────── Marketing & Content ───────────────────────────
+
+export const emailTemplates = pgTable('email_templates', {
+  id: serial('id').primaryKey(),
+  key: varchar('key', { length: 60 }).notNull().unique(),
+  subject: varchar('subject', { length: 200 }).notNull(),
+  body: text('body').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-// ─── Content (CMS) ──────────────────────────────────────────────────
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  category: varchar('category', { length: 60 }).notNull().default('system'),
+  title: varchar('title', { length: 200 }).notNull(),
+  body: text('body').notNull(),
+  read: boolean('read').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userIdx: index('notifications_user_idx').on(t.userId),
+}));
+
+export const newsletterSubscribers = pgTable('newsletter_subscribers', {
+  id: serial('id').primaryKey(),
+  email: varchar('email', { length: 200 }).notNull().unique(),
+  source: varchar('source', { length: 60 }).notNull().default('footer'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const homepage = pgTable('homepage', {
   id: serial('id').primaryKey(),
-  heroImage: text('hero_image'),
-  heroHeadline: varchar('hero_headline', { length: 200 }),
-  heroTagline: text('hero_tagline'),
-  featuredProductIds: jsonb('featured_product_ids').$type<number[]>().notNull().default([]),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export const lookbook = pgTable('lookbook', {
-  id: serial('id').primaryKey(),
-  imageUrl: text('image_url').notNull(),
-  caption: varchar('caption', { length: 200 }),
-  order: integer('order').notNull().default(0),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
-
-export const testimonials = pgTable('testimonials', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 120 }).notNull(),
-  avatar: text('avatar'),
-  rating: integer('rating').notNull().default(5),
-  text: text('text').notNull(),
-  approved: boolean('approved').notNull().default(true),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  section: varchar('section', { length: 60 }).notNull().unique(),
+  content: jsonb('content').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const banners = pgTable('banners', {
   id: serial('id').primaryKey(),
-  image: text('image').notNull(),
-  title: varchar('title', { length: 200 }),
+  title: varchar('title', { length: 200 }).notNull(),
+  imageUrl: text('image_url').notNull(),
   link: text('link'),
-  startsAt: timestamp('starts_at'),
-  endsAt: timestamp('ends_at'),
   active: boolean('active').notNull().default(true),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  startsAt: timestamp('starts_at', { withTimezone: true }),
+  endsAt: timestamp('ends_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const lookbook = pgTable('lookbook', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 200 }).notNull(),
+  imageUrl: text('image_url').notNull(),
+  description: text('description'),
+  season: varchar('season', { length: 60 }),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const testimonials = pgTable('testimonials', {
+  id: serial('id').primaryKey(),
+  customerName: varchar('customer_name', { length: 200 }).notNull(),
+  customerRole: varchar('customer_role', { length: 200 }),
+  quote: text('quote').notNull(),
+  rating: integer('rating').notNull().default(5),
+  approved: boolean('approved').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const branding = pgTable('branding', {
   id: serial('id').primaryKey(),
-  logoLight: text('logo_light'),
-  logoDark: text('logo_dark'),
-  favicon: text('favicon'),
-  primaryColor: varchar('primary_color', { length: 20 }).notNull().default('#000000'),
-  accentColor: varchar('accent_color', { length: 20 }).notNull().default('#16a34a'),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-// ─── Delivery zones, payment gateways, email templates ────────────
-export const deliveryZones = pgTable('delivery_zones', {
-  id: serial('id').primaryKey(),
-  state: varchar('state', { length: 80 }).notNull().unique(),
-  fee: decimal('fee', { precision: 12, scale: 2 }).notNull(),
-  etaDays: integer('eta_days').notNull(),
+  key: varchar('key', { length: 60 }).notNull().unique(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const paymentGateways = pgTable('payment_gateways', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 40 }).notNull().unique(),
-  enabled: boolean('enabled').notNull().default(false),
+  provider: varchar('provider', { length: 60 }).notNull().unique(),
+  enabled: boolean('enabled').notNull().default(true),
   publicKey: text('public_key'),
-  secretKey: text('secret_key'),
+  secretKeyMask: text('secret_key_mask'),
+  webhookUrl: text('webhook_url'),
+  config: jsonb('config').$type<Record<string, unknown>>(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const emailTemplates = pgTable('email_templates', {
-  id: serial('id').primaryKey(),
-  key: varchar('key', { length: 80 }).notNull().unique(),
-  subject: varchar('subject', { length: 200 }).notNull(),
-  body: text('body').notNull(),
-});
+// ─────────────────────────── Audit Log ───────────────────────────
 
-// ─── Audit log ─────────────────────────────────────────────────────
 export const auditLog = pgTable('audit_log', {
   id: serial('id').primaryKey(),
-  timestamp: timestamp('timestamp').notNull().defaultNow(),
-  userId: integer('user_id').notNull(),
-  userName: varchar('user_name', { length: 200 }).notNull(),
-  userRole: userRole('user_role').notNull(),
+  userId: integer('user_id'),
+  userName: varchar('user_name', { length: 200 }),
+  userRole: varchar('user_role', { length: 60 }),
   action: auditAction('action').notNull(),
-  entityType: varchar('entity_type', { length: 80 }).notNull(),
-  entityId: varchar('entity_id', { length: 80 }).notNull(),
-  entityLabel: varchar('entity_label', { length: 300 }),
-  summary: text('summary'),
-  before: jsonb('before'),
-  after: jsonb('after'),
+  entityType: varchar('entity_type', { length: 60 }).notNull(),
+  entityId: varchar('entity_id', { length: 100 }),
+  entityLabel: varchar('entity_label', { length: 200 }),
+  summary: text('summary').notNull(),
+  changes: jsonb('changes').$type<{ before?: unknown; after?: unknown } | null>(),
+  ip: varchar('ip', { length: 64 }),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
-  entityIdx: index('audit_log_entity_idx').on(t.entityType, t.entityId),
   userIdx: index('audit_log_user_idx').on(t.userId),
-  tsIdx: index('audit_log_ts_idx').on(t.timestamp),
+  entityIdx: index('audit_log_entity_idx').on(t.entityType, t.entityId),
+  createdIdx: index('audit_log_created_idx').on(t.createdAt),
 }));
 
-// ─── Relations ──────────────────────────────────────────────────────
+// ─────────────────────────── Relations ───────────────────────────
+
 export const usersRelations = relations(users, ({ many, one }) => ({
   orders: many(orders),
-  cartItems: many(cartItems),
   addresses: many(addresses),
   refreshTokens: many(refreshTokens),
   riderProfile: one(riderProfiles, { fields: [users.id], references: [riderProfiles.userId] }),
-  member: one(members, { fields: [users.id], references: [members.userId] }),
+  membership: one(memberships, { fields: [users.id], references: [memberships.userId] }),
 }));
 
 export const productsRelations = relations(products, ({ many }) => ({
   orderItems: many(orderItems),
-  cartItems: many(cartItems),
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
   user: one(users, { fields: [orders.userId], references: [users.id] }),
-  address: one(addresses, { fields: [orders.addressId], references: [addresses.id] }),
   items: many(orderItems),
   returns: many(returns),
-  rider: one(users, { fields: [orders.riderId], references: [users.id] }),
+  deliveries: many(deliveries),
 }));
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
@@ -351,11 +386,27 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
 export const returnsRelations = relations(returns, ({ one }) => ({
   order: one(orders, { fields: [returns.orderId], references: [orders.id] }),
   user: one(users, { fields: [returns.userId], references: [users.id] }),
-  rider: one(users, { fields: [returns.riderId], references: [users.id] }),
 }));
 
-export const deliveriesRelations = relations(deliveries, ({ one }) => ({
-  order: one(orders, { fields: [deliveries.orderId], references: [orders.id] }),
-  return: one(returns, { fields: [deliveries.returnId], references: [returns.id] }),
-  rider: one(users, { fields: [deliveries.riderId], references: [users.id] }),
+export const riderProfilesRelations = relations(riderProfiles, ({ one }) => ({
+  user: one(users, { fields: [riderProfiles.userId], references: [users.id] }),
 }));
+
+// ─────────────────────────── Type Exports ───────────────────────────
+
+export type UserRole = (typeof userRole.enumValues)[number];
+export type CustomerTier = (typeof customerTier.enumValues)[number];
+export type OrderStatus = (typeof orderStatus.enumValues)[number];
+export type ReturnStatus = (typeof returnStatus.enumValues)[number];
+export type DeliveryStatus = (typeof deliveryStatus.enumValues)[number];
+export type RiderStatus = (typeof riderStatus.enumValues)[number];
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Product = typeof products.$inferSelect;
+export type NewProduct = typeof products.$inferInsert;
+export type Order = typeof orders.$inferSelect;
+export type NewOrder = typeof orders.$inferInsert;
+export type OrderItem = typeof orderItems.$inferSelect;
+export type Address = typeof addresses.$inferSelect;
+export type DeliveryZone = typeof deliveryZones.$inferSelect;

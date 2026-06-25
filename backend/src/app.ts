@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import pino from 'pino-http';
 import { config } from './config.js';
 import { authRouter } from './routes/auth.js';
 import { productsRouter } from './routes/products.js';
@@ -18,7 +17,6 @@ const app = express();
 app.use(helmet());
 app.use(cors({ origin: config.corsOrigins, credentials: true }));
 app.use(express.json({ limit: '2mb' }));
-app.use(pino());
 
 const limiter = rateLimit({ windowMs: config.rateLimitWindowMs, max: config.rateLimitMax, standardHeaders: true, legacyHeaders: false });
 app.use(limiter);

@@ -98,7 +98,7 @@ function toUserResponse(user: typeof users.$inferSelect) {
     role: user.role,
     tier: user.tier,
     phone: user.phone,
-    avatar: user.avatar,
+    avatar: user.avatarUrl,
     createdAt: user.createdAt.toISOString(),
   };
 }

@@ -33,7 +33,7 @@ export const CreateProductSchema = z.object({
 export const UpdateProductSchema = CreateProductSchema.partial();
 
 export const UpdateOrderStatusSchema = z.object({
-  status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled']),
+  status: z.enum(['received', 'processing', 'in_transit', 'delivered', 'cancelled']),
   note: z.string().max(500).optional(),
 });
 
