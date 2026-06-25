@@ -262,14 +262,27 @@ export const emailTemplates = pgTable('email_templates', {
 
 export const notifications = pgTable('notifications', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
   category: varchar('category', { length: 60 }).notNull().default('system'),
   title: varchar('title', { length: 200 }).notNull(),
   body: text('body').notNull(),
-  read: boolean('read').notNull().default(false),
+  /** 'inapp' | 'email' | 'both' */
+  channels: varchar('channels', { length: 30 }).notNull().default('inapp'),
+  /** 'all' | 'tier' | 'user' */
+  scope: varchar('scope', { length: 30 }).notNull().default('user'),
+  /** When scope='user', the recipient user id. */
+  targetUserId: integer('target_user_id').references(() => users.id, { onDelete: 'cascade' }),
+  /** When scope='tier', the tier name. */
+  targetTier: varchar('target_tier', { length: 30 }),
+  /** Who sent it (admin / moderator / system / customer). */
+  authorId: integer('author_id').references(() => users.id, { onDelete: 'set null' }),
+  authorName: varchar('author_name', { length: 200 }).notNull().default('system'),
+  authorRole: varchar('author_role', { length: 30 }).notNull().default('system'),
+  /** Per-user read flag map. */
+  readBy: jsonb('read_by').$type<Record<string, boolean>>().notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
-  userIdx: index('notifications_user_idx').on(t.userId),
+  userIdx: index('notifications_user_idx').on(t.targetUserId),
+  scopeIdx: index('notifications_scope_idx').on(t.scope),
 }));
 
 export const newsletterSubscribers = pgTable('newsletter_subscribers', {
@@ -411,3 +424,106 @@ export type NewOrder = typeof orders.$inferInsert;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type Address = typeof addresses.$inferSelect;
 export type DeliveryZone = typeof deliveryZones.$inferSelect;
+// ─────────────────────────── Discounts ───────────────────────────
+
+// Tier-based automatic discount for Deluxe/Elite customers
+export const tierDiscounts = pgTable('tier_discounts', {
+  tier: varchar('tier', { length: 30 }).primaryKey(), // 'Deluxe' | 'Elite'
+  percent: decimal('percent', { precision: 5, scale: 2 }).notNull(), // e.g. 5.00 = 5%
+  description: text('description').notNull().default(''),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Admin-configured global event discount (e.g. "Black Friday 15% off")
+export const eventDiscounts = pgTable('event_discounts', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 120 }).notNull(),
+  description: text('description').notNull().default(''),
+  percent: decimal('percent', { precision: 5, scale: 2 }).notNull(),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+  endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+  active: boolean('active').notNull().default(true),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  activeIdx: index('event_discounts_active_idx').on(t.active),
+}));
+
+// ─────────────────────────── Bespoke Requests ───────────────────────────
+export const bespokeRequests = pgTable('bespoke_requests', {
+  id: serial('id').primaryKey(),
+  reference: varchar('reference', { length: 30 }).notNull().unique(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  customerName: varchar('customer_name', { length: 200 }).notNull(),
+  customerEmail: varchar('customer_email', { length: 200 }).notNull(),
+  customerPhone: varchar('customer_phone', { length: 30 }).notNull().default(''),
+  occasion: varchar('occasion', { length: 200 }).notNull(), // wedding, gala, etc.
+  budget: decimal('budget', { precision: 12, scale: 2 }),
+  timeline: varchar('timeline', { length: 200 }).notNull().default(''),
+  description: text('description').notNull(),
+  measurements: jsonb('measurements').$type<Record<string, string>>().notNull().default({}),
+  status: varchar('status', { length: 30 }).notNull().default('new'), // new | in_review | quoted | accepted | declined | complete
+  assignedTo: integer('assigned_to').references(() => users.id),
+  adminNotes: text('admin_notes').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  statusIdx: index('bespoke_status_idx').on(t.status),
+}));
+
+// ─────────────────────────── Contact Messages ───────────────────────────
+export const contactMessages = pgTable('contact_messages', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 200 }).notNull(),
+  email: varchar('email', { length: 200 }).notNull(),
+  subject: varchar('subject', { length: 300 }).notNull(),
+  body: text('body').notNull(),
+  resolved: boolean('resolved').notNull().default(false),
+  resolvedBy: integer('resolved_by').references(() => users.id),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─────────────────────────── Password Reset Tokens ───────────────────────────
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: varchar('token_hash', { length: 128 }).notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─────────────────────────── Email Verify Tokens ───────────────────────────
+export const emailVerifyTokens = pgTable('email_verify_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: varchar('token_hash', { length: 128 }).notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─────────────────────────── 2FA Email OTPs ───────────────────────────
+export const twoFactorOtps = pgTable('two_factor_otps', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  codeHash: varchar('code_hash', { length: 128 }).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  attempts: integer('attempts').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userIdx: index('two_factor_user_idx').on(t.userId),
+}));
+
+export type TierDiscount = typeof tierDiscounts.$inferSelect;
+export type EventDiscount = typeof eventDiscounts.$inferSelect;
+export type BespokeRequest = typeof bespokeRequests.$inferSelect;
+export type NewBespokeRequest = typeof bespokeRequests.$inferInsert;
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
+export type ContactMessage = typeof contactMessages.$inferSelect;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type EmailVerifyToken = typeof emailVerifyTokens.$inferSelect;
+export type TwoFactorOtp = typeof twoFactorOtps.$inferSelect;

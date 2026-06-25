@@ -12,6 +12,11 @@ import { auditRouter } from './routes/audit.js';
 import { contentRouter } from './routes/content.js';
 import { addressesRouter } from './routes/addresses.js';
 import { staffRouter } from './routes/staff.js';
+import { discountsRouter } from './routes/discounts.js';
+import { bespokeRouter } from './routes/bespoke.js';
+import { contactRouter } from './routes/contact.js';
+import { authExtendedRouter } from './routes/auth-extended.js';
+import { paymentsRouter } from './routes/payments.js';
 
 const app = express();
 
@@ -33,6 +38,11 @@ app.use('/api/audit', auditRouter);
 app.use('/api/content', contentRouter);
 app.use('/api/addresses', addressesRouter);
 app.use('/api/staff', staffRouter);
+app.use('/api/discounts', discountsRouter);
+app.use('/api/bespoke', bespokeRouter);
+app.use('/api/contact', contactRouter);
+app.use('/api/auth', authExtendedRouter); // for forgot-password, 2fa, verify-email — extends /api/auth
+app.use('/api/payments', paymentsRouter);
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.path }));
