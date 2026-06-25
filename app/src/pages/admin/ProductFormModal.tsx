@@ -3,7 +3,8 @@ import { useAdminProductStore } from '@/stores/useProductStoreAdmin';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import type { Product } from '@/types';
-import { X, Upload } from 'lucide-react';
+import { X, Upload, Loader2, ImageIcon } from 'lucide-react';
+import { uploadToCloudinary, cloudinaryConfig } from '@/lib/cloudinary';
 
 const CATEGORIES = ['Suits', 'Blazers', 'Trousers', 'Vests', 'Formal', 'Outerwear'] as const;
 const FITS = ['Oversized', 'Tailored', 'Classic', 'Slim'] as const;
@@ -19,6 +20,24 @@ export default function ProductFormModal({ product, onClose }: Props) {
   const updateProduct = useAdminProductStore((s) => s.updateProduct);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setUploading(true);
+    try {
+      const uploaded = await Promise.all(files.map((f) => uploadToCloudinary(f, 'havanat/products')));
+      setForm((f) => ({ ...f, images: [...(f.images ?? []), ...uploaded] }));
+      showToast(`Uploaded ${uploaded.length} image${uploaded.length === 1 ? '' : 's'}`, 'success');
+    } catch (err) {
+      console.error(err);
+      showToast(`Upload failed: ${(err as Error).message}`, 'error');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
 
   const [form, setForm] = useState<Partial<Product>>(() =>
     product
@@ -114,10 +133,60 @@ export default function ProductFormModal({ product, onClose }: Props) {
         </div>
 
         <div className="p-6 space-y-5">
-          <div className="border-2 border-dashed border-gray-200 p-8 text-center">
-            <Upload className="h-6 w-6 mx-auto text-gray-400 mb-2" />
-            <p className="text-sm text-gray-600">Drag & drop images, or click to browse</p>
-            <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 5MB</p>
+          <div>
+            <Label>Product Images</Label>
+            {!cloudinaryConfig.configured && (
+              <div className="bg-yellow-50 border border-yellow-200 p-3 text-xs text-yellow-800 mb-2">
+                Cloudinary not configured. Set <code className="bg-yellow-100 px-1">VITE_CLOUDINARY_CLOUD_NAME</code> and{' '}
+                <code className="bg-yellow-100 px-1">VITE_CLOUDINARY_UPLOAD_PRESET</code> in <code>app/.env</code> to enable uploads.
+              </div>
+            )}
+            <div className="flex flex-wrap gap-3 mb-3">
+              {(form.images ?? []).map((url, idx) => (
+                <div key={idx} className="relative group w-24 h-24 border bg-gray-50">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, images: (form.images ?? []).filter((_, i) => i !== idx) })}
+                    className="absolute top-1 right-1 bg-black/70 text-white p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Remove image"
+                  >
+                    <X size={12} />
+                  </button>
+                  {idx === 0 && (
+                    <span className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] uppercase tracking-wider text-center py-0.5">
+                      Cover
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <label
+              className={`border-2 border-dashed border-gray-200 p-6 text-center block cursor-pointer hover:border-black transition-colors ${
+                uploading ? 'opacity-50 pointer-events-none' : ''
+              }`}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                disabled={uploading || !cloudinaryConfig.configured}
+                onChange={handleUpload}
+              />
+              {uploading ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Uploading…
+                </div>
+              ) : (
+                <>
+                  <Upload className="h-5 w-5 mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600">Click to upload images</p>
+                  <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 10MB · stored on Cloudinary</p>
+                </>
+              )}
+            </label>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

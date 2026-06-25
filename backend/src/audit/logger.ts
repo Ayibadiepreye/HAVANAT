@@ -56,10 +56,10 @@ export async function logAction(params: LogParams | (LogActionSimple & { req: Re
     } else {
       // Simple shape (req.user available)
       const { req, actorId, actorRole, action, targetType, targetId, meta } = params as LogActionSimple & { req: Request };
-      const user = req.user as JwtPayload | undefined;
+      const user = (req?.user as JwtPayload | undefined);
       await db.insert(auditLog).values({
         userId: actorId || Number(user?.sub) || 0,
-        userName: (user?.email as string) ?? 'system',
+        userName: (user?.email as string | undefined) ?? 'system',
         userRole: actorRole,
         action,
         entityType: targetType,

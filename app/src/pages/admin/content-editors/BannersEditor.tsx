@@ -5,6 +5,7 @@ import { useUIStore } from '@/stores/useUIStore';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { Plus, X, Edit, Trash2 } from 'lucide-react';
+import ImageUploader from '@/components/admin/ImageUploader';
 import type { Banner } from '@/types/dashboard';
 
 export default function BannersEditor() {
@@ -97,11 +98,14 @@ function BannerFormModal({ banner, onClose, onSubmit }: { banner: Banner | null;
           <button onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
         </div>
         <div className="space-y-3">
-          <div>
-            <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Image URL</label>
-            <input value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none" />
-            <img src={form.image} className="mt-2 h-32 w-full object-cover bg-gray-100" alt="" />
-          </div>
+          <ImageUploader
+            value={form.image ?? ''}
+            onChange={(url) => setForm({ ...form, image: url })}
+            folder="havanat/banners"
+            label="Banner Image"
+            aspect="wide"
+            hint="Recommended: 1920×800 (wide hero)"
+          />
           <div>
             <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Title</label>
             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none" />

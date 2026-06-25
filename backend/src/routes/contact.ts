@@ -5,7 +5,11 @@ import { contactMessages, notifications, users } from '../db/schema.js';
 import { desc, eq } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { logAction } from '../audit/logger.js';
-import { sendEmail, contactFormEmailToAdmin } from '../lib/email.js';
+import { sendEmail, sendEmailSafe, contactFormEmailToAdmin } from '../lib/email.js';
+function sendEmailSafe(...args: Parameters<typeof sendEmail>) {
+  sendEmail(...args).catch((err: any) => console.warn('[email-failed]', err?.message ?? err));
+}
+
 
 export const contactRouter = Router();
 
@@ -51,7 +55,7 @@ contactRouter.post('/', async (req, res, next) => {
     }
 
     // Email admins
-    await sendEmail({
+    sendEmailSafe({
       to: admins.map((a) => `${a.name} <concierge@havanat.store>`),
       subject: `[Contact] ${parsed.data.subject} — from ${parsed.data.name}`,
       html: contactFormEmailToAdmin({

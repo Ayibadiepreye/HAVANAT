@@ -5,7 +5,11 @@ import { bespokeRequests, notifications, users } from '../db/schema.js';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { logAction } from '../audit/logger.js';
-import { sendEmail, bespokeRequestEmailToAdmin, bespokeRequestConfirmationToCustomer } from '../lib/email.js';
+import { sendEmail, sendEmailSafe, bespokeRequestEmailToAdmin, bespokeRequestConfirmationToCustomer } from '../lib/email.js';
+function sendEmailSafe(...args: Parameters<typeof sendEmail>) {
+  sendEmail(...args).catch((err: any) => console.warn('[email-failed]', err?.message ?? err));
+}
+
 
 export const bespokeRouter = Router();
 
@@ -85,7 +89,7 @@ bespokeRouter.post('/', async (req, res, next) => {
     // Email admins
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
     const adminLink = `${frontendUrl}/admin/bespoke/${row.id}`;
-    await sendEmail({
+    sendEmailSafe({
       to: admins.map((a) => `${a.name} <concierge@havanat.store>`),
       subject: `[Bespoke] New request — ${parsed.data.occasion} from ${parsed.data.customerName}`,
       html: bespokeRequestEmailToAdmin({
@@ -104,7 +108,7 @@ bespokeRouter.post('/', async (req, res, next) => {
 
     // Confirmation to customer with link back
     const customerLink = `${frontendUrl}/custom-request?ref=${reference}`;
-    await sendEmail({
+    sendEmailSafe({
       to: parsed.data.customerEmail,
       subject: `[Havanat] We received your bespoke request — ${reference}`,
       html: bespokeRequestConfirmationToCustomer({

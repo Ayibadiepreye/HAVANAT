@@ -21,7 +21,6 @@ export const riderStatus = pgEnum('rider_status', ['active', 'pending', 'suspend
 export const vehicleType = pgEnum('vehicle_type', ['bike', 'car', 'van']);
 export const tierName = pgEnum('tier_name', ['Standard', 'Deluxe', 'Elite']);
 export const billingCycle = pgEnum('billing_cycle', ['monthly', 'quarterly', 'yearly']);
-export const auditAction = pgEnum('audit_action', ['create', 'update', 'delete', 'revert']);
 export const memberStatus = pgEnum('member_status', ['active', 'cancelled', 'paused']);
 
 // ─────────────────────────── Users & Auth ───────────────────────────
@@ -356,7 +355,7 @@ export const auditLog = pgTable('audit_log', {
   userId: integer('user_id'),
   userName: varchar('user_name', { length: 200 }),
   userRole: varchar('user_role', { length: 60 }),
-  action: auditAction('action').notNull(),
+  action: varchar('action', { length: 80 }).notNull(),
   entityType: varchar('entity_type', { length: 60 }).notNull(),
   entityId: varchar('entity_id', { length: 100 }),
   entityLabel: varchar('entity_label', { length: 200 }),

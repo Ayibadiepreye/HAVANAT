@@ -6,7 +6,11 @@ import { eq } from 'drizzle-orm';
 import { requireAuth } from '../middleware/auth.js';
 import { logAction } from '../audit/logger.js';
 import { initializeTransaction, verifyTransaction, refundTransaction, verifyWebhookSignature, isPaystackConfigured, paystackMode } from '../lib/paystack.js';
-import { sendEmail, orderConfirmationEmail } from '../lib/email.js';
+import { sendEmail, sendEmailSafe, orderConfirmationEmail } from '../lib/email.js';
+function sendEmailSafe(...args: Parameters<typeof sendEmail>) {
+  sendEmail(...args).catch((err: any) => console.warn('[email-failed]', err?.message ?? err));
+}
+
 
 export const paymentsRouter = Router();
 
@@ -38,7 +42,7 @@ paymentsRouter.post('/initialize', requireAuth, async (req, res, next) => {
         authorRole: 'system',
         readBy: {},
       });
-      await sendEmail({
+      sendEmailSafe({
         to: order.customerEmail,
         subject: `[Havanat] Order confirmed (mock) — ${order.orderNumber}`,
         html: orderConfirmationEmail({
@@ -107,7 +111,7 @@ paymentsRouter.post('/verify', requireAuth, async (req, res, next) => {
         authorRole: 'system',
         readBy: {},
       });
-      await sendEmail({
+      sendEmailSafe({
         to: order.customerEmail,
         subject: `[Havanat] Order confirmed — ${order.orderNumber}`,
         html: orderConfirmationEmail({
@@ -148,7 +152,7 @@ paymentsRouter.post('/webhook', raw({ type: 'application/json' }), async (req, r
           authorRole: 'system',
           readBy: {},
         });
-        await sendEmail({
+        sendEmailSafe({
           to: order.customerEmail,
           subject: `[Havanat] Order confirmed — ${order.orderNumber}`,
           html: orderConfirmationEmail({

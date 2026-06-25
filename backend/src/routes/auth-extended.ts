@@ -10,7 +10,11 @@ import {
   twoFactorOtps,
 } from '../db/schema.js';
 import { and, eq, gt, isNull } from 'drizzle-orm';
-import { sendEmail, passwordResetEmail, twoFactorCodeEmail } from '../lib/email.js';
+import { sendEmail, sendEmailSafe, passwordResetEmail, twoFactorCodeEmail } from '../lib/email.js';
+function sendEmailSafe(...args: Parameters<typeof sendEmail>) {
+  sendEmail(...args).catch((err: any) => console.warn('[email-failed]', err?.message ?? err));
+}
+
 import { signAccessToken, signRefreshToken } from '../lib/jwt.js';
 
 export const authExtendedRouter = Router();
@@ -45,7 +49,7 @@ authExtendedRouter.post('/forgot-password', async (req, res, next) => {
 
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;
-    await sendEmail({
+    sendEmailSafe({
       to: user.email,
       subject: 'Reset your Havanat password',
       html: passwordResetEmail(resetLink),
@@ -109,7 +113,7 @@ authExtendedRouter.post('/2fa/send', async (req, res, next) => {
       expiresAt,
     });
 
-    await sendEmail({
+    sendEmailSafe({
       to: user.email,
       subject: 'Your Havanat verification code',
       html: twoFactorCodeEmail(code),
@@ -229,7 +233,7 @@ authExtendedRouter.post('/verify-email/request', async (req, res, next) => {
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
-    await sendEmail({
+    sendEmailSafe({
       to: user.email,
       subject: 'Verify your Havanat email',
       html: `<p>Welcome to Havanat. Click below to verify your email address:</p><p><a href="${frontendUrl}/verify-email?token=${token}" style="display:inline-block;padding:14px 32px;background:#000;color:#fff;text-decoration:none;">Verify email</a></p><p>If you didn't sign up, ignore this email.</p>`,

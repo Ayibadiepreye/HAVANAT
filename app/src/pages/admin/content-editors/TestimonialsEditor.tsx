@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import { Plus, X, Star, Edit, Trash2 } from 'lucide-react';
+import ImageUploader from '@/components/admin/ImageUploader';
 import type { DashboardTestimonial } from '@/types/dashboard';
 
 export default function TestimonialsEditor() {

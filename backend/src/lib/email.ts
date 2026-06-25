@@ -12,7 +12,9 @@ export function isEmailConfigured(): boolean {
 }
 
 function getFromAddress(): string {
-  return process.env.EMAIL_FROM ?? 'Havanat <concierge@havanat.store>';
+  // Use Resend's testing domain if havanat.store isn't verified yet.
+  // (Once you verify the domain in Resend dashboard, this still works.)
+  return process.env.EMAIL_FROM ?? 'Havanat <onboarding@resend.dev>';
 }
 
 function getReplyTo(): string | undefined {

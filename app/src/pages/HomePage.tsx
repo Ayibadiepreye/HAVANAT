@@ -28,7 +28,7 @@ function HeroSection() {
   return (
     <section ref={heroRef} className="relative w-full h-screen overflow-hidden bg-black">
       <div className="hero-img absolute inset-0 w-full h-full">
-        <img src="/images/hero/fabric-hero.jpg" alt="Premium fabric" className="w-full h-full object-cover opacity-70" />
+        <img src={heroImage} alt="Premium fabric" className="w-full h-full object-cover opacity-70" />
         <div className="absolute inset-0 bg-black/30" />
       </div>
 
@@ -184,7 +184,7 @@ function BrandStorySection() {
             </div>
           </div>
           <div className="relative">
-            <img src="/images/community/professional-1.jpg" alt="Professional wearing Havanat" className="w-full h-[500px] lg:h-[600px] object-cover" />
+            <img src={communityImage} alt="Professional wearing Havanat" className="w-full h-[500px] lg:h-[600px] object-cover" />
             <div className="absolute -bottom-6 -left-6 bg-black text-white p-6 hidden lg:block">
               <p className="font-serif text-3xl">12+</p>
               <p className="text-[10px] tracking-[0.15em] mt-1 uppercase">Years of Excellence</p>
@@ -406,6 +406,14 @@ function NewsletterSection() {
 
 /* ──────────────────── HOME PAGE ──────────────────── */
 export default function HomePage() {
+  const banners = useContentStore((s) => s.banners);
+  const testimonials = useContentStore((s) => s.testimonials);
+  const lookbook = useContentStore((s) => s.lookbook);
+  const branding = useContentStore((s) => s.branding);
+  const heroImage = banners.find((b) => b.active)?.image ?? banners[0]?.image ?? '/images/hero/fabric-hero.jpg';
+  const communityImage = testimonials[0]?.avatar ?? lookbook[0]?.url ?? '/images/community/professional-1.jpg';
+  const heroHeadline = (branding['hero_headline'] as string | undefined) ?? BRAND.tagline;
+  const heroSubhead = (branding['hero_subhead'] as string | undefined) ?? 'Where Style Meets Elegance';
   return (
     <main>
       <HeroSection />

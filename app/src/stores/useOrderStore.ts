@@ -1,9 +1,11 @@
 // Orders store - holds all dashboard orders
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { DashboardOrder, OrderStatus, TrackingEvent } from '@/types/dashboard';
+import type { DashboardOrder, OrderItem, OrderStatus, TrackingEvent } from '@/types/dashboard';
 import { ORDERS as SEED_ORDERS } from '@/data/dashboardMockData';
 import { logAuditAction } from '@/utils/auditLogger';
+import { apiConfig, apiGet, apiPost } from '@/lib/api';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface Actor {
   id: string;
@@ -37,11 +39,51 @@ interface OrderState {
   /** Verify a customer-entered OTP. Marks the order `delivered` on success. */
   verifyDeliveryOtp: (id: string, otp: string, actor: Actor) => { ok: boolean; reason?: string };
   /** Customer placed a new order from checkout. Backend-cutover: server returns the same shape. */
-  createOrder: (input: CreateOrderInput) => DashboardOrder;
+  createOrder: (input: CreateOrderInput) => Promise<DashboardOrder>;
   getById: (id: string) => DashboardOrder | undefined;
   getByRider: (riderId: string) => DashboardOrder[];
   /** Customer-side: list orders for a given customer email. */
   getByCustomer: (customerEmail: string) => DashboardOrder[];
+  /** Fetch the current user's orders from the backend (if enabled + authenticated). */
+  fetchOrders: () => Promise<void>;
+}
+
+/** Map a backend Order + items[] to the frontend DashboardOrder shape. */
+function mapBackendOrder(o: any, items: any[] = []): DashboardOrder {
+  const tracking: TrackingEvent[] = Array.isArray(o.tracking)
+    ? o.tracking.map((t: any) => ({ status: t.status as OrderStatus, timestamp: t.timestamp, note: t.note }))
+    : [];
+  const orderItems: OrderItem[] = items.map((it) => ({
+    productId: it.productId,
+    name: it.productName || it.name || '',
+    image: it.productImage || it.image || '',
+    size: it.size || '',
+    quantity: it.quantity,
+    price: Number(it.unitPrice ?? it.price ?? 0),
+  }));
+  const address = o.shippingAddress || {};
+  return {
+    id: String(o.id),
+    customerId: o.userId != null ? String(o.userId) : '',
+    customerName: o.customerName || '',
+    customerEmail: o.customerEmail || '',
+    customerPhone: o.customerPhone || '',
+    items: orderItems,
+    subtotal: Number(o.subtotal ?? 0),
+    deliveryFee: Number(o.shippingFee ?? 0),
+    total: Number(o.total ?? 0),
+    status: (o.status || 'received') as OrderStatus,
+    paymentMethod: 'paystack',
+    shippingAddress: {
+      street: address.street || '',
+      city: address.city || '',
+      state: address.state || '',
+    },
+    riderId: o.riderId != null ? String(o.riderId) : undefined,
+    trackingHistory: tracking,
+    createdAt: o.createdAt,
+    date: o.createdAt,
+  };
 }
 
 /**

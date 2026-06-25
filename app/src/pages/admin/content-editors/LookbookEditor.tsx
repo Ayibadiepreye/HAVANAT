@@ -87,11 +87,7 @@ function AddLookbookModal({ onClose, onAdd }: { onClose: () => void; onAdd: (dat
           <button onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
         </div>
         <div className="space-y-3">
-          <div>
-            <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Image URL</label>
-            <input value={url} onChange={(e) => setUrl(e.target.value)} className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none" />
-            <img src={url} alt="" className="mt-2 h-32 w-full object-cover bg-gray-100" />
-          </div>
+                    <ImageUploader value={url} onChange={setUrl} folder="havanat/lookbook" label="Image" aspect="portrait" hint="Recommended: 800×1067 (3:4 portrait)" />
           <div>
             <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Caption</label>
             <input value={caption} onChange={(e) => setCaption(e.target.value)} className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none" />
