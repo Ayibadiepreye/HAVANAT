@@ -67,6 +67,9 @@ export default function AccountPage() {
               <Crown size={12} className="text-gray-400" />
               <span className="text-[10px] tracking-[0.1em] text-gray-400 uppercase">{user.membershipTier} Member</span>
             </div>
+            <Link to="/profile" className="inline-block mt-2 text-[10px] tracking-[0.15em] uppercase text-gray-500 hover:text-black underline">
+              Profile settings →
+            </Link>
           </div>
         </div>
 

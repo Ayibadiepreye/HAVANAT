@@ -1,70 +1,27 @@
 import { useEffect, useState } from 'react';
-import {
-  User as UserIcon,
-  MapPin,
-  Shield,
-  Bell,
-  CreditCard,
-  Plus,
-  X,
-  Trash2,
-  Star,
-  Eye,
-  EyeOff,
-} from 'lucide-react';
+import { User as UserIcon, Shield, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useTotpStore, totpHelpers, totpActions } from '@/stores/useTotpStore';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { Smartphone } from 'lucide-react';
 import { BRAND } from '@/config/brand';
-import type { Address } from '@/types';
 
-type TabKey = 'personal' | 'addresses' | 'security' | 'notifications' | 'payments';
+type TabKey = 'personal' | 'security';
 
 const TABS: { key: TabKey; label: string; icon: typeof UserIcon }[] = [
   { key: 'personal', label: 'Personal Info', icon: UserIcon },
-  { key: 'addresses', label: 'Address Book', icon: MapPin },
   { key: 'security', label: 'Security', icon: Shield },
-  { key: 'notifications', label: 'Notifications', icon: Bell },
-  { key: 'payments', label: 'Payment Methods', icon: CreditCard },
 ];
 
 // ────────────────────────── Storage helpers ──────────────────────────
 const PROFILE_KEY = 'havanat-profile-extras';
-const ADDRESS_KEY = 'havanat-addresses';
-const NOTIF_KEY = 'havanat-notifications';
-const PAY_KEY = 'havanat-payment-methods';
-const SEC_KEY = 'havanat-security';
 
 interface ProfileExtras {
   dateOfBirth: string;
   gender: string;
   bio: string;
   avatarUrl: string;
-}
-
-interface NotificationPrefs {
-  orderUpdates: boolean;
-  promotions: boolean;
-  newsletter: boolean;
-  membership: boolean;
-  smsNotifications: boolean;
-  emailNotifications: boolean;
-}
-
-interface SavedCard {
-  id: string;
-  cardholderName: string;
-  last4: string;
-  brand: string;
-  expiry: string;
-  billingZip: string;
-  isDefault: boolean;
-}
-
-interface SecurityPrefs {
-  twoFactorEnabled: boolean;
 }
 
 function readJSON<T>(key: string, fallback: T): T {
@@ -85,27 +42,6 @@ function writeJSON<T>(key: string, value: T) {
   } catch {
     /* ignore */
   }
-}
-
-// ────────────────────────── Formatters ──────────────────────────
-function formatCardNumber(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 19);
-  return digits.replace(/(.{4})/g, '$1 ').trim();
-}
-
-function formatExpiry(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-}
-
-function detectCardBrand(num: string): string {
-  const digits = num.replace(/\D/g, '');
-  if (/^4/.test(digits)) return 'Visa';
-  if (/^5[1-5]/.test(digits) || /^2[2-7]/.test(digits)) return 'Mastercard';
-  if (/^3[47]/.test(digits)) return 'Amex';
-  if (/^6/.test(digits)) return 'Discover';
-  return 'Card';
 }
 
 // ────────────────────────── Component ──────────────────────────
@@ -130,35 +66,9 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  // Addresses
-  const [addresses, setAddresses] = useState<Address[]>(() =>
-    readJSON<Address[]>(ADDRESS_KEY, [])
-  );
-  const [addressModalOpen, setAddressModalOpen] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
-
   // Security
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
-  const [security, setSecurity] = useState<SecurityPrefs>(() =>
-    readJSON<SecurityPrefs>(SEC_KEY, { twoFactorEnabled: false })
-  );
-
-  // Notifications
-  const [notif, setNotif] = useState<NotificationPrefs>(() =>
-    readJSON<NotificationPrefs>(NOTIF_KEY, {
-      orderUpdates: true,
-      promotions: false,
-      newsletter: false,
-      membership: true,
-      smsNotifications: true,
-      emailNotifications: true,
-    })
-  );
-
-  // Payment
-  const [cards, setCards] = useState<SavedCard[]>(() => readJSON<SavedCard[]>(PAY_KEY, []));
-  const [cardModalOpen, setCardModalOpen] = useState(false);
 
   // ───── Personal save ─────
   const handlePersonalSave = () => {
@@ -170,48 +80,9 @@ export default function ProfilePage() {
     showToast('Profile updated', 'success');
   };
 
-  // ───── Address CRUD ─────
-  const openNewAddress = () => {
-    setEditingAddress(null);
-    setAddressModalOpen(true);
-  };
-
-  const openEditAddress = (addr: Address) => {
-    setEditingAddress(addr);
-    setAddressModalOpen(true);
-  };
-
-  const saveAddress = (addr: Address) => {
-    let next: Address[];
-    if (editingAddress) {
-      next = addresses.map((a) => (a.id === addr.id ? addr : a));
-    } else {
-      next = [...addresses, addr];
-    }
-    if (addr.isDefault) next = next.map((a) => ({ ...a, isDefault: a.id === addr.id }));
-    setAddresses(next);
-    writeJSON(ADDRESS_KEY, next);
-    setAddressModalOpen(false);
-    setEditingAddress(null);
-    showToast(editingAddress ? 'Address updated' : 'Address added', 'success');
-  };
-
-  const deleteAddress = (id: string) => {
-    const next = addresses.filter((a) => a.id !== id);
-    setAddresses(next);
-    writeJSON(ADDRESS_KEY, next);
-    showToast('Address removed', 'info');
-  };
-
-  const setDefaultAddress = (id: string) => {
-    const next = addresses.map((a) => ({ ...a, isDefault: a.id === id }));
-    setAddresses(next);
-    writeJSON(ADDRESS_KEY, next);
-    showToast('Default address updated', 'success');
-  };
 
   // ───── Security ─────
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
       showToast('Please fill in all password fields', 'error');
@@ -229,46 +100,8 @@ export default function ProfilePage() {
     showToast('Password updated successfully', 'success');
   };
 
-  const toggle2FA = () => {
-    const next = !security.twoFactorEnabled;
-    setSecurity({ twoFactorEnabled: next });
-    writeJSON(SEC_KEY, { twoFactorEnabled: next });
-    showToast(next ? 'Two-factor authentication enabled' : 'Two-factor authentication disabled', 'info');
-  };
 
-  // ───── Notifications ─────
-  const updateNotif = (patch: Partial<NotificationPrefs>) => {
-    const next = { ...notif, ...patch };
-    setNotif(next);
-    writeJSON(NOTIF_KEY, next);
-  };
 
-  // ───── Payment methods ─────
-  const openNewCard = () => setCardModalOpen(true);
-  const saveCard = (card: SavedCard) => {
-    let next: SavedCard[];
-    if (card.isDefault) {
-      next = [...cards.map((c) => ({ ...c, isDefault: false })), card];
-    } else {
-      next = cards.length === 0 ? [{ ...card, isDefault: true }] : [...cards, card];
-    }
-    setCards(next);
-    writeJSON(PAY_KEY, next);
-    setCardModalOpen(false);
-    showToast('Card saved', 'success');
-  };
-  const deleteCard = (id: string) => {
-    const next = cards.filter((c) => c.id !== id);
-    setCards(next);
-    writeJSON(PAY_KEY, next);
-    showToast('Card removed', 'info');
-  };
-  const setDefaultCard = (id: string) => {
-    const next = cards.map((c) => ({ ...c, isDefault: c.id === id }));
-    setCards(next);
-    writeJSON(PAY_KEY, next);
-    showToast('Default card updated', 'success');
-  };
 
   // ───── Render ─────
   return (
@@ -328,61 +161,17 @@ export default function ProfilePage() {
           />
         )}
 
-        {activeTab === 'addresses' && (
-          <AddressBookTab
-            addresses={addresses}
-            onAdd={openNewAddress}
-            onEdit={openEditAddress}
-            onDelete={deleteAddress}
-            onSetDefault={setDefaultAddress}
-          />
-        )}
-
         {activeTab === 'security' && (
           <SecurityTab
             pwForm={pwForm}
             showPw={showPw}
-            twoFactor={security.twoFactorEnabled}
             onPwChange={setPwForm}
             onToggleShow={(k) => setShowPw({ ...showPw, [k]: !showPw[k] })}
-            onSubmit={handlePasswordChange}
-            onToggle2FA={toggle2FA}
-          />
-        )}
-
-        {activeTab === 'notifications' && (
-          <NotificationsTab prefs={notif} onChange={updateNotif} />
-        )}
-
-        {activeTab === 'payments' && (
-          <PaymentsTab
-            cards={cards}
-            onAdd={openNewCard}
-            onDelete={deleteCard}
-            onSetDefault={setDefaultCard}
+            onSubmit={handleChangePassword}
           />
         )}
       </div>
 
-      {addressModalOpen && (
-        <AddressModal
-          initial={editingAddress}
-          hasAddresses={addresses.length > 0}
-          onClose={() => {
-            setAddressModalOpen(false);
-            setEditingAddress(null);
-          }}
-          onSave={saveAddress}
-        />
-      )}
-
-      {cardModalOpen && (
-        <CardModal
-          hasCards={cards.length > 0}
-          onClose={() => setCardModalOpen(false)}
-          onSave={saveCard}
-        />
-      )}
     </main>
   );
 }
@@ -511,109 +300,13 @@ function PersonalTab({
 }
 
 // ──────────────────────── Address Book Tab ────────────────────────
-interface AddressBookTabProps {
-  addresses: Address[];
-  onAdd: () => void;
-  onEdit: (a: Address) => void;
-  onDelete: (id: string) => void;
-  onSetDefault: (id: string) => void;
-}
-
-function AddressBookTab({ addresses, onAdd, onEdit, onDelete, onSetDefault }: AddressBookTabProps) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-[10px] uppercase tracking-[0.25em] text-gray-400">Saved Addresses</h2>
-        <button
-          type="button"
-          onClick={onAdd}
-          className="inline-flex items-center gap-2 px-4 py-2 border border-black text-xs uppercase tracking-[0.2em] hover:bg-black hover:text-white transition-colors"
-        >
-          <Plus size={14} /> Add new
-        </button>
-      </div>
-
-      {addresses.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-gray-200">
-          <MapPin size={40} strokeWidth={1} className="mx-auto mb-3 text-gray-300" />
-          <p className="text-sm text-gray-500 mb-4">No addresses saved yet.</p>
-          <button
-            type="button"
-            onClick={onAdd}
-            className="px-6 py-2 bg-black text-white text-xs uppercase tracking-[0.2em]"
-          >
-            Add your first address
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {addresses.map((a) => (
-            <div
-              key={a.id}
-              className={`bg-white border p-5 hover:border-black transition-colors duration-300 ${
-                a.isDefault ? 'border-black' : 'border-gray-200'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <p className="font-medium">{a.name}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {a.email}
-                  </p>
-                </div>
-                {a.isDefault && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-black text-white text-[10px] uppercase tracking-[0.2em]">
-                    <Star size={10} /> Default
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-gray-500">{a.street}</p>
-              <p className="text-sm text-gray-500">
-                {a.city}, {a.state}
-              </p>
-              <p className="text-sm text-gray-500 mt-1">{a.phone}</p>
-              <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => onEdit(a)}
-                  className="text-[10px] uppercase tracking-[0.2em] text-gray-500 hover:text-black"
-                >
-                  Edit
-                </button>
-                {!a.isDefault && (
-                  <button
-                    type="button"
-                    onClick={() => onSetDefault(a.id)}
-                    className="text-[10px] uppercase tracking-[0.2em] text-gray-500 hover:text-black"
-                  >
-                    Set default
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onDelete(a.id)}
-                  className="text-[10px] uppercase tracking-[0.2em] text-red-500 hover:text-red-700 inline-flex items-center gap-1"
-                >
-                  <Trash2 size={10} /> Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ──────────────────────── Security Tab ────────────────────────
 interface SecurityTabProps {
   pwForm: { current: string; next: string; confirm: string };
   showPw: { current: boolean; next: boolean; confirm: boolean };
-  twoFactor: boolean;
   onPwChange: (next: { current: string; next: string; confirm: string }) => void;
   onToggleShow: (k: 'current' | 'next' | 'confirm') => void;
   onSubmit: (e: React.FormEvent) => void;
-  onToggle2FA: () => void;
 }
 
 function SecurityTab({
@@ -854,480 +547,6 @@ function SecurityTab({
           ))}
         </ul>
       </section>
-    </div>
-  );
-}
-
-// ──────────────────────── Notifications Tab ────────────────────────
-interface NotificationsTabProps {
-  prefs: NotificationPrefs;
-  onChange: (patch: Partial<NotificationPrefs>) => void;
-}
-
-function NotificationsTab({ prefs, onChange }: NotificationsTabProps) {
-  const rows: Array<{ key: keyof NotificationPrefs; label: string; description: string }> = [
-    {
-      key: 'orderUpdates',
-      label: 'Order Updates',
-      description: 'Shipment progress, delivery confirmations and status changes.',
-    },
-    {
-      key: 'promotions',
-      label: 'Promotions',
-      description: 'Sales, limited drops and special offers from ' + BRAND.name + '.',
-    },
-    {
-      key: 'newsletter',
-      label: 'Newsletter',
-      description: 'Style stories, lookbooks and curated reading.',
-    },
-    {
-      key: 'membership',
-      label: 'Membership',
-      description: 'Tier perks, billing and renewal reminders.',
-    },
-    {
-      key: 'smsNotifications',
-      label: 'SMS Notifications',
-      description: 'Critical updates via text message.',
-    },
-    {
-      key: 'emailNotifications',
-      label: 'Email Notifications',
-      description: 'All marketing and transactional emails.',
-    },
-  ];
-
-  return (
-    <div className="space-y-1 divide-y divide-gray-200 border border-gray-200">
-      {rows.map(({ key, label, description }) => (
-        <div key={key} className="flex items-start justify-between gap-4 p-5">
-          <div>
-            <p className="text-sm font-medium">{label}</p>
-            <p className="text-xs text-gray-500 mt-1">{description}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onChange({ [key]: !prefs[key] })}
-            className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
-              prefs[key] ? 'bg-black' : 'bg-gray-300'
-            }`}
-            role="switch"
-            aria-checked={prefs[key]}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                prefs[key] ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ──────────────────────── Payments Tab ────────────────────────
-interface PaymentsTabProps {
-  cards: SavedCard[];
-  onAdd: () => void;
-  onDelete: (id: string) => void;
-  onSetDefault: (id: string) => void;
-}
-
-function PaymentsTab({ cards, onAdd, onDelete, onSetDefault }: PaymentsTabProps) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-[10px] uppercase tracking-[0.25em] text-gray-400">Saved Cards</h2>
-        <button
-          type="button"
-          onClick={onAdd}
-          className="inline-flex items-center gap-2 px-4 py-2 border border-black text-xs uppercase tracking-[0.2em] hover:bg-black hover:text-white transition-colors"
-        >
-          <Plus size={14} /> Add new
-        </button>
-      </div>
-
-      {cards.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-gray-200">
-          <CreditCard size={40} strokeWidth={1} className="mx-auto mb-3 text-gray-300" />
-          <p className="text-sm text-gray-500 mb-4">No saved cards yet.</p>
-          <button
-            type="button"
-            onClick={onAdd}
-            className="px-6 py-2 bg-black text-white text-xs uppercase tracking-[0.2em]"
-          >
-            Add a card
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {cards.map((c) => (
-            <div
-              key={c.id}
-              className={`bg-white border p-5 hover:border-black transition-colors duration-300 ${
-                c.isDefault ? 'border-black' : 'border-gray-200'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <p className="text-sm font-medium">{c.brand} •••• {c.last4}</p>
-                  <p className="text-xs text-gray-500 mt-1">{c.cardholderName}</p>
-                  <p className="text-xs text-gray-500">Expires {c.expiry}</p>
-                </div>
-                {c.isDefault && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-black text-white text-[10px] uppercase tracking-[0.2em]">
-                    <Star size={10} /> Default
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-gray-100">
-                {!c.isDefault && (
-                  <button
-                    type="button"
-                    onClick={() => onSetDefault(c.id)}
-                    className="text-[10px] uppercase tracking-[0.2em] text-gray-500 hover:text-black"
-                  >
-                    Set default
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onDelete(c.id)}
-                  className="text-[10px] uppercase tracking-[0.2em] text-red-500 hover:text-red-700 inline-flex items-center gap-1"
-                >
-                  <Trash2 size={10} /> Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ──────────────────────── Address Modal ────────────────────────
-interface AddressModalProps {
-  initial: Address | null;
-  hasAddresses: boolean;
-  onClose: () => void;
-  onSave: (a: Address) => void;
-}
-
-function AddressModal({ initial, hasAddresses, onClose, onSave }: AddressModalProps) {
-  const [form, setForm] = useState<Address>(
-    initial ?? {
-      id: 'addr_' + Date.now().toString(36),
-      name: '',
-      phone: '',
-      email: '',
-      street: '',
-      city: '',
-      state: '',
-      isDefault: !hasAddresses,
-    }
-  );
-  const inputClass =
-    'w-full px-4 py-3.5 border text-sm focus:outline-none focus:border-black transition-colors bg-white';
-
-  return (
-    <ModalShell onClose={onClose} title={initial ? 'Edit address' : 'Add address'}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSave(form);
-        }}
-        className="space-y-4"
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2">
-            <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-              Label
-            </label>
-            <input
-              required
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className={inputClass}
-              placeholder="e.g. Home, Office"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-              Phone
-            </label>
-            <input
-              required
-              type="tel"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className={inputClass}
-              placeholder="+234 800 000 0000"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className={inputClass}
-              placeholder="optional"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-              Street
-            </label>
-            <input
-              required
-              type="text"
-              value={form.street}
-              onChange={(e) => setForm({ ...form, street: e.target.value })}
-              className={inputClass}
-              placeholder="House number, street"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-              City
-            </label>
-            <input
-              required
-              type="text"
-              value={form.city}
-              onChange={(e) => setForm({ ...form, city: e.target.value })}
-              className={inputClass}
-              placeholder="e.g. Victoria Island"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-              State
-            </label>
-            <select
-              required
-              value={form.state}
-              onChange={(e) => setForm({ ...form, state: e.target.value })}
-              className={inputClass}
-            >
-              <option value="">Select State</option>
-              {['Lagos', 'Abuja', 'Rivers', 'Oyo', 'Kano', 'Delta', 'Kaduna', 'Ogun', 'Edo', 'Anambra'].map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <label className="flex items-center gap-2 cursor-pointer pt-2">
-          <input
-            type="checkbox"
-            checked={!!form.isDefault}
-            onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
-            className="w-4 h-4 accent-black"
-          />
-          <span className="text-xs text-gray-500">Set as default address</span>
-        </label>
-
-        <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 px-6 py-3 border text-xs uppercase tracking-[0.2em] hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="flex-1 px-6 py-3 bg-black text-white text-xs uppercase tracking-[0.2em] font-medium hover:bg-gray-900 transition-colors"
-          >
-            {initial ? 'Save changes' : 'Add address'}
-          </button>
-        </div>
-      </form>
-    </ModalShell>
-  );
-}
-
-// ──────────────────────── Card Modal ────────────────────────
-interface CardModalProps {
-  hasCards: boolean;
-  onClose: () => void;
-  onSave: (c: SavedCard) => void;
-}
-
-function CardModal({ hasCards, onClose, onSave }: CardModalProps) {
-  const [name, setName] = useState('');
-  const [number, setNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvv, setCvv] = useState('');
-  const [zip, setZip] = useState('');
-  const [isDefault, setIsDefault] = useState(!hasCards);
-  const [error, setError] = useState<string | null>(null);
-
-  const inputClass =
-    'w-full px-4 py-3.5 border text-sm focus:outline-none focus:border-black transition-colors bg-white';
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    const digits = number.replace(/\D/g, '');
-    if (digits.length < 13) {
-      setError('Card number looks incomplete.');
-      return;
-    }
-    if (cvv.length < 3) {
-      setError('Enter the CVV on the back of your card.');
-      return;
-    }
-    const last4 = digits.slice(-4);
-    onSave({
-      id: 'card_' + Date.now().toString(36),
-      cardholderName: name.trim(),
-      last4,
-      brand: detectCardBrand(digits),
-      expiry,
-      billingZip: zip,
-      isDefault,
-    });
-  };
-
-  return (
-    <ModalShell onClose={onClose} title="Add new card">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-            Cardholder Name
-          </label>
-          <input
-            required
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={inputClass}
-            placeholder="Name on card"
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-            Card Number
-          </label>
-          <input
-            required
-            type="text"
-            inputMode="numeric"
-            value={number}
-            onChange={(e) => setNumber(formatCardNumber(e.target.value))}
-            className={`${inputClass} font-mono tracking-wider`}
-            placeholder="0000 0000 0000 0000"
-            maxLength={23}
-          />
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-1">
-            <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-              Expiry
-            </label>
-            <input
-              required
-              type="text"
-              inputMode="numeric"
-              value={expiry}
-              onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-              className={`${inputClass} font-mono`}
-              placeholder="MM/YY"
-              maxLength={5}
-            />
-          </div>
-          <div className="col-span-1">
-            <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-              CVV
-            </label>
-            <input
-              required
-              type="text"
-              inputMode="numeric"
-              value={cvv}
-              onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              className={`${inputClass} font-mono`}
-              placeholder="000"
-              maxLength={4}
-            />
-          </div>
-          <div className="col-span-1">
-            <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-              Billing Zip
-            </label>
-            <input
-              type="text"
-              value={zip}
-              onChange={(e) => setZip(e.target.value)}
-              className={inputClass}
-              placeholder="100001"
-            />
-          </div>
-        </div>
-        <label className="flex items-center gap-2 cursor-pointer pt-2">
-          <input
-            type="checkbox"
-            checked={isDefault}
-            onChange={(e) => setIsDefault(e.target.checked)}
-            className="w-4 h-4 accent-black"
-          />
-          <span className="text-xs text-gray-500">Set as default payment method</span>
-        </label>
-
-        {error && (
-          <p className="text-xs text-error-red-600" role="alert">
-            {error}
-          </p>
-        )}
-
-        <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 px-6 py-3 border text-xs uppercase tracking-[0.2em] hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="flex-1 px-6 py-3 bg-black text-white text-xs uppercase tracking-[0.2em] font-medium hover:bg-gray-900 transition-colors"
-          >
-            Save card
-          </button>
-        </div>
-      </form>
-    </ModalShell>
-  );
-}
-
-// ──────────────────────── Modal Shell ────────────────────────
-interface ModalShellProps {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}
-
-function ModalShell({ title, onClose, children }: ModalShellProps) {
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200">
-        <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="font-serif text-xl font-light">{title}</h2>
-          <button onClick={onClose} className="p-1 hover:opacity-60 transition-opacity">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="p-6">{children}</div>
-      </div>
     </div>
   );
 }
