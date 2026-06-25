@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Package, Crown, MapPin, Heart, LogOut, Bell, Plus, Edit3, Trash2 } from 'lucide-react';
+import { Package, Crown, MapPin, Heart, LogOut, Plus, Edit3, Trash2 } from 'lucide-react';
 import MobileBottomNav, { type MobileBottomNavItem } from '@/components/MobileBottomNav';
-import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useProductStore } from '@/stores/useProductStore';
@@ -69,17 +68,11 @@ export default function AccountPage() {
   };
 
   const inputClass = 'w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none bg-white';
-  const userId = useAuthStore((s) => s.user?.id);
-  const unread = useNotificationStore((s) =>
-    s.notifications.filter((n) => userId ? !n.readBy[userId] : true).length
-  );
-
   const navItems: MobileBottomNavItem[] = [
     { key: 'orders', label: 'Orders', icon: Package, onClick: () => setActiveTab('orders') },
     { key: 'membership', label: 'Membership', icon: Crown, onClick: () => setActiveTab('membership') },
     { key: 'addresses', label: 'Addresses', icon: MapPin, onClick: () => setActiveTab('addresses') },
     { key: 'wishlist', label: 'Wishlist', icon: Heart, onClick: () => setActiveTab('wishlist') },
-    { key: 'notifications', label: 'Alerts', icon: Bell, onClick: () => { if (window.location.pathname === '/notifications') { window.history.back(); } else { navigate('/notifications'); } }, badge: unread },
   ];
   const user = useAuthStore((s) => s.user);
 

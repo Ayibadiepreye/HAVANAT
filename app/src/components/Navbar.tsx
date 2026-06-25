@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, ShoppingBag, X, ShieldCheck, FileText, Bike } from 'lucide-react';
+import { Menu, ShoppingBag, X, ShieldCheck, FileText, Bike, Bell } from 'lucide-react';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { ROLE_HOME } from '@/utils/permissions';
 import { BRAND } from '@/config/brand';
 import MobileMenu from './MobileMenu';
@@ -16,6 +17,12 @@ export default function Navbar() {
   const toggleCart = useCartStore((s) => s.toggleCart);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
+
+  // Notification bell unread count — only relevant for customer accounts
+  const userId = dashboardUser?.id ?? '';
+  const userTier = (dashboardUser?.tier ? (dashboardUser.tier.charAt(0).toUpperCase() + dashboardUser.tier.slice(1)) : undefined) as 'Standard' | 'Deluxe' | 'Elite' | undefined;
+  const unread = useNotificationStore((s) => (userId ? s.unreadCount(userId, userTier) : 0));
+  const isCustomer = isAuthenticated && dashboardUser?.role === 'customer';
   const isMobileMenuOpen = useUIStore((s) => s.isMobileMenuOpen);
   const toggleMobileMenu = useUIStore((s) => s.toggleMobileMenu);
 
@@ -94,6 +101,26 @@ export default function Navbar() {
               >
                 {isAuthenticated ? 'ACCOUNT' : 'SIGN IN'}
               </button>
+              {isCustomer && (
+                <button
+                  onClick={() => {
+                    if (window.location.pathname === '/notifications') {
+                      window.history.back();
+                    } else {
+                      navigate('/notifications');
+                    }
+                  }}
+                  className="relative p-2 text-white hover:opacity-70 transition-opacity"
+                  aria-label="Notifications"
+                >
+                  <Bell size={18} strokeWidth={1.5} />
+                  {unread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-white text-black text-[9px] font-bold flex items-center justify-center rounded-full">
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
+                </button>
+              )}
               <button onClick={toggleCart} className="relative p-2 text-white hover:opacity-70 transition-opacity" aria-label="Cart">
                 <ShoppingBag size={18} strokeWidth={1.5} />
                 {totalItems > 0 && (
