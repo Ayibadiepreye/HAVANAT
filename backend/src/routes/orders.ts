@@ -53,11 +53,18 @@ ordersRouter.post('/', requireAuth, async (req, res) => {
   let subtotal = 0;
   const orderItemsToInsert = items.map((i) => {
     const p = productById.get(i.productId)!;
-    const lineTotal = Number(p.price) * i.quantity;
+    const unitPrice = Number(p.price);
+    const lineTotal = unitPrice * i.quantity;
     subtotal += lineTotal;
     return {
-      productId: p.id, productName: p.name, productImage: p.images[0],
-      size: i.size, color: i.color, quantity: i.quantity, unitPrice: p.price,
+      productId: p.id,
+      productName: p.name,
+      productImage: p.images?.[0] ?? null,
+      size: i.size ?? null,
+      color: i.color ?? null,
+      quantity: i.quantity,
+      unitPrice: String(unitPrice),
+      totalPrice: String(lineTotal),
     };
   });
   const shippingFee = '1500';
@@ -68,6 +75,7 @@ ordersRouter.post('/', requireAuth, async (req, res) => {
     subtotal: String(subtotal), shippingFee, total,
     paymentMethod, addressId,
     customerName, customerPhone, customerEmail: req.user!.email,
+    shippingAddress: req.body?.shippingAddress ?? { fullName: customerName, phone: customerPhone, street: 'TBD', city: 'TBD', state: 'TBD' },
     tracking: [{ status: 'received', timestamp: new Date().toISOString() }],
   }).returning();
   if (!order) return res.status(500).json({ error: 'Failed to create order' });

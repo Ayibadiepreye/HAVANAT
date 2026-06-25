@@ -1,4 +1,5 @@
 import jwt, { type SignOptions } from 'jsonwebtoken';
+import crypto from 'node:crypto';
 import { config } from '../config.js';
 
 export interface JwtPayload {
@@ -13,7 +14,10 @@ export function signAccessToken(payload: JwtPayload): string {
 }
 
 export function signRefreshToken(payload: JwtPayload): string {
-  return jwt.sign(payload, config.jwtRefreshSecret, { expiresIn: config.jwtRefreshTtl } as SignOptions);
+  return jwt.sign(payload, config.jwtRefreshSecret, {
+    expiresIn: config.jwtRefreshTtl,
+    jwtid: crypto.randomUUID(),
+  } as SignOptions);
 }
 
 export function verifyAccessToken(token: string): JwtPayload | null {

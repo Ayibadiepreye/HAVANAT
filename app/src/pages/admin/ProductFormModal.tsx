@@ -3,7 +3,7 @@ import { useAdminProductStore } from '@/stores/useProductStoreAdmin';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import type { Product } from '@/types';
-import { X, Upload, Loader2, ImageIcon } from 'lucide-react';
+import { X, Upload, Loader2 } from 'lucide-react';
 import { uploadToCloudinary, cloudinaryConfig } from '@/lib/cloudinary';
 
 const CATEGORIES = ['Suits', 'Blazers', 'Trousers', 'Vests', 'Formal', 'Outerwear'] as const;

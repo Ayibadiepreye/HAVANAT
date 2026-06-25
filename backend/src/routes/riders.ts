@@ -47,13 +47,13 @@ ridersRouter.patch('/:id/status', requireAuth, requireRole('admin'), async (req,
 
 // Rider: own deliveries
 ridersRouter.get('/me/deliveries', requireAuth, requireRole('rider'), async (req, res) => {
-  const rows = await db.select().from(deliveries).where(eq(deliveries.riderId, Number(req.user!.sub))).orderBy(desc(deliveries.scheduledFor));
+  const rows = await db.select().from(deliveries).where(eq(deliveries.riderId, Number(req.user!.sub))).orderBy(desc(deliveries.assignedAt));
   res.json({ items: rows });
 });
 
 // Rider: own payouts
 ridersRouter.get('/me/payouts', requireAuth, requireRole('rider'), async (req, res) => {
-  const rows = await db.select().from(payouts).where(eq(payouts.riderId, Number(req.user!.sub))).orderBy(desc(payouts.requestedAt));
+  const rows = await db.select().from(payouts).where(eq(payouts.riderId, Number(req.user!.sub))).orderBy(desc(payouts.createdAt));
   res.json({ items: rows });
 });
 

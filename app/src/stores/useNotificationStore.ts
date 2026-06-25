@@ -11,10 +11,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AppNotification, NotificationCategory, NotificationChannel, NotificationScope } from '@/types/notifications';
 import { logAuditAction } from '@/utils/auditLogger';
+import { apiConfig, apiGet, apiPost } from '@/lib/api';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface Actor { id: string; name: string; role: 'admin' | 'moderator' | 'system' }
 
 interface NotificationState {
+  fetchNotifications: () => Promise<void>;
   notifications: AppNotification[];
   broadcast: (input: {
     title: string;
@@ -53,6 +56,54 @@ export const useNotificationStore = create<NotificationState>()(
   persist(
     (set, get) => ({
       notifications: [],
+      fetchNotifications: async () => {
+        if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
+        try {
+          const [list] = await Promise.all([
+            apiGet<{ items: any[] }>('/api/notifications', true).catch(() => ({ items: [] })),
+            apiGet<{ count: number }>('/api/notifications/unread-count', true).catch(() => ({ count: 0 })) as unknown as { count: number },
+          ]);
+          set({
+            notifications: list.items.map((n) => ({
+              id: String(n.id),
+              category: (n.category ?? 'system') as any,
+              title: n.title ?? '',
+              body: n.body ?? '',
+              channels: (n.channels ?? 'inapp') as any,
+              scope: (n.scope ?? 'all') as any,
+              authorId: n.authorId != null ? String(n.authorId) : undefined,
+              authorName: n.authorName ?? 'system',
+              authorRole: (n.authorRole ?? 'system') as any,
+              readBy: (n.readBy ?? {}) as Record<string, boolean>,
+              createdAt: n.createdAt ?? nowIso(),
+              read: !!(n.readBy?.[String(useAuthStore.getState().dashboardUser?.id ?? 0)]),
+            } as unknown as AppNotification)),
+          });
+        } catch (err) {
+          console.error('fetchNotifications failed', err);
+        }
+      },
+      markRead: (id: string, userId: string) => {
+        // localStorage mode (default): also hit backend if available
+        if (apiConfig.useBackend) apiPost(`/api/notifications/${id}/read`, {}, true).catch((e) => console.warn('[markRead]', e));
+        set((s: NotificationState) => ({
+          notifications: s.notifications.map((n: AppNotification) => {
+            if (n.id !== id) return n;
+            const newReadBy = { ...((n.readBy ?? {}) as Record<string, boolean>), [userId]: true };
+            return { ...n, readBy: newReadBy as any, read: true };
+          }),
+        }));
+      },
+      markAllRead: (userId: string) => {
+        if (apiConfig.useBackend) apiPost('/api/notifications/read-all', {}, true).catch((e) => console.warn('[markAllRead]', e));
+        set((s: NotificationState) => ({
+          notifications: s.notifications.map((n: AppNotification) => ({
+            ...n,
+            readBy: { ...((n.readBy ?? {}) as Record<string, boolean>), [userId]: true } as any,
+            read: true,
+          })),
+        }));
+      },
       broadcast: (input, actor) => {
         const notif: AppNotification = {
           id: newId(),
@@ -91,18 +142,6 @@ export const useNotificationStore = create<NotificationState>()(
           changes: { before: null, after: { title: notif.title, scope: notif.scope, channels: notif.channels } },
         });
         return notif;
-      },
-      markRead: (id, userId) => {
-        set({
-          notifications: get().notifications.map((n) =>
-            n.id === id ? { ...n, readBy: { ...n.readBy, [userId]: true } } : n
-          ),
-        });
-      },
-      markAllRead: (userId) => {
-        set({
-          notifications: get().notifications.map((n) => ({ ...n, readBy: { ...n.readBy, [userId]: true } })),
-        });
       },
       remove: (id) => {
         set({ notifications: get().notifications.filter((n) => n.id !== id) });

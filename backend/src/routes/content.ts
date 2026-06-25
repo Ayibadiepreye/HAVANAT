@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
 import { homepage, lookbook, testimonials, banners, branding, deliveryZones, paymentGateways, emailTemplates, memberships, members } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { CreateDeliveryZoneSchema, UpdateHomepageSchema, UpdateMembershipTierSchema } from '../lib/validators.js';
 import { logAction } from '../audit/logger.js';
@@ -26,7 +26,7 @@ contentRouter.put('/homepage', requireAuth, requireRole('admin', 'moderator'), a
 
 // Lookbook
 contentRouter.get('/lookbook', async (_req, res) => {
-  const rows = await db.select().from(lookbook).orderBy(lookbook.order);
+  const rows = await db.select().from(lookbook).orderBy(asc(lookbook.createdAt));
   res.json({ items: rows });
 });
 contentRouter.post('/lookbook', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {

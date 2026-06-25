@@ -3,6 +3,7 @@ import { useContentStore } from '@/stores/useContentStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { Plus, X, GripVertical, Trash2 } from 'lucide-react';
+import ImageUploader from '@/components/admin/ImageUploader';
 
 export default function LookbookEditor() {
   const lookbook = useContentStore((s) => s.lookbook);
@@ -87,7 +88,7 @@ function AddLookbookModal({ onClose, onAdd }: { onClose: () => void; onAdd: (dat
           <button onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
         </div>
         <div className="space-y-3">
-                    <ImageUploader value={url} onChange={setUrl} folder="havanat/lookbook" label="Image" aspect="portrait" hint="Recommended: 800×1067 (3:4 portrait)" />
+          <ImageUploader value={url} onChange={setUrl} folder="havanat/lookbook" label="Image" aspect="portrait" hint="Recommended: 800×1067 (3:4 portrait)" />
           <div>
             <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Caption</label>
             <input value={caption} onChange={(e) => setCaption(e.target.value)} className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none" />

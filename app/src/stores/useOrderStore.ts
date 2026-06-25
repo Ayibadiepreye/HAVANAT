@@ -129,6 +129,15 @@ export const useOrderStore = create<OrderState>()(
   persist(
     (set, get) => ({
       orders: SEED_ORDERS,
+      fetchOrders: async () => {
+        if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
+        try {
+          const res = await apiGet<{ items: any[] }>('/api/orders/mine', true);
+          set({ orders: res.items.map((o) => mapBackendOrder(o)) });
+        } catch (err) {
+          console.error('fetchOrders failed', err);
+        }
+      },
       updateStatus: (id, status, actor, note) => {
         const order = get().orders.find((o) => o.id === id);
         if (!order) return;
@@ -198,7 +207,7 @@ export const useOrderStore = create<OrderState>()(
         get().updateStatus(id, 'delivered', actor, 'Customer verified OTP');
         return { ok: true };
       },
-      createOrder: (input) => {
+      createOrder: async (input) => {
         const now = new Date().toISOString();
         const order: DashboardOrder = {
           id: input.id,
@@ -225,6 +234,23 @@ export const useOrderStore = create<OrderState>()(
           summary: `New order placed (${input.paymentMethod})`,
           changes: { before: null, after: { status: order.status, total: order.total } },
         });
+        // Backend cutover: also POST to /api/orders when authenticated
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPost('/api/orders', {
+              customerName: input.customerName,
+              customerEmail: input.customerEmail,
+              customerPhone: input.customerPhone,
+              items: input.items,
+              subtotal: input.subtotal,
+              deliveryFee: input.deliveryFee,
+              total: input.total,
+              shippingAddress: input.shippingAddress,
+            }, true);
+          } catch (e) {
+            console.warn('createOrder backend POST failed', e);
+          }
+        }
         return order;
       },
       getById: (id) => get().orders.find((o) => o.id === id),

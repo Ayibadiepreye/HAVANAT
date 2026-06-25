@@ -27,6 +27,19 @@ contactRouter.post('/', async (req, res, next) => {
     if (!parsed.success) {
       return res.status(400).json({ ok: false, error: 'Validation failed', issues: parsed.error.flatten() });
     }
+    // Link to user if logged in
+    const auth = req.headers.authorization;
+    let userId: number | null = null;
+    if (auth && auth.startsWith('Bearer ')) {
+      try {
+        const { verifyAccessToken } = await import('../lib/jwt.js');
+        const payload = verifyAccessToken(auth.slice(7));
+        if (payload) userId = Number(payload.sub);
+      } catch {
+        /* anonymous */
+      }
+    }
+
     const [row] = await db
       .insert(contactMessages)
       .values({
@@ -47,11 +60,11 @@ contactRouter.post('/', async (req, res, next) => {
         channels: 'inapp',
         scope: 'user',
         targetUserId: admin.id,
-        authorId: row.id,
-        authorName: 'system',
-        authorRole: 'system',
+        authorId: userId ?? null,
+        authorName: parsed.data.name,
+        authorRole: 'customer',
         readBy: {},
-      });
+      }).onConflictDoNothing();
     }
 
     // Email admins
@@ -85,7 +98,7 @@ contactRouter.post('/', async (req, res, next) => {
 });
 
 // ─── Admin: list messages ─────────────────────────────────────────
-contactRouter.get('/', requireRole('admin', 'moderator'), async (_req, res, next) => {
+contactRouter.get('/', requireAuth, requireRole('admin', 'moderator'), async (_req, res, next) => {
   try {
     const rows = await db.select().from(contactMessages).orderBy(desc(contactMessages.createdAt));
     res.json({ ok: true, items: rows });
@@ -95,7 +108,7 @@ contactRouter.get('/', requireRole('admin', 'moderator'), async (_req, res, next
 });
 
 // ─── Admin: mark resolved ─────────────────────────────────────────
-contactRouter.post('/:id/resolve', requireRole('admin', 'moderator'), async (req, res, next) => {
+contactRouter.post('/:id/resolve', requireAuth, requireRole('admin', 'moderator'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ ok: false, error: 'Invalid id' });

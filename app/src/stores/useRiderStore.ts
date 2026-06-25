@@ -5,8 +5,12 @@ import type { Rider, RiderStatus, Delivery, DeliveryStatus } from '@/types/dashb
 import type { ProofOfDelivery } from '@/types/dashboard';
 import { RIDERS as SEED_RIDERS, DELIVERIES as SEED_DELIVERIES } from '@/data/dashboardMockData';
 import { logAuditAction } from '@/utils/auditLogger';
+import { apiConfig, apiGet } from '@/lib/api';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface RiderState {
+  fetchRiders: () => Promise<void>;
+  fetchMyDeliveries: () => Promise<void>;
   riders: Rider[];
   deliveries: Delivery[];
   addRider: (rider: Omit<Rider, 'id' | 'rating' | 'totalDeliveries' | 'totalEarnings' | 'joinedAt'>, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
@@ -24,6 +28,24 @@ export const useRiderStore = create<RiderState>()(
     (set, get) => ({
       riders: SEED_RIDERS,
       deliveries: SEED_DELIVERIES,
+      fetchRiders: async () => {
+        if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
+        try {
+          const res = await apiGet<{ items: any[] }>('/api/riders', true);
+          set({ riders: res.items.map((r) => ({ id: String(r.id), name: r.name, phone: r.phone ?? '', vehicleType: r.vehicleType ?? 'bike', status: r.status ?? 'active', zone: r.zone ?? '', rating: Number(r.rating ?? 5), totalDeliveries: Number(r.totalDeliveries ?? 0), totalEarnings: Number(r.totalEarnings ?? 0), joinedAt: r.joinedAt ?? new Date().toISOString() })) as any });
+        } catch (err) {
+          console.error('fetchRiders failed', err);
+        }
+      },
+      fetchMyDeliveries: async () => {
+        if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
+        try {
+          const res = await apiGet<{ items: any[] }>('/api/riders/me/deliveries', true);
+          set({ deliveries: res.items.map((d) => ({ id: String(d.id), orderId: String(d.orderId), riderId: d.riderId != null ? String(d.riderId) : '', customerName: d.customerName ?? '', address: d.address ?? '', status: d.status ?? 'assigned', eta: d.eta, assignedAt: d.assignedAt ?? new Date().toISOString() })) as any });
+        } catch (err) {
+          console.error('fetchMyDeliveries failed', err);
+        }
+      },
       addRider: (rider, actor) => {
         const id = `rider-${Date.now()}`;
         const newRider: Rider = {

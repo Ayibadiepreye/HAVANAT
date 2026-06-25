@@ -79,11 +79,11 @@ bespokeRouter.post('/', async (req, res, next) => {
         channels: 'inapp',
         scope: 'user',
         targetUserId: admin.id,
-        authorId: row.id,
-        authorName: 'system',
-        authorRole: 'system',
+        authorId: userId ?? null,
+        authorName: parsed.data.customerName,
+        authorRole: 'customer',
         readBy: {},
-      });
+      }).onConflictDoNothing();
     }
 
     // Email admins
@@ -149,7 +149,7 @@ bespokeRouter.get('/mine', requireAuth, async (req, res, next) => {
 });
 
 // ─── Admin: list all ──────────────────────────────────────────────
-bespokeRouter.get('/', requireRole('admin', 'moderator'), async (_req, res, next) => {
+bespokeRouter.get('/', requireAuth, requireRole('admin', 'moderator'), async (_req, res, next) => {
   try {
     const rows = await db.select().from(bespokeRequests).orderBy(desc(bespokeRequests.createdAt));
     res.json({ ok: true, items: rows });
@@ -159,7 +159,7 @@ bespokeRouter.get('/', requireRole('admin', 'moderator'), async (_req, res, next
 });
 
 // ─── Admin: get one ───────────────────────────────────────────────
-bespokeRouter.get('/:id', requireRole('admin', 'moderator', 'customer'), async (req, res, next) => {
+bespokeRouter.get('/:id', requireAuth, requireRole('admin', 'moderator', 'customer'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ ok: false, error: 'Invalid id' });
@@ -181,7 +181,7 @@ const UpdateSchema = z.object({
   adminNotes: z.string().max(5000).optional(),
   assignedTo: z.number().int().optional(),
 });
-bespokeRouter.patch('/:id', requireRole('admin', 'moderator'), async (req, res, next) => {
+bespokeRouter.patch('/:id', requireAuth, requireRole('admin', 'moderator'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ ok: false, error: 'Invalid id' });

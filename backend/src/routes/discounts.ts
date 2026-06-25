@@ -35,7 +35,7 @@ discountsRouter.get('/tiers', async (_req, res, next) => {
 });
 
 // ─── Admin: list all event discounts (past, current, future) ─────
-discountsRouter.get('/admin/events', requireRole('admin', 'moderator'), async (_req, res, next) => {
+discountsRouter.get('/admin/events', requireAuth, requireRole('admin', 'moderator'), async (_req, res, next) => {
   try {
     const rows = await db.select().from(eventDiscounts).orderBy(desc(eventDiscounts.startsAt));
     res.json({ ok: true, events: rows });
@@ -53,7 +53,7 @@ const CreateEventSchema = z.object({
   endsAt: z.string().datetime(),
   active: z.boolean().optional().default(true),
 });
-discountsRouter.post('/admin/events', requireRole('admin', 'moderator'), async (req, res, next) => {
+discountsRouter.post('/admin/events', requireAuth, requireRole('admin', 'moderator'), async (req, res, next) => {
   try {
     const parsed = CreateEventSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, error: 'Validation failed', issues: parsed.error.flatten() });
@@ -87,7 +87,7 @@ discountsRouter.post('/admin/events', requireRole('admin', 'moderator'), async (
 });
 
 // ─── Admin: update event discount ─────────────────────────────────
-discountsRouter.patch('/admin/events/:id', requireRole('admin', 'moderator'), async (req, res, next) => {
+discountsRouter.patch('/admin/events/:id', requireAuth, requireRole('admin', 'moderator'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ ok: false, error: 'Invalid id' });
@@ -117,7 +117,7 @@ discountsRouter.patch('/admin/events/:id', requireRole('admin', 'moderator'), as
 });
 
 // ─── Admin: delete event discount ─────────────────────────────────
-discountsRouter.delete('/admin/events/:id', requireRole('admin'), async (req, res, next) => {
+discountsRouter.delete('/admin/events/:id', requireAuth, requireRole('admin'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ ok: false, error: 'Invalid id' });
@@ -142,7 +142,7 @@ const TierDiscountSchema = z.object({
   percent: z.number().min(0).max(100),
   description: z.string().max(500).optional().default(''),
 });
-discountsRouter.put('/admin/tiers', requireRole('admin'), async (req, res, next) => {
+discountsRouter.put('/admin/tiers', requireAuth, requireRole('admin'), async (req, res, next) => {
   try {
     const parsed = TierDiscountSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, error: 'Validation failed', issues: parsed.error.flatten() });

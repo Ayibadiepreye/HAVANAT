@@ -16,6 +16,7 @@ import {
   BRANDING as SEED_BRANDING,
 } from '@/data/dashboardMockData';
 import { logAuditAction } from '@/utils/auditLogger';
+import { apiConfig, apiGet } from '@/lib/api';
 
 interface ContentActor {
   id: string;
@@ -24,6 +25,7 @@ interface ContentActor {
 }
 
 interface ContentState {
+  fetchContent: () => Promise<void>;
   homepage: ContentHomepage;
   lookbook: LookbookImage[];
   testimonials: DashboardTestimonial[];
@@ -51,6 +53,27 @@ export const useContentStore = create<ContentState>()(
       testimonials: SEED_TESTIMONIALS,
       banners: SEED_BANNERS,
       branding: SEED_BRANDING,
+      fetchContent: async () => {
+        if (!apiConfig.useBackend) return;
+        try {
+          const [homepage, lookbook, testimonials, banners, branding] = await Promise.all([
+            apiGet<any>('/api/content/homepage', true).catch(() => null),
+            apiGet<any>('/api/content/lookbook', true).catch(() => null),
+            apiGet<any>('/api/content/testimonials', true).catch(() => null),
+            apiGet<any>('/api/content/banners', true).catch(() => null),
+            apiGet<any>('/api/content/branding', true).catch(() => null),
+          ]);
+          set((s) => ({
+            ...(homepage ? { homepage: homepage.items ?? homepage ?? s.homepage } : {}),
+            ...(lookbook ? { lookbook: lookbook.items ?? lookbook ?? s.lookbook } : {}),
+            ...(testimonials ? { testimonials: testimonials.items ?? testimonials ?? s.testimonials } : {}),
+            ...(banners ? { banners: banners.items ?? banners ?? s.banners } : {}),
+            ...(branding ? { branding: branding.items ?? branding ?? s.branding } : {}),
+          }));
+        } catch (err) {
+          console.error('fetchContent failed', err);
+        }
+      },
       saveHomepage: (next, actor) => {
         const before = get().homepage;
         set({ homepage: { ...next, updatedAt: new Date().toISOString() } });

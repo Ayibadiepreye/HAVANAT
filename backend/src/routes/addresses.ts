@@ -34,7 +34,7 @@ const UpdateAddressSchema = CreateAddressSchema.partial();
 // GET /api/addresses - list all for the current user
 addressesRouter.get('/', async (req, res, next) => {
   try {
-    const userId = req.user!.id;
+    const userId = Number(req.user!.sub);
     const rows = await db
       .select()
       .from(addresses)
@@ -49,7 +49,7 @@ addressesRouter.get('/', async (req, res, next) => {
 // POST /api/addresses - create
 addressesRouter.post('/', async (req, res, next) => {
   try {
-    const userId = req.user!.id;
+    const userId = Number(req.user!.sub);
     const parsed = CreateAddressSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ ok: false, error: 'Validation failed', issues: parsed.error.flatten() });
@@ -88,7 +88,7 @@ addressesRouter.post('/', async (req, res, next) => {
 // PATCH /api/addresses/:id - update
 addressesRouter.patch('/:id', async (req, res, next) => {
   try {
-    const userId = req.user!.id;
+    const userId = Number(req.user!.sub);
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) {
       return res.status(400).json({ ok: false, error: 'Invalid address id' });
@@ -134,7 +134,7 @@ addressesRouter.patch('/:id', async (req, res, next) => {
 // DELETE /api/addresses/:id
 addressesRouter.delete('/:id', async (req, res, next) => {
   try {
-    const userId = req.user!.id;
+    const userId = Number(req.user!.sub);
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) {
       return res.status(400).json({ ok: false, error: 'Invalid address id' });
@@ -162,7 +162,7 @@ addressesRouter.delete('/:id', async (req, res, next) => {
 // POST /api/addresses/:id/default - set as default
 addressesRouter.post('/:id/default', async (req, res, next) => {
   try {
-    const userId = req.user!.id;
+    const userId = Number(req.user!.sub);
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) {
       return res.status(400).json({ ok: false, error: 'Invalid address id' });

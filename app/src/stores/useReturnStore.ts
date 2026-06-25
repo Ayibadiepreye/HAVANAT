@@ -4,9 +4,12 @@ import { persist } from 'zustand/middleware';
 import type { ReturnRequest, ReturnStatus } from '@/types/dashboard';
 import { RETURNS as SEED_RETURNS } from '@/data/dashboardMockData';
 import { logAuditAction } from '@/utils/auditLogger';
+import { apiConfig, apiGet } from '@/lib/api';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface ReturnState {
   returns: ReturnRequest[];
+  fetchReturns: () => Promise<void>;
   approve: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
   reject: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }, reason: string) => void;
   assignRider: (id: string, riderId: string, riderName: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
@@ -19,6 +22,29 @@ export const useReturnStore = create<ReturnState>()(
   persist(
     (set, get) => ({
       returns: SEED_RETURNS,
+      fetchReturns: async () => {
+        if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
+        try {
+          const res = await apiGet<{ items: any[] }>('/api/returns/mine', true);
+          set({ returns: res.items.map((r) => ({
+            id: String(r.id),
+            orderId: String(r.orderId),
+            customerId: String(r.userId ?? ''),
+            customerName: r.customerName ?? '',
+            customerPhone: r.customerPhone ?? '',
+            description: r.reason ?? r.description ?? '',
+            reason: r.reason ?? '',
+            items: r.items ?? [],
+            images: r.images ?? [],
+            status: r.status as ReturnStatus,
+            pickupAddress: r.pickupAddress ?? {},
+            createdAt: r.createdAt,
+            date: r.createdAt,
+          })) });
+        } catch (err) {
+          console.error('fetchReturns failed', err);
+        }
+      },
       approve: (id, actor) => {
         const ret = get().returns.find((r) => r.id === id);
         if (!ret) return;

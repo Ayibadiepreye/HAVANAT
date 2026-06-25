@@ -102,8 +102,7 @@ function TestimonialFormModal({ testimonial, onClose, onSubmit }: { testimonial:
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none" />
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Avatar URL</label>
-            <input value={form.avatar} onChange={(e) => setForm({ ...form, avatar: e.target.value })} className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none" />
+            <ImageUploader value={form.avatar ?? ''} onChange={(url) => setForm({ ...form, avatar: url })} folder="havanat/testimonials" label="Avatar" aspect="square" hint="Square crop ~400×400" />
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Rating</label>
