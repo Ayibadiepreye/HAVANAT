@@ -160,7 +160,9 @@ function PublicSite() {
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-      {!hideFooter && <Footer />}
+      <div className={hideFooter ? 'hidden lg:block' : ''}>
+        <Footer />
+      </div>
       <CookieConsent />
     </>
   );

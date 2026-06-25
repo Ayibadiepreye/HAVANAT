@@ -71,6 +71,7 @@ export const addresses = pgTable('addresses', {
   state: varchar('state', { length: 120 }).notNull(),
   isDefault: boolean('is_default').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   userIdx: index('addresses_user_idx').on(t.userId),
 }));

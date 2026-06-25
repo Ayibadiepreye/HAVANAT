@@ -10,6 +10,7 @@ import { returnsRouter } from './routes/returns.js';
 import { ridersRouter } from './routes/riders.js';
 import { auditRouter } from './routes/audit.js';
 import { contentRouter } from './routes/content.js';
+import { addressesRouter } from './routes/addresses.js';
 import { staffRouter } from './routes/staff.js';
 
 const app = express();
@@ -30,6 +31,7 @@ app.use('/api/returns', returnsRouter);
 app.use('/api/riders', ridersRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/content', contentRouter);
+app.use('/api/addresses', addressesRouter);
 app.use('/api/staff', staffRouter);
 
 // 404
