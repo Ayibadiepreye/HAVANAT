@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Mail, Filter, Check } from 'lucide-react';
+import {Bell, Mail, Filter, Check, X} from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { NOTIFICATION_CATEGORIES, type NotificationCategory } from '@/types/notifications';
@@ -44,6 +44,13 @@ export default function NotificationsPage() {
   return (
     <main className="min-h-screen pt-20 lg:pt-24 bg-white">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+        <button
+          onClick={() => window.history.back()}
+          className="inline-flex items-center gap-2 text-[10px] tracking-[0.2em] uppercase text-gray-500 hover:text-black mb-6"
+          aria-label="Close and go back"
+        >
+          <X size={14} strokeWidth={1.5} /> Back
+        </button>
         <div className="flex items-center justify-between mb-6">
           <div>
             <p className="text-[10px] tracking-[0.25em] text-gray-400 uppercase mb-2">Inbox</p>

@@ -79,7 +79,7 @@ export default function AccountPage() {
     { key: 'membership', label: 'Membership', icon: Crown, onClick: () => setActiveTab('membership') },
     { key: 'addresses', label: 'Addresses', icon: MapPin, onClick: () => setActiveTab('addresses') },
     { key: 'wishlist', label: 'Wishlist', icon: Heart, onClick: () => setActiveTab('wishlist') },
-    { key: 'notifications', label: 'Alerts', icon: Bell, onClick: () => (window.location.href = '/notifications'), badge: unread },
+    { key: 'notifications', label: 'Alerts', icon: Bell, onClick: () => { if (window.location.pathname === '/notifications') { window.history.back(); } else { navigate('/notifications'); } }, badge: unread },
   ];
   const user = useAuthStore((s) => s.user);
 
