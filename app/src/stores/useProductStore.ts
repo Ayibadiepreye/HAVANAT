@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Product } from '@/types';
 import { PRODUCTS } from '@/data/mockData';
 import { USE_MOCK } from '@/config';
+import { apiConfig, apiGet } from '@/lib/api';
 
 interface ProductState {
   products: Product[];
@@ -25,11 +26,45 @@ export const useProductStore = create<ProductState>()(
 
       fetchProducts: async () => {
         set({ isLoading: true });
-        if (USE_MOCK) {
-          await new Promise((r) => setTimeout(r, 500));
-          set({ products: PRODUCTS, isLoading: false });
-        } else {
-          // Real API call
+        try {
+          if (apiConfig.useBackend) {
+            const res = await apiGet<{ items: any[]; total: number }>('/api/products');
+            // Map backend Product → frontend Product shape
+            const mapped: Product[] = res.items.map((p) => ({
+              id: p.id as any,
+              slug: p.slug,
+              name: p.name,
+              description: p.description || '',
+              details: p.details || {},
+              price: Number(p.price),
+              originalPrice: p.originalPrice ? Number(p.originalPrice) : undefined,
+              images: p.images || [],
+              category: p.category,
+              sizes: p.sizes || [],
+              colors: p.colors || [],
+              fit: p.fit || 'Tailored',
+              occasion: p.occasion || undefined,
+              stock: p.stock ?? 0,
+              lowStockThreshold: p.lowStockThreshold ?? 5,
+              deliveryFee: p.deliveryFee ? Number(p.deliveryFee) : 2500,
+              deluxeDiscount: p.deluxeDiscount ? Number(p.deluxeDiscount) : undefined,
+              eliteDiscount: p.eliteDiscount ? Number(p.eliteDiscount) : undefined,
+              inStock: p.inStock,
+              published: p.published,
+              createdAt: p.createdAt,
+              updatedAt: p.updatedAt,
+            }));
+            set({ products: mapped, isLoading: false });
+            return;
+          }
+          if (USE_MOCK) {
+            await new Promise((r) => setTimeout(r, 500));
+            set({ products: PRODUCTS, isLoading: false });
+          } else {
+            set({ isLoading: false });
+          }
+        } catch (err) {
+          console.error('fetchProducts failed', err);
           set({ isLoading: false });
         }
       },

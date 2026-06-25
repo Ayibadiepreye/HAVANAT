@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuthStore, MOCK_ACCOUNTS } from '@/stores/useAuthStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { ROLE_HOME } from '@/utils/permissions';
-import { ChevronDown } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -15,7 +14,6 @@ export default function LoginPage() {
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [isLoading, setIsLoading] = useState(false);
-  const [demoOpen, setDemoOpen] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
 
   useEffect(() => {
@@ -51,12 +49,6 @@ export default function LoginPage() {
       }
     }
     setIsLoading(false);
-  };
-
-  const quickLogin = (email: string) => {
-    setForm((f) => ({ ...f, email, password: 'password' }));
-    setMode('login');
-    setDemoOpen(false);
   };
 
   const inputClass = "w-full px-4 py-3.5 border text-sm focus:outline-none focus:border-black transition-colors bg-white";
@@ -175,51 +167,6 @@ export default function LoginPage() {
                 </>
               )}
             </p>
-          </div>
-
-          {/* Demo credentials column */}
-          <div className="md:col-span-2">
-            {/* Mobile: collapsible. Desktop: always expanded. */}
-            <div className="md:hidden border border-gray-200">
-              <button
-                onClick={() => setDemoOpen((v) => !v)}
-                className="w-full px-4 py-3 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-gray-500 font-semibold"
-              >
-                <span>Demo Accounts (password: password)</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${demoOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {demoOpen && (
-                <div className="border-t border-gray-200 p-3 space-y-1.5">
-                  {MOCK_ACCOUNTS.map((a) => (
-                    <button
-                      key={a.email}
-                      onClick={() => quickLogin(a.email)}
-                      className="w-full text-left p-2.5 border border-gray-100 hover:border-black transition-colors text-xs"
-                    >
-                      <p className="font-medium">{a.role === 'customer' ? `${a.tier?.charAt(0).toUpperCase()}${a.tier?.slice(1)} Customer` : a.role.charAt(0).toUpperCase() + a.role.slice(1)}</p>
-                      <p className="text-gray-500 text-[11px] truncate">{a.email}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="hidden md:block border border-gray-200 p-6 h-fit">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-semibold mb-3">Demo Accounts</p>
-              <p className="text-xs text-gray-500 mb-4">Password for all: <code className="bg-gray-100 px-1.5 py-0.5">password</code></p>
-              <div className="space-y-1.5">
-                {MOCK_ACCOUNTS.map((a) => (
-                  <button
-                    key={a.email}
-                    onClick={() => quickLogin(a.email)}
-                    className="w-full text-left p-2.5 border border-gray-100 hover:border-black transition-colors text-xs"
-                  >
-                    <p className="font-medium">{a.role === 'customer' ? `${a.tier?.charAt(0).toUpperCase()}${a.tier?.slice(1)} Customer` : a.role.charAt(0).toUpperCase() + a.role.slice(1)}</p>
-                    <p className="text-gray-500 text-[11px] truncate">{a.email}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 

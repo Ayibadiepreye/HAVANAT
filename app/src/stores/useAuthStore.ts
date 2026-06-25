@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { apiConfig, apiPost } from '@/lib/api';
 import type { User } from '@/types';
 import { MOCK_USER } from '@/data/mockData';
 import { USE_MOCK } from '@/config';
@@ -105,7 +106,14 @@ export const useAuthStore = create<AuthState>()(
         return null;
       },
 
-      logout: () => set({ user: null, dashboardUser: null, isAuthenticated: false }),
+      logout: () => {
+        localStorage.removeItem('havanat-access-token');
+        localStorage.removeItem('havanat-refresh-token');
+        if (apiConfig.useBackend) {
+          apiPost('/api/auth/logout', {}).catch(() => {});
+        }
+        set({ user: null, dashboardUser: null, isAuthenticated: false });
+      },
 
       upgradeTier: (tier) =>
         set((s) => ({

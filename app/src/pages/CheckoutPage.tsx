@@ -84,14 +84,14 @@ export default function CheckoutPage() {
 
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
 
-  const handleAddNewAddress = (e: React.FormEvent) => {
+  const handleAddNewAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAddr.fullName || !newAddr.phone || !newAddr.street || !newAddr.city || !newAddr.state) {
       showToast('Please fill in all address fields', 'error');
       return;
     }
     const actor = { id: user?.id ?? 'guest', name: user?.name ?? 'Customer', role: 'system' as const };
-    const added = addAddress(newAddr, actor);
+    const added = await addAddress(newAddr, actor);
     setSelectedAddressId(added.id);
     setShowNewAddress(false);
     showToast('Address added', 'success');
