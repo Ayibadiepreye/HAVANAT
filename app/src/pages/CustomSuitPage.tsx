@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Crown, Scissors, MessageCircle, Ruler, Palette } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -12,8 +12,11 @@ const STEPS = [
 
 export default function CustomSuitPage() {
   const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isElite = user?.membershipTier === 'elite';
+  const navigate = useNavigate();
   const openModal = useUIStore((s) => s.openModal);
+  const showToast = useUIStore((s) => s.showToast);
 
   return (
     <main className="min-h-screen pt-20 lg:pt-24 bg-white">
@@ -105,14 +108,24 @@ export default function CustomSuitPage() {
             <p className="text-gray-600 leading-relaxed mb-8">
               From initial consultation to final fitting, every detail is tailored to your preferences — lapel width, button stance, pocket style, and lining selection.
             </p>
-            {isElite && (
-              <button
-                onClick={() => openModal('chat')}
-                className="px-8 py-3 bg-black text-white text-xs tracking-[0.15em] font-semibold hover:bg-black/80 transition-colors"
-              >
-                REQUEST CONSULTATION
-              </button>
-            )}
+            <button
+              onClick={() => {
+                if (!isAuthenticated) {
+                  showToast('Sign in to request a bespoke consultation', 'info');
+                  navigate('/login?redirect=/custom-request');
+                  return;
+                }
+                if (!isElite) {
+                  showToast('Bespoke consultations are an Elite member benefit', 'info');
+                  navigate('/account');
+                  return;
+                }
+                openModal('chat');
+              }}
+              className="px-8 py-3 bg-black text-white text-xs tracking-[0.15em] font-semibold hover:bg-black/80 transition-colors"
+            >
+              REQUEST CONSULTATION
+            </button>
           </div>
         </div>
       </section>

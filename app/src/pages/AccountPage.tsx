@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Package, Crown, MapPin, Heart, Settings, LogOut } from 'lucide-react';
+import { Package, Crown, MapPin, Heart, LogOut } from 'lucide-react';
 import { useUIStore } from '@/stores/useUIStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useProductStore } from '@/stores/useProductStore';
 import { MOCK_ORDERS, ADDRESSES, PRODUCTS } from '@/data/mockData';
 import { formatNaira } from '@/config';
+import MembershipPanel from '@/components/MembershipPanel';
 
-type Tab = 'orders' | 'membership' | 'addresses' | 'wishlist' | 'settings';
+type Tab = 'orders' | 'membership' | 'addresses' | 'wishlist';
 
 const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
   { key: 'orders', label: 'Orders', icon: Package },
   { key: 'membership', label: 'Membership', icon: Crown },
   { key: 'addresses', label: 'Addresses', icon: MapPin },
   { key: 'wishlist', label: 'Wishlist', icon: Heart },
-  { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -155,23 +155,12 @@ export default function AccountPage() {
 
             {/* Membership Tab */}
             {activeTab === 'membership' && (
-              <div>
-                <h2 className="text-xs tracking-[0.15em] font-semibold uppercase mb-6">My Membership</h2>
-                <div className="border p-8 text-center">
-                  <Crown size={32} strokeWidth={1} className="mx-auto mb-4 text-gray-400" />
-                  <h3 className="font-serif text-2xl mb-2 capitalize">{user.membershipTier} Plan</h3>
-                  <p className="text-sm text-gray-500 mb-6">
-                    {user.membershipTier === 'standard' && 'Enjoy standard benefits across our collection.'}
-                    {user.membershipTier === 'deluxe' && 'Unlock premium perks and priority services.'}
-                    {user.membershipTier === 'elite' && 'The ultimate Havanat experience with bespoke access.'}
-                  </p>
-                  <Link
-                    to="/membership"
-                    className="inline-block px-6 py-3 bg-black text-white text-xs tracking-[0.15em] font-semibold"
-                  >
-                    MANAGE MEMBERSHIP
-                  </Link>
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xs tracking-[0.15em] font-semibold uppercase mb-1">My Membership</h2>
+                  <p className="text-sm text-gray-500">Subscription-based. Downgrades take effect at the end of the current billing period.</p>
                 </div>
+                <MembershipPanel />
               </div>
             )}
 
@@ -223,14 +212,7 @@ export default function AccountPage() {
               </div>
             )}
 
-            {/* Settings Tab */}
-            {activeTab === 'settings' && (
-              <div className="text-center py-12">
-                <p className="text-sm text-gray-500 mb-5">Manage your password, email, and membership from the dedicated settings page.</p>
-                <Link to="/account/settings" className="inline-block px-8 py-3 bg-black text-white text-[10px] uppercase tracking-[0.15em] font-semibold">Open Settings</Link>
-              </div>
-            )}
-          </div>
+            </div>
         </div>
       </div>
 

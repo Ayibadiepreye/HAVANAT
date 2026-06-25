@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { canAttempt, recordAttempt, resetAttempts, formatRetryAfter } from '@/utils/rateLimiter';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle2, ArrowLeft, Mail } from 'lucide-react';
 import { useUIStore } from '@/stores/useUIStore';
@@ -55,6 +56,8 @@ export default function ForgotPasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [generatedOtp, setGeneratedOtp] = useState<string>('');
 
   useEffect(() => {
     if (email) saveState({ email, step });
@@ -71,13 +74,51 @@ export default function ForgotPasswordPage() {
       setError('Please enter a valid email address.');
       return;
     }
+    const allowed = canAttempt('forgot-password', 5, 15 * 60 * 1000);
+    if (!allowed.allowed) {
+      setError(`Too many attempts. ${formatRetryAfter(allowed.retryAfterSec ?? 0)} until you can try again.`);
+      showToast(`Locked out. Try again in ${formatRetryAfter(allowed.retryAfterSec ?? 0)}.`, 'error');
+      return;
+    }
+    recordAttempt('forgot-password');
     setSubmitting(true);
-    // Simulate network
+    // Mock: in production POST /api/auth/forgot-password. Server returns 200 always.
     await new Promise((r) => setTimeout(r, 700));
+    // Generate a 6-digit OTP (mock) and log it
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    setGeneratedOtp(otp);
+    // eslint-disable-next-line no-console
+    console.info(`[mock-email] To: ${email} — Your Havanat password-reset code is ${otp}. Expires in 10 minutes.`);
     setSubmitting(false);
     setStep('reset');
     showToast('Check your email for the verification code', 'success');
+    setResendCountdown(30);
   };
+
+  // Cooldown ticker for the resend button
+  useEffect(() => {
+    if (resendCountdown <= 0) return;
+    const id = setTimeout(() => setResendCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendCountdown]);
+
+  function handleResend(): void {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _unused: typeof handleResend | null = handleResend; void _unused;
+    if (resendCountdown > 0) return;
+    const allowed = canAttempt('forgot-password', 5, 15 * 60 * 1000);
+    if (!allowed.allowed) {
+      showToast(`Locked out. Try again in ${formatRetryAfter(allowed.retryAfterSec ?? 0)}.`, 'error');
+      return;
+    }
+    recordAttempt('forgot-password');
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    setGeneratedOtp(otp);
+    // eslint-disable-next-line no-console
+    console.info(`[mock-email] To: ${email} — Your Havanat password-reset code is ${otp}. (resend)`);
+    showToast('A new code was sent to your email', 'success');
+    setResendCountdown(30);
+  }
 
   // ───── Step 2: OTP + new password ─────
   const handleResetSubmit = async (e: React.FormEvent) => {
@@ -85,6 +126,10 @@ export default function ForgotPasswordPage() {
     setError(null);
     if (otp.length !== 6) {
       setError('Enter the 6-digit code we sent to your email.');
+      return;
+    }
+    if (otp !== generatedOtp) {
+      setError('That code doesn’t match. Try again or resend.');
       return;
     }
     if (newPassword.length < 8) {
@@ -97,6 +142,7 @@ export default function ForgotPasswordPage() {
     }
     setSubmitting(true);
     await new Promise((r) => setTimeout(r, 800));
+    resetAttempts('forgot-password');
     setSubmitting(false);
     setStep('done');
     showToast('Password updated successfully', 'success');
@@ -226,7 +272,7 @@ export default function ForgotPasswordPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => showToast('Code resent to your email', 'info')}
+                  onClick={handleResend}
                   className="text-[10px] uppercase tracking-[0.2em] text-gray-400 hover:text-black mt-2 transition-colors"
                 >
                   Resend code

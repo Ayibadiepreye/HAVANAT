@@ -34,6 +34,32 @@ export const useAdminProductStore = create<AdminProductState>()(() => ({
       summary: 'Updated product',
       changes: { before: { ...before }, after: { ...product } },
     });
+    // Low-stock notification: fire when stock crosses the threshold OR hits zero.
+    // Mock: dispatches in-app broadcast to all admin/moderator accounts.
+    // Backend cutover: server dispatches email via Resend to the staff list.
+    const threshold = product.lowStockThreshold ?? 5;
+    const wasOk = before.stock > threshold;
+    const isLow = product.stock > 0 && product.stock <= threshold;
+    const isOut = product.stock <= 0;
+    if ((wasOk && (isLow || isOut))) {
+      // Lazy-import to avoid circular: notification store imports order store
+      import('@/stores/useNotificationStore').then(({ useNotificationStore }) => {
+        const notif = useNotificationStore.getState();
+        const title = isOut ? `${product.name} is now out of stock` : `${product.name} is low on stock (${product.stock} left)`;
+        notif.broadcast(
+          {
+            title,
+            body: isOut
+              ? `${product.name} just hit zero stock. Customers can no longer add it to cart. Restock and update the count to re-enable sales.`
+              : `${product.name} is at ${product.stock} units. Threshold is ${threshold}. Consider restocking soon.`,
+            category: 'system',
+            channels: 'email',
+            scope: 'all',
+          },
+          actor
+        );
+      });
+    }
   },
   removeProduct: (productId, actor) => {
     const before = useProductStore.getState().products.find((p) => p.id === productId);
