@@ -1,8 +1,15 @@
 import { Link } from 'react-router-dom';
 import { Instagram, Twitter, Facebook, Mail, Phone, MapPin } from 'lucide-react';
 import { BRAND } from '@/config/brand';
+import { useUIStore } from '@/stores/useUIStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
+import { useNewsletterStore } from '@/stores/useNewsletterStore';
 
 export default function Footer() {
+  const showToast = useUIStore((s) => s.showToast);
+  const broadcast = useNotificationStore((s) => s.broadcast);
+  const subscribe = useNewsletterStore((s) => s.subscribe);
+
   return (
     <footer className="bg-black text-white">
       <div className="w-full px-4 sm:px-6 lg:px-12 py-16 lg:py-20">
@@ -14,15 +21,29 @@ export default function Footer() {
               <p className="text-white/70 text-sm max-w-md">{BRAND.shortPitch}</p>
             </div>
           </div>
-          {/* Newsletter */}
+          {/* Newsletter — submits a newsletter subscription AND ensures the email will receive 'general' notifications going forward */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               const input = (e.currentTarget.elements.namedItem('email') as HTMLInputElement);
-              if (input?.value) {
-                alert(`Thanks! We'll send new collection alerts to ${input.value}.`);
-                input.value = '';
-              }
+              const email = input?.value?.trim();
+              if (!email) return;
+              subscribe(email);
+              // Backend-cutover note: broadcast with scope 'user' is what admin sends; this ensures the
+              // footer-subscribed email is registered so future 'general' emails land in the inbox.
+              broadcast(
+                {
+                  title: 'Welcome to Havanat',
+                  body: 'You\'re on the list. We\'ll only email you when there\'s something worth saying — new collections, made-to-measure slots, and the occasional invitation.',
+                  category: 'general',
+                  channels: 'email',
+                  scope: 'user',
+                  targetUserId: email,
+                },
+                { id: 'system', name: 'Havanat', role: 'system' }
+              );
+              showToast('You\'re subscribed. Check your inbox for confirmation.', 'success');
+              input.value = '';
             }}
             className="flex w-full lg:w-auto items-center gap-2 max-w-md"
           >

@@ -20,19 +20,25 @@ interface CartState {
   tierDiscount: (tier?: 'standard' | 'deluxe' | 'elite') => number;
   /** Subtotal after applying tier discounts. */
   discountedSubtotal: (tier?: 'standard' | 'deluxe' | 'elite') => number;
-  /** Delivery fee — flat rate, no free delivery. */
+  /** Total delivery fee — sum of (product.deliveryFee × qty). Falls back to CONFIG.DEFAULT_DELIVERY_FEE if no item sets one. */
   deliveryFee: () => number;
   /** Total = discountedSubtotal + deliveryFee. */
   total: (tier?: 'standard' | 'deluxe' | 'elite') => number;
 }
 
-const DEFAULT_DELUXE_DISCOUNT = 0.05; // 5%
-const DEFAULT_ELITE_DISCOUNT = 0.10;  // 10%
+const DEFAULT_DELUXE_DISCOUNT = 0.05;
+const DEFAULT_ELITE_DISCOUNT = 0.10;
 
 function discountFor(product: Product, tier?: 'standard' | 'deluxe' | 'elite'): number {
   if (tier === 'deluxe') return product.deluxeDiscount ?? DEFAULT_DELUXE_DISCOUNT;
   if (tier === 'elite') return product.eliteDiscount ?? DEFAULT_ELITE_DISCOUNT;
   return 0;
+}
+
+function perUnitDeliveryFeeFor(product: Product): number | null {
+  return typeof product.deliveryFee === 'number' && product.deliveryFee >= 0
+    ? product.deliveryFee
+    : null;
 }
 
 export const useCartStore = create<CartState>()(
@@ -102,7 +108,18 @@ export const useCartStore = create<CartState>()(
 
       discountedSubtotal: (tier) => get().subtotal() - get().tierDiscount(tier),
 
-      deliveryFee: () => CONFIG.DEFAULT_DELIVERY_FEE,
+      // Sum per-item fees × qty. If any item is missing a fee, we use the per-item
+      // fee where set and CONFIG.DEFAULT_DELIVERY_FEE where unset — preserving
+      // the admin's per-product configuration.
+      deliveryFee: () => {
+        const items = get().items;
+        if (items.length === 0) return 0;
+        return items.reduce((sum, item) => {
+          const perUnit = perUnitDeliveryFeeFor(item.product);
+          const fee = perUnit ?? CONFIG.DEFAULT_DELIVERY_FEE;
+          return sum + fee * item.quantity;
+        }, 0);
+      },
 
       total: (tier) => get().discountedSubtotal(tier) + get().deliveryFee(),
     }),

@@ -4,14 +4,20 @@ import { CheckCircle, CreditCard, Landmark, Truck, AlertTriangle } from 'lucide-
 import { useCartStore } from '@/stores/useCartStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { useOrderStore } from '@/stores/useOrderStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { formatNaira } from '@/config';
 
 type PaymentMethod = 'card' | 'transfer' | 'pod';
 
 export default function CheckoutPage() {
-  const { items, subtotal, deliveryFee, total, clearCart } = useCartStore();
+  const { items, subtotal: cartSubtotal, deliveryFee, total: cartTotal, tierDiscount, clearCart } = useCartStore();
+  const itemsForOrder = useCartStore((s) => s.items);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
   const showToast = useUIStore((s) => s.showToast);
+  const createOrder = useOrderStore((s) => s.createOrder);
+  const broadcast = useNotificationStore((s) => s.broadcast);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -61,6 +67,46 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
     // Mock order processing
     await new Promise((r) => setTimeout(r, 2000));
+    // Backend-cutover: POST /api/orders with cart payload. Server returns { id, status: 'received' }.
+    const orderId = `ORD-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+    const items = itemsForOrder;
+    const customerEmail = user?.email ?? formData.email ?? 'guest@havanat.store';
+    const customerName = user?.name ?? formData.fullName;
+    const customerPhone = user?.phone ?? formData.phone;
+    const tier = user?.membershipTier ?? 'standard';
+    const sub = cartSubtotal();
+    const tDisc = tierDiscount(tier);
+    const delFee = deliveryFee();
+    const tot = cartTotal(tier);
+    createOrder({
+      id: orderId,
+      customerId: user?.id ?? 'guest',
+      customerName,
+      customerEmail,
+      customerPhone,
+      items: items.map((it) => ({ productId: it.product.id, name: it.product.name, image: it.product.images[0], size: it.size, quantity: it.quantity, price: it.product.price })),
+      subtotal: sub,
+      tierDiscount: tDisc,
+      deliveryFee: delFee,
+      total: tot,
+      shippingAddress: {
+        street: formData.address, city: formData.city, state: formData.state,
+      },
+      status: 'received',
+      paymentMethod,
+    });
+    // Mock: notify the customer
+    broadcast(
+      {
+        title: `Order ${orderId} received`,
+        body: `Thanks ${customerName.split(' ')[0]} — we've received your order and it's being prepared. We'll email you as soon as a rider is on the way.`,
+        category: 'order',
+        channels: 'both',
+        scope: 'user',
+        targetUserId: user?.id ?? customerEmail,
+      },
+      { id: 'system', name: 'Havanat', role: 'system' }
+    );
     setIsSubmitting(false);
     setShowSuccess(true);
     clearCart();
@@ -227,7 +273,7 @@ export default function CheckoutPage() {
                 disabled={isSubmitting}
                 className="w-full py-4 bg-black text-white text-xs tracking-[0.15em] font-semibold hover:bg-black/80 transition-colors disabled:opacity-50"
               >
-                {isSubmitting ? 'PROCESSING...' : `PLACE ORDER — ${formatNaira(total())}`}
+                {isSubmitting ? 'PROCESSING...' : `PLACE ORDER — ${formatNaira(cartTotal(user?.membershipTier))}`}
               </button>
             </form>
           </div>
@@ -253,15 +299,15 @@ export default function CheckoutPage() {
               <div className="space-y-3 text-sm pt-4 border-t">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Subtotal</span>
-                  <span>{formatNaira(subtotal())}</span>
+                  <span>{formatNaira(cartSubtotal())}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Delivery</span>
-                  <span>{deliveryFee() === 0 ? 'Free' : formatNaira(deliveryFee())}</span>
+                  <span>{formatNaira(deliveryFee())}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-base pt-3 border-t">
                   <span>Total</span>
-                  <span>{formatNaira(total())}</span>
+                  <span>{formatNaira(cartTotal(user?.membershipTier))}</span>
                 </div>
               </div>
             </div>

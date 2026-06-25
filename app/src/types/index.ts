@@ -21,6 +21,8 @@ export interface Product {
   deluxeDiscount?: number;
   /** Per-item discount (0-1) applied for Elite members. Defaults to 10%. */
   eliteDiscount?: number;
+  /** Per-unit delivery fee set by admin/moderator (₦). Optional — falls back to a config default. */
+  deliveryFee?: number;
   details?: {
     material: string;
     care: string;

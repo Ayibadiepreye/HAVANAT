@@ -43,11 +43,14 @@ export interface DashboardOrder {
   customerEmail: string;
   customerPhone: string;
   date: string;
+  createdAt?: string;
   items: OrderItem[];
   subtotal: number;
+  tierDiscount?: number;
   deliveryFee: number;
   total: number;
   status: OrderStatus;
+  paymentMethod?: 'card' | 'transfer' | 'pod';
   shippingAddress: {
     street: string;
     city: string;
@@ -175,7 +178,8 @@ export type AuditEntityType =
   | 'banner'
   | 'branding'
   | 'delivery'
-  | 'settings';
+  | 'settings'
+  | 'notification';
 
 export interface AuditLogEntry {
   id: string;

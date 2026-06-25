@@ -33,6 +33,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import OrderDetailPage from '@/pages/OrderDetailPage';
 import AddressesPage from '@/pages/AddressesPage';
 import WishlistPage from '@/pages/WishlistPage';
+import NotificationsPage from '@/pages/NotificationsPage';
 
 import AdminLayout, { ModeratorLayout } from '@/pages/admin/AdminLayout';
 import AdminOverview from '@/pages/admin/AdminOverview';
@@ -48,6 +49,7 @@ import AdminSettings from '@/pages/admin/AdminSettings';
 import AdminTeam from '@/pages/admin/AdminTeam';
 import AdminMessages from '@/pages/admin/AdminMessages';
 import AdminNotifications from '@/pages/admin/AdminNotifications';
+import AdminBroadcast from '@/pages/admin/AdminBroadcast';
 import ModeratorContent from '@/pages/moderator/ModeratorContent';
 import ModeratorProducts from '@/pages/moderator/ModeratorProducts';
 import ModeratorOrders from '@/pages/moderator/ModeratorOrders';
@@ -90,12 +92,14 @@ export default function App() {
         <Route path="/admin/audit-log" element={<RoleGuard roles={['admin']}><AdminLayout><AdminAuditLog /></AdminLayout></RoleGuard>} />
         <Route path="/admin/messages" element={<RoleGuard roles={['admin']}><AdminLayout><AdminMessages /></AdminLayout></RoleGuard>} />
         <Route path="/admin/notifications" element={<RoleGuard roles={['admin']}><AdminLayout><AdminNotifications /></AdminLayout></RoleGuard>} />
+        <Route path="/admin/broadcast" element={<RoleGuard roles={['admin', 'moderator']}><AdminLayout><AdminBroadcast /></AdminLayout></RoleGuard>} />
         <Route path="/admin/settings" element={<RoleGuard roles={['admin']}><AdminLayout><AdminSettings /></AdminLayout></RoleGuard>} />
 
         {/* Moderator */}
         <Route path="/moderator" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorContent /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/products" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorProducts /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/orders" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorOrders /></ModeratorLayout></RoleGuard>} />
+        <Route path="/moderator/broadcast" element={<RoleGuard roles={['moderator']}><AdminLayout><AdminBroadcast /></AdminLayout></RoleGuard>} />
 
         {/* Rider */}
         <Route path="/rider" element={<RoleGuard roles={['rider']}><RiderLayout><RiderDashboard /></RiderLayout></RoleGuard>} />
@@ -131,10 +135,12 @@ function PublicSite() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         <Route path="/account" element={<Protected><AccountPage /></Protected>} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="/account/orders/:id" element={<Protected><OrderDetailPage /></Protected>} />
         <Route path="/account/addresses" element={<Protected><AddressesPage /></Protected>} />
         <Route path="/wishlist" element={<Protected><WishlistPage /></Protected>} />
+        <Route path="/notifications" element={<NotificationsPage />} />
 
         <Route path="/about" element={<AboutPage />} />
         <Route path="/returns" element={<ReturnsPage />} />
