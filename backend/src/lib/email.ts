@@ -70,12 +70,21 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
 }
 
 /** Send an email and swallow errors (logs to console). Used for non-critical notifications. */
-export async function sendEmailSafe(input: SendEmailInput): Promise<void> {
+export async function sendEmailSafe(input: SendEmailInput): Promise<{ ok: boolean; error?: string }> {
   try {
     await sendEmail(input);
-  } catch (err) {
+    return { ok: true };
+  } catch (err: any) {
     // eslint-disable-next-line no-console
-    console.warn('[email-failed]', (err as Error)?.message ?? err);
+    console.error('[email-failed]', input.subject, '→', input.to, ':', err?.message ?? err);
+    // Also log response body if available (Resend returns useful error info)
+    if (err?.response) {
+      try {
+        const body = await err.response.text();
+        console.error('[email-failed-body]', body);
+      } catch {}
+    }
+    return { ok: false, error: err?.message ?? 'send failed' };
   }
 }
 
