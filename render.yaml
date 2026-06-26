@@ -1,0 +1,71 @@
+# Havanat Backend — Render deployment config
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: havanat-api
+    runtime: node
+    plan: starter
+    region: oregon
+    branch: main
+    rootDir: backend
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm run db:migrate && npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      # ─── Database (Neon) ───
+      - key: DATABASE_URL
+        sync: false  # Set in Render dashboard — keep secret
+      # ─── JWT ───
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: 1h
+      - key: JWT_REFRESH_TTL
+        value: 30d
+      # ─── CORS ───
+      - key: CORS_ORIGINS
+        value: https://www.havanat.store,https://havanat.store,https://havanat.vercel.app,http://localhost:3002
+      # ─── Rate limiting ───
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_MAX
+        value: 120
+      # ─── Email (Resend) ───
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: Havanat <concierge@havanat.store>
+      - key: EMAIL_REPLY_TO
+        value: concierge@havanat.store
+      # ─── Paystack ───
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        value: pk_test_efd6d41cf4235bda29f127f75ec1f261ffc6b116
+      # ─── Google OAuth ───
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        value: 241407....com
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_OAUTH_REDIRECT_URI
+        value: https://havanat-api.onrender.com/api/auth/google/callback
+      # ─── Frontend URL ───
+      - key: FRONTEND_URL
+        value: https://www.havanat.store
+      - key: API_URL
+        value: https://havanat-api.onrender.com
+      # ─── Cloudinary ───
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dj6k8eor7
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false

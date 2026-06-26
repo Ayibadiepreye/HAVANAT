@@ -15,15 +15,9 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
-  const [googleEnabled, setGoogleEnabled] = useState(false);
 
   useEffect(() => {
     document.title = 'Sign in · Havanat';
-    // Check Google OAuth status from backend
-    fetch('/api/auth/google/status')
-      .then((r) => r.json())
-      .then((d) => setGoogleEnabled(!!d.enabled))
-      .catch(() => setGoogleEnabled(false));
   }, []);
 
   useEffect(() => {
@@ -77,8 +71,7 @@ export default function LoginPage() {
         </div>
 
         {/* Google OAuth Button */}
-        {googleEnabled && (
-          <div className="mb-6 sm:mb-8">
+        <div className="mb-6 sm:mb-8">
             <button
               type="button"
               onClick={async () => {
@@ -88,7 +81,6 @@ export default function LoginPage() {
                   const r = await fetch('/api/auth/google/url?redirect=/account');
                   const d = await r.json();
                   if (d.url) window.location.href = d.url;
-                  else showToast('Google sign-in is not available', 'error');
                 } catch (e) {
                   showToast('Could not start Google sign-in', 'error');
                 } finally {
@@ -112,7 +104,6 @@ export default function LoginPage() {
               <div className="flex-1 h-px bg-gray-200" />
             </div>
           </div>
-        )}
 
         {/* Form */}
 
