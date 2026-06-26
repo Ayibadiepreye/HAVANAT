@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { canAttempt, recordAttempt, resetAttempts, formatRetryAfter } from '@/utils/rateLimiter';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle2, ArrowLeft, Mail } from 'lucide-react';
 import { useUIStore } from '@/stores/useUIStore';
 import { BRAND } from '@/config/brand';
@@ -43,6 +43,8 @@ function clearState() {
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tokenFromUrl = searchParams.get('token');
   const showToast = useUIStore((s) => s.showToast);
 
   // Restore from localStorage so a refresh keeps you where you were.
@@ -62,6 +64,32 @@ export default function ForgotPasswordPage() {
   useEffect(() => {
     if (email) saveState({ email, step });
   }, [email, step]);
+
+  // If arriving from a password-reset email link, validate the token
+  // and jump straight to the 'reset' step.
+  useEffect(() => {
+    if (!tokenFromUrl) return;
+    (async () => {
+      try {
+        const r = await fetch(`/api/auth/reset-password?token=${encodeURIComponent(tokenFromUrl)}`, { method: 'GET' });
+        if (!r.ok) {
+          setError('This reset link is invalid or has expired. Please request a new one.');
+          setStep('email');
+          return;
+        }
+        const d = await r.json();
+        if (d.email) {
+          setEmail(d.email);
+          setStep('reset');
+          showToast('Reset link verified. Choose a new password.', 'success');
+        }
+      } catch (e) {
+        setError('Could not verify reset link. Please request a new one.');
+        setStep('email');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenFromUrl]);
 
   const inputClass =
     'w-full px-4 py-3.5 border text-sm focus:outline-none focus:border-black transition-colors bg-white';

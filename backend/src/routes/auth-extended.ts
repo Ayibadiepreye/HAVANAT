@@ -62,6 +62,30 @@ authExtendedRouter.post('/forgot-password', async (req, res, next) => {
   }
 });
 
+// ─── Validate reset token (does NOT consume it) ────────────────────
+// Lets the frontend check the token from the email link and pre-fill
+// the email field before the user types their new password.
+authExtendedRouter.get('/reset-password', async (req, res) => {
+  try {
+    const token = String(req.query.token || '');
+    if (token.length < 20) return res.status(400).json({ ok: false, error: 'Invalid token' });
+    const tokenHash = hashToken(token);
+    const [stored] = await db
+      .select({ userId: passwordResetTokens.userId, expiresAt: passwordResetTokens.expiresAt, usedAt: passwordResetTokens.usedAt })
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.tokenHash, tokenHash))
+      .limit(1);
+    if (!stored) return res.status(400).json({ ok: false, error: 'Token not found' });
+    if (stored.usedAt) return res.status(400).json({ ok: false, error: 'This reset link has already been used' });
+    if (stored.expiresAt < new Date()) return res.status(400).json({ ok: false, error: 'This reset link has expired' });
+    const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, stored.userId)).limit(1);
+    if (!user) return res.status(400).json({ ok: false, error: 'Account no longer exists' });
+    res.json({ ok: true, email: user.email });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 // ─── Reset password: confirm new password with token ──────────────
 authExtendedRouter.post('/reset-password', async (req, res, next) => {
   try {

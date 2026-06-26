@@ -136,6 +136,7 @@ function PublicSite() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ForgotPasswordPage />} />
 
         <Route path="/account" element={<Protected><AccountPage /></Protected>} />
         <Route path="/notifications" element={<NotificationsPage />} />
