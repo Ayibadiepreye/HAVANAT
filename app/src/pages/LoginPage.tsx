@@ -15,6 +15,16 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+
+  useEffect(() => {
+    document.title = 'Sign in · Havanat';
+    // Check Google OAuth status from backend
+    fetch('/api/auth/google/status')
+      .then((r) => r.json())
+      .then((d) => setGoogleEnabled(!!d.enabled))
+      .catch(() => setGoogleEnabled(false));
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated && dashboardUser) {
@@ -143,6 +153,46 @@ export default function LoginPage() {
           >
             {isLoading ? 'Please wait...' : mode === 'login' ? 'Sign in' : 'Create account'}
           </button>
+
+        {googleEnabled && (
+          <>
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs tracking-[0.25em] uppercase">
+                <span className="bg-white px-3 text-gray-400">or</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  showToast('Starting Google sign-in', 'info');
+                  setIsLoading(true);
+                  const r = await fetch('/api/auth/google/url?redirect=/account');
+                  const d = await r.json();
+                  if (d.url) window.location.href = d.url;
+                  else showToast('Google sign-in is not available', 'error');
+                } catch (e) {
+                  showToast('Could not start Google sign-in', 'error');
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              className="w-full py-3.5 bg-white text-black text-xs tracking-[0.25em] font-semibold hover:bg-gray-50 transition-colors uppercase border border-gray-300 flex items-center justify-center gap-3"
+            >
+              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v8.7h12.5c-.5 2.8-2.2 5.2-4.7 6.8v5.6h7.6c4.4-4.1 6.9-10.1 6.9-16.5z"/>
+                <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.6c-2.1 1.4-4.8 2.3-8.3 2.3-6.4 0-11.8-4.3-13.7-10.1H2.4v6.3C6.4 42.6 14.6 48 24 48z"/>
+                <path fill="#FBBC05" d="M10.3 28.8c-.5-1.4-.8-3-.8-4.8s.3-3.3.8-4.8v-6.3H2.4C.9 16.4 0 20 0 24s.9 7.6 2.4 10.8l7.9-6.0z"/>
+                <path fill="#EA4335" d="M24 9.5c3.5 0 6.7 1.2 9.2 3.6l6.9-6.9C35.9 2.4 30.4 0 24 0 14.6 0 6.4 5.4 2.4 13.2l7.9 6.3C12.2 13.8 17.6 9.5 24 9.5z"/>
+              </svg>
+              Continue with Google
+            </button>
+          </>
+        )}
+
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
