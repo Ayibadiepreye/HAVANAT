@@ -32,7 +32,7 @@ export const BRAND = {
     tiktok: 'https://tiktok.com/@havanat',
   },
   assets: {
-    favicon: '/favicon.svg',
+    favicon: '/favicon.ico',
     dark: '/brand/logo-dark.png',     // white logo on black — for dark backgrounds
     light: '/brand/logo-light.png',   // black logo on white — for light backgrounds
     crest: '/brand/crest-transparent.png', // white line art, transparent — for decorative use

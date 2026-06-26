@@ -41,11 +41,24 @@ interface ContentState {
 export const useContentStore = create<ContentState>()(
   persist(
     (set, get) => ({
-      homepage: [],
+      homepage: {
+        heroImage: '',
+        headline: 'Where Style Meets Elegance',
+        tagline: 'Hand-tailored luxury for the modern Nigerian',
+        featuredCollectionIds: [],
+        updatedAt: new Date().toISOString(),
+      },
       lookbook: [],
       testimonials: [],
       banners: [],
-      branding: [],
+      branding: {
+        logoLight: '/brand/logo-light.svg',
+        logoDark: '/brand/logo-dark.svg',
+        favicon: '/favicon.ico',
+        primaryGray: '#6b6b6b',
+        accentGray: '#e5e5e5',
+        updatedAt: new Date().toISOString(),
+      },
       fetchContent: async () => {
         if (!apiConfig.useBackend) return;
         try {
