@@ -31,7 +31,13 @@ export class ApiError extends Error {
 
 function getAccessToken(): string | null {
   try {
-    return JSON.parse(localStorage.getItem('havanat-auth') || '{}')?.state?.accessToken ?? null;
+    // Primary location: store state (used by useAuthStore)
+    const fromState = JSON.parse(localStorage.getItem('havanat-auth') || '{}')?.state?.accessToken;
+    if (fromState) return fromState;
+    // Fallback: legacy direct token keys (used by GoogleCallback)
+    const legacy = localStorage.getItem('havanat-access-token');
+    if (legacy) return legacy;
+    return null;
   } catch {
     return null;
   }

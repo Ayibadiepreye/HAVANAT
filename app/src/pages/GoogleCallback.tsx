@@ -18,8 +18,18 @@ export default function GoogleCallback() {
       navigate('/login', { replace: true });
       return;
     }
+    // Write to BOTH locations so api.ts (primary: havanat-auth) and any legacy
+    // code (havanat-access-token) can find the token
     localStorage.setItem('havanat-access-token', accessToken);
     if (refreshToken) localStorage.setItem('havanat-refresh-token', refreshToken);
+    // Also write to the auth store format
+    try {
+      const existing = JSON.parse(localStorage.getItem('havanat-auth') || '{}');
+      existing.state = existing.state || {};
+      existing.state.accessToken = accessToken;
+      if (refreshToken) existing.state.refreshToken = refreshToken;
+      localStorage.setItem('havanat-auth', JSON.stringify(existing));
+    } catch {}
     // Use apiGet — it sets the Authorization header internally via apiConfig.token
     apiGet<{ user: any }>('/api/auth/me', true)
       .then((d) => {
