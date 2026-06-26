@@ -69,8 +69,6 @@ test("admin role", "admin", d.get("user", {}).get("role"))
 
 H_AUTH = [AUTH_PREFIX + TOKEN]
 
-print("DEBUG: K =", repr(K)[:60], "; AUTH_PREFIX =", repr(AUTH_PREFIX)[:60], "; TOKEN len =", len(TOKEN), "; H_AUTH =", repr(H_AUTH)[:80])
-
 
 # All 6 demo accounts
 for role in ["admin", "moderator", "rider", "standard", "deluxe", "elite"]:

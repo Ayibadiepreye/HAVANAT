@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import { LoginSchema, RegisterSchema } from '../lib/validators.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
 import { requireAuth } from '../middleware/auth.js';
+import { sendEmailSafe, welcomeEmail } from '../lib/email.js';
 
 export const authRouter = Router();
 
@@ -30,6 +31,12 @@ authRouter.post('/register', async (req, res) => {
   }).returning();
   if (!user) return res.status(500).json({ error: 'Failed to create user' });
   const tokens = await issueTokens({ sub: String(user.id), email: user.email, role: user.role, tier: user.tier ?? undefined });
+  // Send welcome email
+  sendEmailSafe({
+    to: user.email,
+    subject: 'Welcome to Havanat',
+    html: welcomeEmail(user.name),
+  });
   return res.status(201).json({ user: toUserResponse(user), ...tokens });
 });
 

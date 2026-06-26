@@ -5,6 +5,7 @@ import { desc, eq, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { AssignRiderSchema, UpdateOrderStatusSchema } from '../lib/validators.js';
 import { logAction } from '../audit/logger.js';
+import { sendEmailSafe, orderConfirmationEmail, orderStatusEmail } from '../lib/email.js';
 
 export const ordersRouter = Router();
 
@@ -80,6 +81,18 @@ ordersRouter.post('/', requireAuth, async (req, res) => {
   }).returning();
   if (!order) return res.status(500).json({ error: 'Failed to create order' });
   await db.insert(orderItems).values(orderItemsToInsert.map((i) => ({ ...i, orderId: order.id })));
+  // Send order confirmation email
+  sendEmailSafe({
+    to: order.customerEmail,
+    subject: `Order confirmed — ${order.orderNumber}`,
+    html: orderConfirmationEmail({
+      reference: order.orderNumber,
+      total: Number(order.total),
+      items: orderItemsToInsert.map((i) => ({ name: i.productName, quantity: i.quantity, price: Number(i.unitPrice) })),
+      customerName: order.customerName,
+      deliveryAddress: order.shippingAddress as any,
+    }),
+  });
   res.status(201).json(order);
 });
 
@@ -92,6 +105,17 @@ ordersRouter.patch('/:id/status', requireAuth, requireRole('admin', 'moderator')
   if (!before) return res.status(404).json({ error: 'Not found' });
   const newTracking = [...(before.tracking || []), { status: parsed.data.status, timestamp: new Date().toISOString(), note: parsed.data.note }];
   const [after] = await db.update(orders).set({ status: parsed.data.status, tracking: newTracking, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
+  // Send status update email to the customer
+  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
+  sendEmailSafe({
+    to: after.customerEmail,
+    subject: `Order ${after.orderNumber} — ${parsed.data.status}`,
+    html: orderStatusEmail({
+      reference: after.orderNumber,
+      status: parsed.data.status,
+      trackingUrl: `${frontendUrl}/account/orders/${after.id}`,
+    }),
+  });
   await logAction({
     req, user: req.user!, action: 'update', entityType: 'order',
     entityId: id, entityLabel: `Order: ${before.orderNumber}`,

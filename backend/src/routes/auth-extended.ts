@@ -47,7 +47,7 @@ authExtendedRouter.post('/forgot-password', async (req, res, next) => {
       expiresAt,
     });
 
-    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;
     sendEmailSafe({
       to: user.email,
@@ -232,7 +232,7 @@ authExtendedRouter.post('/verify-email/request', async (req, res, next) => {
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
-    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
     sendEmailSafe({
       to: user.email,
       subject: 'Verify your Havanat email',

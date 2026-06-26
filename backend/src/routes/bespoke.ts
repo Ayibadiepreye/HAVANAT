@@ -87,7 +87,7 @@ bespokeRouter.post('/', async (req, res, next) => {
     }
 
     // Email admins
-    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
     const adminLink = `${frontendUrl}/admin/bespoke/${row.id}`;
     sendEmailSafe({
       to: admins.map((a) => `${a.name} <concierge@havanat.store>`),

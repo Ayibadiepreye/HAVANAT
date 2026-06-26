@@ -44,22 +44,23 @@ paymentsRouter.post('/initialize', requireAuth, async (req, res, next) => {
       });
       sendEmailSafe({
         to: order.customerEmail,
-        subject: `[Havanat] Order confirmed (mock) — ${order.orderNumber}`,
+        subject: `Order confirmed — ${order.orderNumber}`,
         html: orderConfirmationEmail({
           reference: order.orderNumber,
           total: Number(order.total),
-          items: [],
-          deliveryAddress: `${order.shippingAddress?.street ?? ''}, ${order.shippingAddress?.city ?? ''}, ${order.shippingAddress?.state ?? ''}`,
+          items: (order as any).itemDetails ?? [],
+          customerName: order.customerName,
+          deliveryAddress: order.shippingAddress,
         }),
       });
-      const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
       return res.json({ ok: true, mode: 'mock', authorizationUrl: `${frontendUrl}/account/orders/${order.id}` });
     }
 
     const [user] = await db.select().from(users).where(eq(users.id, order.userId)).limit(1);
     if (!user) return res.status(401).json({ ok: false, error: 'User not found' });
 
-    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
     const result = await initializeTransaction({
       email: user.email,
       amount: Math.round(Number(order.total) * 100),
@@ -113,12 +114,13 @@ paymentsRouter.post('/verify', requireAuth, async (req, res, next) => {
       });
       sendEmailSafe({
         to: order.customerEmail,
-        subject: `[Havanat] Order confirmed — ${order.orderNumber}`,
+        subject: `Order confirmed — ${order.orderNumber}`,
         html: orderConfirmationEmail({
           reference: order.orderNumber,
           total: Number(order.total),
-          items: [],
-          deliveryAddress: `${order.shippingAddress?.street ?? ''}, ${order.shippingAddress?.city ?? ''}, ${order.shippingAddress?.state ?? ''}`,
+          items: (order as any).itemDetails ?? [],
+          customerName: order.customerName,
+          deliveryAddress: order.shippingAddress,
         }),
       });
     }
@@ -154,7 +156,7 @@ paymentsRouter.post('/webhook', raw({ type: 'application/json' }), async (req, r
         });
         sendEmailSafe({
           to: order.customerEmail,
-          subject: `[Havanat] Order confirmed — ${order.orderNumber}`,
+          subject: `Order confirmed — ${order.orderNumber}`,
           html: orderConfirmationEmail({
             reference: order.orderNumber,
             total: Number(order.total),
