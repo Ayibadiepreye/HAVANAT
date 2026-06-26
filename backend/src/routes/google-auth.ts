@@ -170,8 +170,20 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
     }
 
     const issued = await issueTokensForUser(user);
-    // Redirect to frontend with tokens (frontend stores them and bounces to redirectTo)
-    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
+    // Redirect to the frontend the user actually came from.
+    // Priority: 1) Origin header, 2) Referer header (extract origin), 3) state redirectTo (if same-origin), 4) FRONTEND_URL env, 5) localhost default.
+    const envFrontend = process.env.FRONTEND_URL ?? 'http://localhost:3002';
+    let frontendUrl = envFrontend;
+    const origin = req.headers.origin as string | undefined;
+    const referer = req.headers.referer as string | undefined;
+    if (origin && /^https?:\/\//.test(origin)) {
+      frontendUrl = origin;
+    } else if (referer) {
+      try {
+        const refUrl = new URL(referer);
+        frontendUrl = `${refUrl.protocol}//${refUrl.host}`;
+      } catch {}
+    }
     const params = new URLSearchParams({
       access_token: issued.accessToken,
       refresh_token: issued.refreshToken,
