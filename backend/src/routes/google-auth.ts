@@ -11,8 +11,18 @@ import { sendEmailSafe, welcomeEmail, twoFactorCodeEmail } from '../lib/email.js
 
 export const googleAuthRouter = Router();
 
+// Catch-all for the bare path /api/auth/google (no sub-route).
+// Returns a 404 with a hint, since we don't want to leak OAuth config here.
+googleAuthRouter.get('/', (_req, res) => {
+  res.status(404).json({
+    error: 'Not found',
+    hint: 'Use /api/auth/google/url to start Google sign-in, or /api/auth/google/callback for the OAuth redirect.',
+    routes: ['/url', '/callback', '/verify', '/status'],
+  });
+});
+
 // In-memory state store (use Redis in production). Each entry: { state: { redirectTo, createdAt } }
-const stateStore = new Map<string, { redirectTo: string; createdAt: number }>();
+const stateStore = new Map<string, { redirectTo: string; createdAt: number; redirectUri?: string }>();
 // Clean up expired states every 10 minutes
 setInterval(() => {
   const now = Date.now();
@@ -21,12 +31,29 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000).unref?.();
 
-function getClient(): OAuth2Client | null {
+/**
+ * Resolve the redirect URI for a given request.
+ * Priority:
+ *   1. `X-Google-Redirect-Uri` request header (manual override — useful for local testing
+ *      where you may want to swap http://localhost:4000/... for a tunnel URL or different port
+ *      without restarting the server or editing .env)
+ *   2. `?redirect_uri=...` query param (same purpose, GET-param form)
+ *   3. `GOOGLE_OAUTH_REDIRECT_URI` from .env (default)
+ */
+function resolveRedirectUri(req: import('express').Request): string {
+  const fromHeader = req.header('x-google-redirect-uri');
+  if (fromHeader && /^https?:\/\//.test(fromHeader)) return fromHeader;
+  const fromQuery = (req.query.redirect_uri as string | undefined);
+  if (fromQuery && /^https?:\/\//.test(fromQuery)) return fromQuery;
+  return config.googleRedirectUri;
+}
+
+function getClient(redirectUri?: string): OAuth2Client | null {
   if (!config.googleClientId || !config.googleClientSecret) return null;
   return new OAuth2Client({
     clientId: config.googleClientId,
     clientSecret: config.googleClientSecret,
-    redirectUri: config.googleRedirectUri,
+    redirectUri: redirectUri ?? config.googleRedirectUri,
   });
 }
 
@@ -77,7 +104,8 @@ function toUserResponse(user: typeof users.$inferSelect) {
 
 // GET /api/auth/google/url — returns the Google OAuth consent URL
 googleAuthRouter.get('/url', (req, res) => {
-  const client = getClient();
+  const redirectUri = resolveRedirectUri(req);
+  const client = getClient(redirectUri);
   if (!client) {
     return res.status(503).json({
       error: 'Google OAuth not configured',
@@ -86,7 +114,7 @@ googleAuthRouter.get('/url', (req, res) => {
   }
   const state = crypto.randomBytes(24).toString('hex');
   const redirectTo = (req.query.redirect as string) || '/account';
-  stateStore.set(state, { redirectTo, createdAt: Date.now() });
+  stateStore.set(state, { redirectTo, createdAt: Date.now(), redirectUri });
 
   const url = client.generateAuthUrl({
     access_type: 'offline',
@@ -94,24 +122,27 @@ googleAuthRouter.get('/url', (req, res) => {
     state,
     prompt: 'consent',
   });
-  res.json({ url, state });
+  res.json({ url, state, redirectUri });
 });
 
 // GET /api/auth/google/callback — Google redirects here with ?code=&state=
 googleAuthRouter.get('/callback', async (req, res, next) => {
   try {
-    const client = getClient();
-    if (!client) {
-      return res.status(503).send('Google OAuth not configured');
-    }
     const code = req.query.code as string | undefined;
     const state = req.query.state as string | undefined;
     if (!code) return res.status(400).send('Missing authorization code');
     if (!state || !stateStore.has(state)) {
       return res.status(400).send('Invalid or expired state. Please retry from the login page.');
     }
-    const { redirectTo } = stateStore.get(state)!;
+    // Use the redirectUri that was stored with this state when /url was called,
+    // so it matches what was sent to Google (even if env changed mid-flow).
+    const stored = stateStore.get(state)!;
+    const { redirectTo, redirectUri } = stored;
+    const client = getClient(redirectUri);
     stateStore.delete(state);
+    if (!client) {
+      return res.status(503).send('Google OAuth not configured');
+    }
 
     const { tokens } = await client.getToken(code);
     if (!tokens.id_token) {
@@ -199,7 +230,12 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
 
     const issued = await issueTokensForUser(user);
     // Redirect to the frontend the user actually came from.
-    // Priority: 1) Origin header, 2) Referer header (extract origin), 3) state redirectTo (if same-origin), 4) FRONTEND_URL env, 5) localhost default.
+    // Priority:
+    //   1) Origin header (sent by browser on CORS preflight / fetch — not on top-level redirects, but cheap to check)
+    //   2) Referer header (Google's account-chooser page often has this set to your app's URL)
+    //   3) If FRONTEND_URL is explicitly set to a non-prod value (localhost / 127.0.0.1), use it as-is
+    //   4) FRONTEND_URL env (production) — use only if request was likely from prod (heuristic: no localhost in referer)
+    //   5) localhost default
     const envFrontend = process.env.FRONTEND_URL ?? 'http://localhost:3002';
     let frontendUrl = envFrontend;
     const origin = req.headers.origin as string | undefined;
@@ -211,6 +247,17 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
         const refUrl = new URL(referer);
         frontendUrl = `${refUrl.protocol}//${refUrl.host}`;
       } catch {}
+    }
+    // If the resolved URL still points at production, but the user appears to be on localhost
+    // (e.g. they initiated the flow from localhost:3002 and FRONTEND_URL is the prod URL),
+    // fall back to localhost so local dev doesn't bounce to prod.
+    if (frontendUrl.includes('havanat.store') && !frontendUrl.includes('localhost') && !frontendUrl.includes('127.0.0.1')) {
+      // Check if there's any signal that this is a local request
+      const isLocalReq = (referer && /localhost|127\.0\.0\.1/.test(referer))
+        || (origin && /localhost|127\.0\.0\.1/.test(origin));
+      if (isLocalReq) {
+        frontendUrl = 'http://localhost:3002';
+      }
     }
     const params = new URLSearchParams({
       access_token: issued.accessToken,
