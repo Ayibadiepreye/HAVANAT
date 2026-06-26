@@ -11,6 +11,51 @@ import { sendEmailSafe, welcomeEmail, twoFactorCodeEmail } from '../lib/email.js
 
 export const googleAuthRouter = Router();
 
+/**
+ * Resolve which frontend URL to redirect the user back to.
+ * Priority:
+ *   1) Origin header (when /url is called by the browser via fetch)
+ *   2) Referer header (extract origin)
+ *   3) FRONTEND_URL env, unless it's havanat.store (prod) AND the request
+ *      looks local (Origin/Referer mention localhost/127.0.0.1) — in which
+ *      case fall back to http://localhost:3002
+ *   4) http://localhost:3002 (default)
+ */
+export function resolveFrontendUrl(req: import('express').Request): string {
+  const envFrontend = process.env.FRONTEND_URL ?? 'http://localhost:3002';
+  let frontendUrl = envFrontend;
+  const origin = req.headers.origin as string | undefined;
+  const referer = req.headers.referer as string | undefined;
+  if (origin && /^https?:\/\//.test(origin)) {
+    frontendUrl = origin;
+  } else if (referer) {
+    try {
+      const refUrl = new URL(referer);
+      frontendUrl = `${refUrl.protocol}//${refUrl.host}`;
+    } catch {}
+  }
+  // If the resolved URL still points at production (havanat.store) but the
+  // user appears to be on localhost, fall back to localhost so local dev
+  // doesn't bounce to prod (FRONTEND_URL is often set to prod in .env).
+  if (frontendUrl.includes('havanat.store') && !frontendUrl.includes('localhost') && !frontendUrl.includes('127.0.0.1')) {
+    const isLocalReq = (referer && /localhost|127\.0\.0\.1/.test(referer))
+      || (origin && /localhost|127\.0\.0\.1/.test(origin));
+    if (isLocalReq) {
+      frontendUrl = 'http://localhost:3002';
+    }
+  }
+  return frontendUrl;
+}
+
+/**
+ * Build the post-OAuth redirect target URL based on request headers + env.
+ * Exported for testing and so the debug path uses the exact same logic.
+ */
+export function buildFrontendRedirect(req: import('express').Request, redirectTo: string, overrideFrontendUrl?: string): string {
+  const frontendUrl = overrideFrontendUrl ?? resolveFrontendUrl(req);
+  return `${frontendUrl}/auth/google/callback?redirect=${encodeURIComponent(redirectTo)}`;
+}
+
 // Catch-all for the bare path /api/auth/google (no sub-route).
 // Returns a 404 with a hint, since we don't want to leak OAuth config here.
 googleAuthRouter.get('/', (_req, res) => {
@@ -22,7 +67,7 @@ googleAuthRouter.get('/', (_req, res) => {
 });
 
 // In-memory state store (use Redis in production). Each entry: { state: { redirectTo, createdAt } }
-const stateStore = new Map<string, { redirectTo: string; createdAt: number; redirectUri?: string }>();
+const stateStore = new Map<string, { redirectTo: string; createdAt: number; redirectUri?: string; frontendUrl?: string }>();
 // Clean up expired states every 10 minutes
 setInterval(() => {
   const now = Date.now();
@@ -114,7 +159,11 @@ googleAuthRouter.get('/url', (req, res) => {
   }
   const state = crypto.randomBytes(24).toString('hex');
   const redirectTo = (req.query.redirect as string) || '/account';
-  stateStore.set(state, { redirectTo, createdAt: Date.now(), redirectUri });
+  // Capture the frontend URL AT /url CALL TIME (when we have the Origin/Referer
+  // headers from the browser). Store with the state so /callback can use the
+  // exact same frontend even though Google's redirect strips those headers.
+  const frontendUrl = resolveFrontendUrl(req);
+  stateStore.set(state, { redirectTo, createdAt: Date.now(), redirectUri, frontendUrl });
 
   const url = client.generateAuthUrl({
     access_type: 'offline',
@@ -122,7 +171,7 @@ googleAuthRouter.get('/url', (req, res) => {
     state,
     prompt: 'consent',
   });
-  res.json({ url, state, redirectUri });
+  res.json({ url, state, redirectUri, frontendUrl });
 });
 
 // GET /api/auth/google/callback — Google redirects here with ?code=&state=
@@ -134,12 +183,33 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
     if (!state || !stateStore.has(state)) {
       return res.status(400).send('Invalid or expired state. Please retry from the login page.');
     }
-    // Use the redirectUri that was stored with this state when /url was called,
-    // so it matches what was sent to Google (even if env changed mid-flow).
+    // Use the redirectUri + frontendUrl that were stored with this state when
+    // /url was called, so it matches what was sent to Google (even if env changed
+    // mid-flow). Crucially, we capture the frontend URL at /url time when the
+    // browser's Origin/Referer headers are present, since Google strips those
+    // headers when it does the final callback redirect.
     const stored = stateStore.get(state)!;
-    const { redirectTo, redirectUri } = stored;
-    const client = getClient(redirectUri);
+    const { redirectTo, redirectUri, frontendUrl: storedFrontendUrl } = stored;
     stateStore.delete(state);
+
+    // DEBUG MODE: ?debug=1 in callback URL skips Google token exchange,
+    // uses a fake verified user so we can test the redirect-target logic
+    // without going through the real Google OAuth. Set DEBUG_GOOGLE=1 env
+    // to enable this — never enable in production.
+    const debugMode = process.env.DEBUG_GOOGLE === '1' && req.query.debug === '1';
+    if (debugMode) {
+      const debugRedirect = buildFrontendRedirect(req, redirectTo, storedFrontendUrl);
+      return res.json({
+        debug: true,
+        wouldRedirectTo: debugRedirect,
+        state,
+        redirectTo,
+        storedFrontendUrl,
+        resolvedFrontendUrl: storedFrontendUrl ?? resolveFrontendUrl(req),
+      });
+    }
+
+    const client = getClient(redirectUri);
     if (!client) {
       return res.status(503).send('Google OAuth not configured');
     }
@@ -229,46 +299,14 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
     }
 
     const issued = await issueTokensForUser(user);
-    // Redirect to the frontend the user actually came from.
-    // Priority:
-    //   1) Origin header (sent by browser on CORS preflight / fetch — not on top-level redirects, but cheap to check)
-    //   2) Referer header (Google's account-chooser page often has this set to your app's URL)
-    //   3) If FRONTEND_URL is explicitly set to a non-prod value (localhost / 127.0.0.1), use it as-is
-    //   4) FRONTEND_URL env (production) — use only if request was likely from prod (heuristic: no localhost in referer)
-    //   5) localhost default
-    const envFrontend = process.env.FRONTEND_URL ?? 'http://localhost:3002';
-    let frontendUrl = envFrontend;
-    const origin = req.headers.origin as string | undefined;
-    const referer = req.headers.referer as string | undefined;
-    if (origin && /^https?:\/\//.test(origin)) {
-      frontendUrl = origin;
-    } else if (referer) {
-      try {
-        const refUrl = new URL(referer);
-        frontendUrl = `${refUrl.protocol}//${refUrl.host}`;
-      } catch {}
-    }
-    // If the resolved URL still points at production, but the user appears to be on localhost
-    // (e.g. they initiated the flow from localhost:3002 and FRONTEND_URL is the prod URL),
-    // fall back to localhost so local dev doesn't bounce to prod.
-    if (frontendUrl.includes('havanat.store') && !frontendUrl.includes('localhost') && !frontendUrl.includes('127.0.0.1')) {
-      // Check if there's any signal that this is a local request
-      const isLocalReq = (referer && /localhost|127\.0\.0\.1/.test(referer))
-        || (origin && /localhost|127\.0\.0\.1/.test(origin));
-      if (isLocalReq) {
-        frontendUrl = 'http://localhost:3002';
-      }
-    }
-    const params = new URLSearchParams({
-      access_token: issued.accessToken,
-      refresh_token: issued.refreshToken,
-      redirect: redirectTo,
-    });
-    // If email isn't verified, prompt the frontend to show the OTP input
+    const frontendCallback = buildFrontendRedirect(req, redirectTo, storedFrontendUrl);
+    const url = new URL(frontendCallback);
+    url.searchParams.set('access_token', issued.accessToken);
+    url.searchParams.set('refresh_token', issued.refreshToken);
     if (!user.emailVerified) {
-      params.set('verifyEmail', '1');
+      url.searchParams.set('verifyEmail', '1');
     }
-    res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
+    res.redirect(url.toString());
   } catch (err) {
     next(err);
   }
