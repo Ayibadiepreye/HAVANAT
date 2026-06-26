@@ -1,7 +1,11 @@
 // Unified API client. Reads VITE_API_URL (defaults to http://localhost:4000).
 // When VITE_USE_BACKEND === 'true', stores use this client. When false, falls back to mocks.
 
-const API_URL = (import.meta.env.VITE_API_URL as string) || '';
+// VITE_API_URL behaviour:
+//   - If explicitly set (e.g. 'https://api.example.com'), use that absolute URL
+//   - If not set, use a relative path (same origin) — works with Vite proxy in dev,
+//     Vercel rewrites in production, or any same-origin deployment
+const API_URL = (import.meta.env.VITE_API_URL as string) ?? '';
 const USE_BACKEND = (import.meta.env.VITE_USE_BACKEND as string) === 'true';
 
 export const apiConfig = {
@@ -40,7 +44,8 @@ export async function api<T = unknown>(path: string, options: { method?: string;
     const token = getAccessToken();
     if (token) h['Authorization'] = `Bearer ${token}`;
   }
-  const base = API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  // If API_URL is set, use absolute; otherwise use relative (browser resolves against current origin)
+  const base = API_URL;
   const res = await fetch(`${base}${path}`, {
     method,
     headers: h,
