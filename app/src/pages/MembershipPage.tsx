@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Check, ChevronDown, Star, Crown, Award } from 'lucide-react';
-import { MEMBERSHIPS } from '@/data/mockData';
+import { MEMBERSHIP_TIERS } from '@/config/membership';
 import { formatNaira } from '@/config';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -18,7 +18,7 @@ export default function MembershipPage() {
   const showToast = useUIStore((s) => s.showToast);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  const allFeatures = Array.from(new Set(MEMBERSHIPS.flatMap((m) => m.features)));
+  const allFeatures = Array.from(new Set(MEMBERSHIP_TIERS.flatMap((m) => m.features)));
 
   return (
     <main className="min-h-screen pt-20 lg:pt-24 bg-white">
@@ -34,7 +34,7 @@ export default function MembershipPage() {
       {/* Tier Cards */}
       <section className="px-4 sm:px-6 lg:px-12 py-16 lg:py-24">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 max-w-6xl mx-auto">
-          {MEMBERSHIPS.map((tier, idx) => {
+          {MEMBERSHIP_TIERS.map((tier, idx) => {
             const Icon = idx === 0 ? Award : idx === 1 ? Star : Crown;
             return (
               <div
@@ -101,7 +101,7 @@ export default function MembershipPage() {
               <thead>
                 <tr className="border-b-2 border-black">
                   <th className="text-left py-4 pr-6 text-xs tracking-[0.1em] font-semibold">FEATURE</th>
-                  {MEMBERSHIPS.map((t) => (
+                  {MEMBERSHIP_TIERS.map((t) => (
                     <th key={t.tier} className="text-center py-4 px-4 text-xs tracking-[0.1em] font-semibold">
                       {t.tier.toUpperCase()}
                     </th>
@@ -112,7 +112,7 @@ export default function MembershipPage() {
                 {allFeatures.map((feature) => (
                   <tr key={feature} className="border-b border-gray-200">
                     <td className="py-4 pr-6">{feature}</td>
-                    {MEMBERSHIPS.map((tier) => (
+                    {MEMBERSHIP_TIERS.map((tier) => (
                       <td key={tier.tier} className="text-center py-4 px-4">
                         {tier.features.includes(feature) ? (
                           <Check size={16} className="mx-auto" />
@@ -125,7 +125,7 @@ export default function MembershipPage() {
                 ))}
                 <tr>
                   <td className="py-4 pr-6 font-medium">Monthly Price</td>
-                  {MEMBERSHIPS.map((tier) => (
+                  {MEMBERSHIP_TIERS.map((tier) => (
                     <td key={tier.tier} className="text-center py-4 px-4 font-semibold">
                       {tier.price === 0 ? 'Free' : formatNaira(tier.price)}
                     </td>

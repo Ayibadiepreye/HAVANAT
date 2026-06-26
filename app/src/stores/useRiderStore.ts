@@ -3,7 +3,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Rider, RiderStatus, Delivery, DeliveryStatus } from '@/types/dashboard';
 import type { ProofOfDelivery } from '@/types/dashboard';
-import { RIDERS as SEED_RIDERS, DELIVERIES as SEED_DELIVERIES } from '@/data/dashboardMockData';
 import { logAuditAction } from '@/utils/auditLogger';
 import { apiConfig, apiGet } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -26,8 +25,8 @@ interface RiderState {
 export const useRiderStore = create<RiderState>()(
   persist(
     (set, get) => ({
-      riders: SEED_RIDERS,
-      deliveries: SEED_DELIVERIES,
+      riders: [],
+      deliveries: [],
       fetchRiders: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {

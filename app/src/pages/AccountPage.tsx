@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Package, Crown, MapPin, Heart, LogOut, Plus, Edit3, Trash2 } from 'lucide-react';
 import MobileBottomNav, { type MobileBottomNavItem } from '@/components/MobileBottomNav';
 import { useUIStore } from '@/stores/useUIStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useProductStore } from '@/stores/useProductStore';
-import { MOCK_ORDERS, PRODUCTS } from '@/data/mockData';
+import { useOrderStore } from '@/stores/useOrderStore';
 import { useAddressStore, type Address as StoreAddress } from '@/stores/useAddressStore';
 import { NIGERIAN_STATES } from '@/pages/CheckoutPage';
 import { formatNaira } from '@/config';
@@ -125,6 +125,11 @@ export default function AccountPage() {
   }, [showAddrForm, editingAddr, user?.name, user?.phone, user?.email, addresses.length]);
   const logout = useAuthStore((s) => s.logout);
   const wishlist = useProductStore((s) => s.wishlist);
+  const products = useProductStore((s) => s.products);
+  const fetchProducts = useProductStore((s) => s.fetchProducts);
+  const orders = useOrderStore((s) => s.orders);
+  const fetchOrders = useOrderStore((s) => s.fetchOrders);
+  useEffect(() => { if (products.length === 0) fetchProducts(); if (orders.length === 0) fetchOrders(); }, [products.length, orders.length, fetchProducts, fetchOrders]);
   const showToast = useUIStore((s) => s.showToast);
 
   const handleSignOut = () => {
@@ -144,7 +149,7 @@ export default function AccountPage() {
     );
   }
 
-  const wishlistProducts = PRODUCTS.filter((p) => wishlist.includes(p.id));
+  const wishlistProducts = products.filter((p) => wishlist.includes(p.id));
 
   return (
     <>
@@ -201,14 +206,14 @@ export default function AccountPage() {
             {activeTab === 'orders' && (
               <div>
                 <h2 className="text-xs tracking-[0.15em] font-semibold uppercase mb-6">Order History</h2>
-                {MOCK_ORDERS.length === 0 ? (
+                {orders.length === 0 ? (
                   <div className="text-center py-12 text-gray-400">
                     <Package size={48} strokeWidth={1} className="mx-auto mb-4" />
                     <p>No orders yet</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {MOCK_ORDERS.map((order) => (
+                    {orders.map((order: any) => (
                       <div key={order.id} className="border p-5">
                         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                           <div>
@@ -220,7 +225,7 @@ export default function AccountPage() {
                           </span>
                         </div>
                         <div className="space-y-2">
-                          {order.items.map((item, i) => (
+                          {(order.items ?? []).map((item: any, i: number) => (
                             <div key={i} className="flex items-center gap-3">
                               <div className="w-12 h-16 bg-gray-100 overflow-hidden">
                                 <img src={item.product.images[0]} alt="" className="w-full h-full object-cover" />

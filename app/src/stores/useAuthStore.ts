@@ -2,29 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { apiConfig, apiPost } from '@/lib/api';
 import type { User } from '@/types';
-import { MOCK_USER } from '@/data/mockData';
-import { USE_MOCK } from '@/config';
 import type { UserRole, CustomerTier, DashboardUser } from '@/types/dashboard';
-
-interface MockAccount {
-  email: string;
-  password: string;
-  name: string;
-  role: UserRole;
-  tier?: CustomerTier;
-  phone?: string;
-  avatar?: string;
-}
-
-// Mock accounts for the 6 demo personas. Password is "password" for all.
-export const MOCK_ACCOUNTS: MockAccount[] = [
-  { email: 'standard@havanat.com', password: 'password', name: 'Tunde Bakare', role: 'customer', tier: 'standard', phone: '+234 802 318 0099' },
-  { email: 'deluxe@havanat.com', password: 'password', name: 'Folake Adesanya', role: 'customer', tier: 'deluxe', phone: '+234 706 555 8800' },
-  { email: 'elite@havanat.com', password: 'password', name: 'Rapheal Ebipado Otele', role: 'customer', tier: 'elite', phone: '+234 803 456 7890' },
-  { email: 'admin@havanat.com', password: 'password', name: 'Adaeze Nwosu', role: 'admin', phone: '+234 803 000 0001' },
-  { email: 'moderator@havanat.com', password: 'password', name: 'Folake Adetunji', role: 'moderator', phone: '+234 803 000 0002' },
-  { email: 'rider@havanat.com', password: 'password', name: 'Tunde Adewale', role: 'rider', phone: '+234 803 111 0001' },
-];
 
 interface AuthState {
   user: User | null;
@@ -39,17 +17,47 @@ interface AuthState {
   isAtLeastTier: (tier: CustomerTier) => boolean;
 }
 
-function toDashboardUser(acc: MockAccount): DashboardUser {
-  return {
-    id: `usr_${acc.email.split('@')[0]}`,
-    email: acc.email,
-    name: acc.name,
-    role: acc.role,
-    tier: acc.tier,
-    phone: acc.phone,
-    avatar: MOCK_USER.avatar,
-    createdAt: new Date().toISOString(),
+interface BackendLoginResponse {
+  user: {
+    id: number;
+    email: string;
+    name: string;
+    role: UserRole;
+    tier?: CustomerTier;
+    phone?: string;
+    avatarUrl?: string | null;
+    createdAt: string;
   };
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+interface BackendRegisterResponse extends BackendLoginResponse {}
+
+function toDashboardUser(u: BackendLoginResponse['user']): DashboardUser {
+  return {
+    id: String(u.id),
+    email: u.email,
+    name: u.name,
+    role: u.role,
+    tier: u.tier,
+    phone: u.phone,
+    avatar: u.avatarUrl ?? undefined,
+    createdAt: u.createdAt,
+  };
+}
+
+function toLegacyUser(u: BackendLoginResponse['user'], accessToken: string): User {
+  return {
+    id: String(u.id),
+    name: u.name,
+    email: u.email,
+    membershipTier: u.tier ?? 'standard',
+    phone: u.phone,
+    avatar: u.avatarUrl ?? undefined,
+    accessToken,
+  } as User;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -60,55 +68,48 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       login: async (email, password) => {
-        if (USE_MOCK) {
-          await new Promise((r) => setTimeout(r, 600));
-          const found = MOCK_ACCOUNTS.find((a) => a.email.toLowerCase() === email.toLowerCase());
-          if (!found || found.password !== password) {
-            return null;
-          }
-          const dash = toDashboardUser(found);
-          const legacyUser: User = {
-            id: dash.id,
-            name: dash.name,
-            email: dash.email,
-            membershipTier: dash.tier ?? 'standard',
-            phone: dash.phone,
-            avatar: dash.avatar,
-          };
-          set({ user: legacyUser, dashboardUser: dash, isAuthenticated: true });
-          return dash;
+        if (!apiConfig.useBackend) {
+          throw new Error('Backend not configured. Set VITE_USE_BACKEND=true in .env');
         }
-        return null;
+        try {
+          const res = await apiPost<BackendLoginResponse>('/api/auth/login', { email, password });
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('havanat-access-token', res.accessToken);
+            localStorage.setItem('havanat-refresh-token', res.refreshToken);
+          }
+          const dash = toDashboardUser(res.user);
+          const legacy = toLegacyUser(res.user, res.accessToken);
+          set({ user: legacy, dashboardUser: dash, isAuthenticated: true });
+          return dash;
+        } catch (err: any) {
+          throw new Error(err?.message || 'Login failed');
+        }
       },
 
       signup: async (data) => {
-        if (USE_MOCK) {
-          await new Promise((r) => setTimeout(r, 600));
-          const dash: DashboardUser = {
-            id: 'usr_' + Date.now(),
-            email: data.email,
-            name: data.name,
-            role: 'customer',
-            tier: 'standard',
-            phone: data.phone,
-            createdAt: new Date().toISOString(),
-          };
-          const legacyUser: User = {
-            id: dash.id,
-            name: dash.name,
-            email: dash.email,
-            membershipTier: 'standard',
-            phone: data.phone,
-          };
-          set({ user: legacyUser, dashboardUser: dash, isAuthenticated: true });
-          return dash;
+        if (!apiConfig.useBackend) {
+          throw new Error('Backend not configured. Set VITE_USE_BACKEND=true in .env');
         }
-        return null;
+        try {
+          const res = await apiPost<BackendRegisterResponse>('/api/auth/register', data);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('havanat-access-token', res.accessToken);
+            localStorage.setItem('havanat-refresh-token', res.refreshToken);
+          }
+          const dash = toDashboardUser(res.user);
+          const legacy = toLegacyUser(res.user, res.accessToken);
+          set({ user: legacy, dashboardUser: dash, isAuthenticated: true });
+          return dash;
+        } catch (err: any) {
+          throw new Error(err?.message || 'Signup failed');
+        }
       },
 
       logout: () => {
-        localStorage.removeItem('havanat-access-token');
-        localStorage.removeItem('havanat-refresh-token');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('havanat-access-token');
+          localStorage.removeItem('havanat-refresh-token');
+        }
         if (apiConfig.useBackend) {
           apiPost('/api/auth/logout', {}).catch(() => {});
         }
@@ -122,9 +123,7 @@ export const useAuthStore = create<AuthState>()(
         })),
 
       hasRole: (role) => get().dashboardUser?.role === role,
-
       hasTier: (tier) => get().dashboardUser?.tier === tier,
-
       isAtLeastTier: (tier) => {
         const cur = get().dashboardUser?.tier;
         if (!cur) return false;
@@ -132,6 +131,9 @@ export const useAuthStore = create<AuthState>()(
         return rank[cur] >= rank[tier];
       },
     }),
-    { name: 'havanat-auth' }
+    {
+      name: 'havanat-auth',
+      partialize: (state) => ({ dashboardUser: state.dashboardUser, user: state.user, isAuthenticated: state.isAuthenticated }),
+    }
   )
 );

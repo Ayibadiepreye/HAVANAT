@@ -25,6 +25,30 @@ ordersRouter.get('/', requireAuth, requireRole('admin', 'moderator'), async (req
   res.json({ items: rows });
 });
 
+// Public: track order by order number (no auth needed — tracking ID is the secret)
+ordersRouter.get('/track/:orderNumber', async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    // Return limited public-safe fields (no customer email/phone in response)
+    const [riderRow] = order.riderId
+      ? await db.select().from(users).where(eq(users.id, order.riderId)).limit(1)
+      : [];
+    res.json({
+      orderNumber: order.orderNumber,
+      status: order.status,
+      createdAt: order.createdAt,
+      paidAt: order.paidAt,
+      destination: order.shippingAddress,
+      tracking: order.tracking || [],
+      rider: riderRow ? { name: riderRow.name, phone: riderRow.phone } : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 ordersRouter.get('/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   const [order] = await db.select().from(orders).where(eq(orders.id, id));

@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Product } from '@/types';
-import { PRODUCTS } from '@/data/mockData';
-import { USE_MOCK } from '@/config';
 import { apiConfig, apiGet } from '@/lib/api';
 
 interface ProductState {
@@ -57,12 +55,8 @@ export const useProductStore = create<ProductState>()(
             set({ products: mapped, isLoading: false });
             return;
           }
-          if (USE_MOCK) {
-            await new Promise((r) => setTimeout(r, 500));
-            set({ products: PRODUCTS, isLoading: false });
-          } else {
-            set({ isLoading: false });
-          }
+          // Backend unreachable — show empty state, user can retry
+          set({ products: [], isLoading: false });
         } catch (err) {
           console.error('fetchProducts failed', err);
           set({ isLoading: false });

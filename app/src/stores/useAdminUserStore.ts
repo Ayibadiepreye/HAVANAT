@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AdminAccount, UserRole } from '@/types/dashboard';
-import { ADMIN_ACCOUNTS as SEED_ACCOUNTS } from '@/data/dashboardMockData';
 import { logAuditAction } from '@/utils/auditLogger';
 import { apiConfig, apiGet } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -18,7 +17,7 @@ interface AdminUserState {
 export const useAdminUserStore = create<AdminUserState>()(
   persist(
     (set, get) => ({
-      accounts: SEED_ACCOUNTS,
+      accounts: [],
       fetchUsers: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {

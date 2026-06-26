@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Member } from '@/types/dashboard';
 import type { MembershipTier } from '@/types';
-import { MOCK_MEMBERS as SEED_MEMBERS, MEMBERSHIPS as SEED_TIERS } from '@/data/mockData';
+import { MEMBERSHIP_TIERS as SEED_TIERS } from '@/config/membership';
 import { logAuditAction } from '@/utils/auditLogger';
 import { apiConfig, apiGet } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -21,7 +21,7 @@ export const useMembershipStore = create<MembershipState>()(
   persist(
     (set, get) => ({
       tiers: SEED_TIERS,
-      members: SEED_MEMBERS,
+      members: [],
       fetchTiers: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {

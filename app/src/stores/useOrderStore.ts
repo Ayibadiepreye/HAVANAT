@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { DashboardOrder, OrderItem, OrderStatus, TrackingEvent } from '@/types/dashboard';
-import { ORDERS as SEED_ORDERS } from '@/data/dashboardMockData';
 import { logAuditAction } from '@/utils/auditLogger';
 import { apiConfig, apiGet, apiPost } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -128,7 +127,7 @@ function newOtp(): string {
 export const useOrderStore = create<OrderState>()(
   persist(
     (set, get) => ({
-      orders: SEED_ORDERS,
+      orders: [],
       fetchOrders: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {

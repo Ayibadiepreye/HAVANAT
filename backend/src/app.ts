@@ -18,6 +18,7 @@ import { contactRouter } from './routes/contact.js';
 import { authExtendedRouter } from './routes/auth-extended.js';
 import { paymentsRouter } from './routes/payments.js';
 import { notificationsRouter } from './routes/notifications.js';
+import { messagesRouter } from './routes/messages.js';
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/api/contact', contactRouter);
 app.use('/api/auth', authExtendedRouter); // for forgot-password, 2fa, verify-email — extends /api/auth
 app.use('/api/payments', paymentsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/messages', messagesRouter);
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.path }));

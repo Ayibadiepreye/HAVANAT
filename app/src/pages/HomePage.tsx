@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useProductStore } from '@/stores/useProductStore';
+import { MEMBERSHIP_TIERS } from '@/config/membership';
+import { useContentStore } from '@/stores/useContentStore';
 import { ArrowRight, ChevronDown, Star, Zap, Shield, Truck, RotateCcw, Award, Sparkles } from 'lucide-react';
-import { PRODUCTS, REVIEWS, MEMBERSHIPS } from '@/data/mockData';
 import { formatNaira } from '@/config';
 import { useCartStore } from '@/stores/useCartStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -83,9 +85,12 @@ function TrustBar() {
 
 /* ──────────────────── FEATURED COLLECTION ──────────────────── */
 function FeaturedSection() {
+  const products = useProductStore((s) => s.products);
+  const fetchProducts = useProductStore((s) => s.fetchProducts);
+  useEffect(() => { if (products.length === 0) fetchProducts(); }, [products.length, fetchProducts]);
   const addItem = useCartStore((s) => s.addItem);
   const showToast = useUIStore((s) => s.showToast);
-  const featured = PRODUCTS.slice(0, 4);
+  const featured = products.slice(0, 4);
 
   return (
     <section className="w-full py-20 lg:py-28 bg-white">
@@ -243,7 +248,7 @@ function MembershipTeaser() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 max-w-5xl mx-auto">
-          {MEMBERSHIPS.map((tier) => (
+          {MEMBERSHIP_TIERS.map((tier) => (
             <div key={tier.tier} className={`relative p-8 border ${tier.isPopular ? 'border-white' : 'border-white/10'}`}>
               {tier.isPopular && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-white text-black text-[9px] tracking-[0.15em] font-semibold">
@@ -283,6 +288,10 @@ function MembershipTeaser() {
 
 /* ──────────────────── LOOKBOOK / COMMUNITY ──────────────────── */
 function LookbookSection() {
+  const testimonials = useContentStore((s) => s.testimonials);
+  const fetchContent = useContentStore((s) => s.fetchContent);
+  useEffect(() => { fetchContent(); }, [fetchContent]);
+
   return (
     <section className="w-full py-20 lg:py-28 bg-white">
       <div className="px-4 sm:px-6 lg:px-12">
@@ -294,10 +303,10 @@ function LookbookSection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-          {REVIEWS.map((review) => (
+          {testimonials.map((review) => (
             <div key={review.id} className="group">
               <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 img-zoom">
-                <img src={review.image} alt={review.name} className="w-full h-full object-cover" />
+                <img src={review.avatar} alt={review.name} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300" />
                 <div className="absolute inset-0 flex items-end p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <div className="text-white">
@@ -306,7 +315,7 @@ function LookbookSection() {
                         <Star key={i} size={12} className="fill-white text-white" />
                       ))}
                     </div>
-                    <p className="text-sm italic leading-relaxed">&ldquo;{review.comment}&rdquo;</p>
+                    <p className="text-sm italic leading-relaxed">&ldquo;{review.text}&rdquo;</p>
                     <p className="text-xs mt-3 tracking-wide text-white/70">— {review.name}</p>
                   </div>
                 </div>

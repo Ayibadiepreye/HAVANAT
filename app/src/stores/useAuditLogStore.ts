@@ -4,7 +4,6 @@ import { apiConfig, apiGet } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { persist } from 'zustand/middleware';
 import type { AuditLogEntry } from '@/types/dashboard';
-import { AUDIT_LOG as SEED_LOG } from '@/data/dashboardMockData';
 
 interface AuditLogState {
   fetchAuditLogs: () => Promise<void>;
@@ -17,7 +16,7 @@ interface AuditLogState {
 export const useAuditLogStore = create<AuditLogState>()(
   persist(
     (set, get) => ({
-      logs: SEED_LOG,
+      logs: [],
       fetchAuditLogs: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {

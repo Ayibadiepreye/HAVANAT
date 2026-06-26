@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 // useSearchParams is used via searchParams read
 import { SlidersHorizontal, X, ChevronDown } from 'lucide-react';
-import { PRODUCTS } from '@/data/mockData';
 import { formatNaira } from '@/config';
 import { useCartStore } from '@/stores/useCartStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -31,6 +30,7 @@ export default function ShopPage() {
   const addItem = useCartStore((s) => s.addItem);
   const showToast = useUIStore((s) => s.showToast);
   const fetchProducts = useProductStore((s) => s.fetchProducts);
+  const products = useProductStore((s) => s.products);
 
   useEffect(() => {
     fetchProducts();
@@ -39,7 +39,7 @@ export default function ShopPage() {
   const ITEMS_PER_PAGE = 8;
 
   const filteredProducts = useMemo(() => {
-    let result = [...PRODUCTS];
+    let result = [...products];
 
     if (category !== 'All') {
       result = result.filter((p) => p.category === category);

@@ -131,10 +131,10 @@ export default function SignupPage() {
 
   return (
     <main className="min-h-screen bg-white flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-md">
         {/* Brand */}
         <div className="text-center mb-8 sm:mb-10">
-          <Link to="/" className="font-sans text-2xl tracking-[0.3em] font-medium">
+          <Link to="/" className="font-serif text-3xl tracking-[0.3em] font-medium inline-block">
             {BRAND.name.toUpperCase()}
           </Link>
           <p className="text-gray-400 text-xs tracking-wide mt-2">{BRAND.tagline}</p>
@@ -149,7 +149,7 @@ export default function SignupPage() {
           <button
             type="button"
             onClick={() => showToast('Google sign-up coming soon', 'info')}
-            className="w-full py-3 border flex items-center justify-center gap-3 text-sm hover:bg-gray-50 transition-colors"
+            className="w-full py-3 border border-gray-300 flex items-center justify-center gap-3 text-sm hover:bg-gray-50 transition-colors"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
               <path

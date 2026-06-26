@@ -8,13 +8,6 @@ import type {
   Banner,
   Branding,
 } from '@/types/dashboard';
-import {
-  HOMEPAGE_CONTENT as SEED_HOMEPAGE,
-  LOOKBOOK as SEED_LOOKBOOK,
-  TESTIMONIALS as SEED_TESTIMONIALS,
-  BANNERS as SEED_BANNERS,
-  BRANDING as SEED_BRANDING,
-} from '@/data/dashboardMockData';
 import { logAuditAction } from '@/utils/auditLogger';
 import { apiConfig, apiGet } from '@/lib/api';
 
@@ -48,11 +41,11 @@ interface ContentState {
 export const useContentStore = create<ContentState>()(
   persist(
     (set, get) => ({
-      homepage: SEED_HOMEPAGE,
-      lookbook: SEED_LOOKBOOK,
-      testimonials: SEED_TESTIMONIALS,
-      banners: SEED_BANNERS,
-      branding: SEED_BRANDING,
+      homepage: [],
+      lookbook: [],
+      testimonials: [],
+      banners: [],
+      branding: [],
       fetchContent: async () => {
         if (!apiConfig.useBackend) return;
         try {

@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ReturnRequest, ReturnStatus } from '@/types/dashboard';
-import { RETURNS as SEED_RETURNS } from '@/data/dashboardMockData';
 import { logAuditAction } from '@/utils/auditLogger';
 import { apiConfig, apiGet } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -21,7 +20,7 @@ interface ReturnState {
 export const useReturnStore = create<ReturnState>()(
   persist(
     (set, get) => ({
-      returns: SEED_RETURNS,
+      returns: [],
       fetchReturns: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {

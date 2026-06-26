@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { DeliveryZone } from '@/types/dashboard';
-import { DELIVERY_ZONES as SEED_ZONES } from '@/data/dashboardMockData';
 import { logAuditAction } from '@/utils/auditLogger';
 import { apiConfig, apiGet } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -18,7 +17,7 @@ interface DeliveryZoneState {
 export const useDeliveryZoneStore = create<DeliveryZoneState>()(
   persist(
     (set, get) => ({
-      zones: SEED_ZONES,
+      zones: [],
       fetchZones: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {

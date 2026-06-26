@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Heart, Truck, RotateCcw, Ruler, Check } from 'lucide-react';
-import { PRODUCTS } from '@/data/mockData';
+import { useProductStore } from '@/stores/useProductStore';
 import { formatNaira } from '@/config';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -16,11 +16,14 @@ export default function ProductDetailPage() {
   const [isWishlisted, setIsWishlisted] = useState(false);
 
   const addItem = useCartStore((s) => s.addItem);
+  const products = useProductStore((s) => s.products);
+  const fetchProducts = useProductStore((s) => s.fetchProducts);
   const showToast = useUIStore((s) => s.showToast);
   const user = useAuthStore((s) => s.user);
   const isElite = user?.membershipTier === 'elite';
 
-  const product = PRODUCTS.find((p) => p.slug === slug);
+  useEffect(() => { if (products.length === 0) fetchProducts(); }, [products.length, fetchProducts]);
+  const product = products.find((p) => p.slug === slug);
 
   useEffect(() => {
     if (product) {
@@ -56,7 +59,7 @@ export default function ProductDetailPage() {
     showToast(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist', 'info');
   };
 
-  const relatedProducts = PRODUCTS.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
+  const relatedProducts = products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
 
   const tabs = [
     { key: 'description' as const, label: 'Description' },
