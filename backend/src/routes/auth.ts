@@ -30,7 +30,8 @@ authRouter.post('/register', async (req, res) => {
     name, email: email.toLowerCase(), passwordHash, passwordSetAt: new Date(), phone, role: 'customer', tier: 'standard',
   }).returning();
   if (!user) return res.status(500).json({ error: 'Failed to create user' });
-  const tokens = await issueTokens({ sub: String(user.id), email: user.email, role: user.role, tier: user.tier ?? undefined });
+  const meta = reqMeta(req);
+  const tokens = await issueTokens({ sub: String(user.id), email: user.email, role: user.role, tier: user.tier ?? undefined }, meta);
   // Send welcome email
   sendEmailSafe({
     to: user.email,
@@ -50,7 +51,8 @@ authRouter.post('/login', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
-  const tokens = await issueTokens({ sub: String(user.id), email: user.email, role: user.role, tier: user.tier ?? undefined });
+  const meta = reqMeta(req);
+  const tokens = await issueTokens({ sub: String(user.id), email: user.email, role: user.role, tier: user.tier ?? undefined }, meta);
   return res.json({ user: toUserResponse(user), ...tokens });
 });
 
@@ -85,7 +87,7 @@ authRouter.get('/me', requireAuth, async (req, res) => {
   return res.json({ user: toUserResponse(user) });
 });
 
-async function issueTokens(payload: { sub: string; email: string; role: string; tier?: string }) {
+async function issueTokens(payload: { sub: string; email: string; role: string; tier?: string }, meta?: { userAgent?: string; ip?: string }) {
   const accessToken = signAccessToken(payload as Parameters<typeof signAccessToken>[0]);
   const refreshToken = signRefreshToken(payload as Parameters<typeof signRefreshToken>[0]);
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -93,8 +95,19 @@ async function issueTokens(payload: { sub: string; email: string; role: string; 
     userId: Number(payload.sub),
     tokenHash: hashToken(refreshToken),
     expiresAt,
+    userAgent: meta?.userAgent ?? null,
+    ip: meta?.ip ?? null,
   });
   return { accessToken, refreshToken, expiresIn: 60 * 60 };
+}
+
+// Extract userAgent + ip from Express request for session tracking.
+function reqMeta(req: import('express').Request): { userAgent: string; ip: string } {
+  const userAgent = (req.headers['user-agent'] as string | undefined)?.slice(0, 500) ?? 'Unknown device';
+  const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim()
+    ?? req.socket.remoteAddress
+    ?? '0.0.0.0';
+  return { userAgent, ip: ip.slice(0, 64) };
 }
 
 function toUserResponse(user: typeof users.$inferSelect) {

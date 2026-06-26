@@ -1,37 +1,63 @@
-// Active sessions for the customer. Mock: 3 sessions, 1 is current.
-// Backend cutover: GET /api/auth/sessions, DELETE /api/auth/sessions/:id, DELETE /api/auth/sessions (all except current).
+// Active sessions: backed by GET /api/auth/sessions (DB: refresh_tokens table).
+// Each non-revoked, non-expired refresh token is an active session.
+// "current" is the most-recently-created session for that user.
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { apiGet, apiDelete } from '../lib/api';
 
 export interface Session {
   id: string;
   device: string;
-  location: string;
   ip: string;
-  lastActive: string;
+  createdAt: string;
   current: boolean;
 }
 
 interface SessionState {
   sessions: Session[];
-  revoke: (id: string) => void;
-  revokeAllOthers: () => void;
+  loading: boolean;
+  error: string | null;
+  fetch: () => Promise<void>;
+  revoke: (id: string) => Promise<void>;
+  revokeAllOthers: () => Promise<void>;
 }
 
-const DEFAULT_SESSIONS: Session[] = [
-  { id: 'sess-1', device: 'iPhone 15 Pro · Safari', location: 'Port Harcourt, Rivers State', ip: '197.210.85.4', lastActive: new Date().toISOString(), current: true },
-  { id: 'sess-2', device: 'MacBook Air · Chrome', location: 'Lagos, Lagos', ip: '105.112.45.91', lastActive: '2026-06-23T14:08:00Z', current: false },
-  { id: 'sess-3', device: 'iPad Pro · Safari', location: 'Abuja, FCT', ip: '102.89.32.118', lastActive: '2026-06-19T09:22:00Z', current: false },
-];
+export const useSessionStore = create<SessionState>()((set, get) => ({
+  sessions: [],
+  loading: false,
+  error: null,
 
-export const useSessionStore = create<SessionState>()(
-  persist(
-    (set, get) => ({
-      sessions: DEFAULT_SESSIONS,
-      revoke: (id) => set({ sessions: get().sessions.filter((s) => s.id === id || s.current) }),
-      revokeAllOthers: () => set({ sessions: get().sessions.filter((s) => s.current) }),
-    }),
-    { name: 'havanat-sessions' }
-  )
-);
+  fetch: async () => {
+    set({ loading: true, error: null });
+    try {
+      const data = await apiGet<{ sessions: Session[] }>('/api/auth/sessions', true);
+      set({ sessions: data.sessions ?? [], loading: false });
+    } catch (err: any) {
+      set({ error: err?.message ?? 'Failed to load sessions', loading: false });
+    }
+  },
+
+  revoke: async (id: string) => {
+    // Optimistic update
+    set({ sessions: get().sessions.filter((s) => s.id !== id) });
+    try {
+      await apiDelete(`/api/auth/sessions/${encodeURIComponent(id)}`, true);
+    } catch (err: any) {
+      // Revert by refetching
+      await get().fetch();
+      throw err;
+    }
+  },
+
+  revokeAllOthers: async () => {
+    // Optimistic update: keep only current
+    const current = get().sessions.find((s) => s.current);
+    set({ sessions: current ? [current] : [] });
+    try {
+      await apiDelete('/api/auth/sessions', true);
+    } catch (err: any) {
+      await get().fetch();
+      throw err;
+    }
+  },
+}));

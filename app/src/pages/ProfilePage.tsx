@@ -476,7 +476,13 @@ function SecurityTab({
   const sessions = useSessionStore((s) => s.sessions);
   const revokeSession = useSessionStore((s) => s.revoke);
   const revokeAllOthers = useSessionStore((s) => s.revokeAllOthers);
+  const fetchSessions = useSessionStore((s) => s.fetch);
   const showToast = useUIStore((s) => s.showToast);
+
+  // Fetch real active sessions from backend (DB: refresh_tokens) on mount
+  useEffect(() => {
+    fetchSessions().catch(() => {});
+  }, [fetchSessions]);
 
   // Resend cooldown ticker
   useEffect(() => {
@@ -741,7 +747,7 @@ function SecurityTab({
             <p className="text-xs text-gray-500">Devices currently signed in to your Havanat account.</p>
           </div>
           {sessions.some((s) => !s.current) && (
-            <button onClick={() => { revokeAllOthers(); showToast('All other sessions signed out', 'success'); }} className="text-[10px] uppercase tracking-[0.15em] text-red-600 hover:underline">
+            <button onClick={async () => { try { await revokeAllOthers(); showToast('All other sessions signed out', 'success'); } catch { showToast('Failed to revoke sessions', 'error'); } }} className="text-[10px] uppercase tracking-[0.15em] text-red-600 hover:underline">
               Sign out all other sessions
             </button>
           )}
@@ -754,17 +760,17 @@ function SecurityTab({
                   <Smartphone size={14} className="text-gray-500" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{s.device}</p>
-                  <p className="text-xs text-gray-500 truncate">{s.location} · {s.ip}</p>
+                  <p className="text-sm font-medium truncate">{s.device || 'Unknown device'}</p>
+                  <p className="text-xs text-gray-500 truncate">IP {s.ip}</p>
                   <p className="text-[10px] text-gray-400 mt-0.5">
-                    {s.current ? 'This device' : `Last active ${new Date(s.lastActive).toLocaleString()}`}
+                    {s.current ? 'This device' : `Signed in ${new Date(s.createdAt).toLocaleString()}`}
                   </p>
                 </div>
               </div>
               {s.current ? (
                 <span className="text-[10px] uppercase tracking-[0.15em] bg-black text-white px-2 py-0.5">Current</span>
               ) : (
-                <button onClick={() => { revokeSession(s.id); showToast('Session revoked', 'success'); }} className="text-[10px] uppercase tracking-[0.15em] text-red-600 hover:underline">
+                <button onClick={async () => { try { await revokeSession(s.id); showToast('Session revoked', 'success'); } catch { showToast('Failed to revoke session', 'error'); } }} className="text-[10px] uppercase tracking-[0.15em] text-red-600 hover:underline">
                   Sign out
                 </button>
               )}

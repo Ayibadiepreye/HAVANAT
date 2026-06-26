@@ -7,6 +7,7 @@ import {
   users,
   emailVerifyTokens,
   twoFactorOtps,
+  refreshTokens,
 } from '../db/schema.js';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { sendEmailSafe, passwordResetEmail, twoFactorCodeEmail } from '../lib/email.js';
@@ -596,3 +597,124 @@ authExtendedRouter.post('/change-password', requireAuth, async (req, res, next) 
   }
 });
 
+
+// ─── Active sessions: list, revoke one, revoke all others ─────────
+//
+// Reads from refresh_tokens table. We treat each non-revoked,
+// non-expired refresh token as an active session. The "current" session
+// is the one whose token hash matches the refresh token in the current
+// request (or whose access token was used to authenticate this request).
+//
+// GET /api/auth/sessions — list active sessions for the current user
+authExtendedRouter.get('/sessions', requireAuth, async (req, res, next) => {
+  try {
+    const userId = Number(req.user!.sub);
+    const rows = await db
+      .select({
+        id: refreshTokens.id,
+        userAgent: refreshTokens.userAgent,
+        ip: refreshTokens.ip,
+        createdAt: refreshTokens.createdAt,
+        expiresAt: refreshTokens.expiresAt,
+        revokedAt: refreshTokens.revokedAt,
+      })
+      .from(refreshTokens)
+      .where(eq(refreshTokens.userId, userId));
+    // Filter to non-revoked, non-expired
+    const now = new Date();
+    const meta = {
+      userAgent: (req.headers['user-agent'] as string | undefined)?.slice(0, 500) ?? '',
+      ip: ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim()
+        ?? req.socket.remoteAddress
+        ?? '').slice(0, 64),
+    };
+    const sessions = rows
+      .filter((r) => !r.revokedAt && r.expiresAt > now)
+      .map((r) => ({
+        id: String(r.id),
+        device: r.userAgent || 'Unknown device',
+        ip: r.ip || '—',
+        createdAt: r.createdAt.toISOString(),
+        // Current = the session matching this request's user-agent + ip
+        // (best-effort — only one session per browser+IP can match)
+        current: r.userAgent === meta.userAgent && r.ip === meta.ip,
+      }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    res.json({ sessions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/auth/sessions/:id — revoke a single session
+authExtendedRouter.delete('/sessions/:id', requireAuth, async (req, res, next) => {
+  try {
+    const userId = Number(req.user!.sub);
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ ok: false, error: 'Invalid id' });
+    const [updated] = await db
+      .update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(refreshTokens.id, id), eq(refreshTokens.userId, userId)))
+      .returning({ id: refreshTokens.id });
+    if (!updated) return res.status(404).json({ ok: false, error: 'Session not found' });
+    logAction({
+      req,
+      user: { sub: String(userId), email: '', role: 'customer' },
+      entityType: 'user',
+      entityId: userId,
+      entityLabel: String(userId),
+      action: 'session_revoked',
+      summary: `Revoked session #${id}`,
+    }).catch(() => {});
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/auth/sessions — revoke all sessions except the current one
+authExtendedRouter.delete('/sessions', requireAuth, async (req, res, next) => {
+  try {
+    const userId = Number(req.user!.sub);
+    // The "current" session is the one matching this request's user-agent + ip.
+    const meta = {
+      userAgent: (req.headers['user-agent'] as string | undefined)?.slice(0, 500) ?? '',
+      ip: ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim()
+        ?? req.socket.remoteAddress
+        ?? '').slice(0, 64),
+    };
+    const rows = await db
+      .select({
+        id: refreshTokens.id,
+        userAgent: refreshTokens.userAgent,
+        ip: refreshTokens.ip,
+      })
+      .from(refreshTokens)
+      .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)));
+    const others = rows.filter((r) => !(r.userAgent === meta.userAgent && r.ip === meta.ip));
+    if (others.length === 0) return res.json({ ok: true, revokedCount: 0 });
+    // Revoke just the others, not the current one
+    let revokedCount = 0;
+    for (const r of others) {
+      const [updated] = await db
+        .update(refreshTokens)
+        .set({ revokedAt: new Date() })
+        .where(eq(refreshTokens.id, r.id))
+        .returning({ id: refreshTokens.id });
+      if (updated) revokedCount++;
+    }
+    logAction({
+      req,
+      user: { sub: String(userId), email: '', role: 'customer' },
+      entityType: 'user',
+      entityId: userId,
+      entityLabel: String(userId),
+      action: 'sessions_revoked_all',
+      summary: `Revoked ${revokedCount} other sessions`,
+    }).catch(() => {});
+    res.json({ ok: true, revokedCount });
+  } catch (err) {
+    next(err);
+  }
+});

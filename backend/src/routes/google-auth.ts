@@ -102,7 +102,7 @@ function getClient(redirectUri?: string): OAuth2Client | null {
   });
 }
 
-async function issueTokensForUser(user: typeof users.$inferSelect) {
+async function issueTokensForUser(user: typeof users.$inferSelect, req?: import('express').Request) {
   const payload = {
     sub: String(user.id),
     email: user.email,
@@ -112,10 +112,18 @@ async function issueTokensForUser(user: typeof users.$inferSelect) {
   const accessToken = signAccessToken(payload as Parameters<typeof signAccessToken>[0]);
   const refreshToken = signRefreshToken(payload as Parameters<typeof signRefreshToken>[0]);
   const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+  const meta = req ? {
+    userAgent: (req.headers['user-agent'] as string | undefined)?.slice(0, 500) ?? null,
+    ip: ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim()
+      ?? req.socket.remoteAddress
+      ?? null)?.slice(0, 64) ?? null,
+  } : { userAgent: null, ip: null };
   await db.insert(refreshTokens).values({
     userId: user.id,
     tokenHash,
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    userAgent: meta.userAgent,
+    ip: meta.ip,
   });
   return {
     accessToken,
@@ -314,7 +322,7 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
       }
     }
 
-    const issued = await issueTokensForUser(user);
+    const issued = await issueTokensForUser(user, req);
     const frontendCallback = buildFrontendRedirect(req, redirectTo, storedFrontendUrl);
     const url = new URL(frontendCallback);
     url.searchParams.set('access_token', issued.accessToken);
@@ -415,7 +423,7 @@ googleAuthRouter.post('/verify', async (req, res, next) => {
       }
     }
 
-    const issued = await issueTokensForUser(user);
+    const issued = await issueTokensForUser(user, req);
     res.json({
       ...issued,
       redirect: redirectTo ?? '/account',
