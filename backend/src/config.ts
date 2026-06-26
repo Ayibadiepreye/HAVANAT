@@ -42,8 +42,8 @@ export const config = {
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY ?? '',
   flutterwaveSecretKey: process.env.FLUTTERWAVE_SECRET_KEY ?? '',
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? '',
-  // Google OAuth
-  googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:4000/api/auth/google/callback',
+  // Google OAuth (env var names match the user-provided values in .env)
+  googleClientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? '',
+  googleClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET ?? '',
+  googleRedirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI ?? process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:4000/api/auth/google/callback',
 };
