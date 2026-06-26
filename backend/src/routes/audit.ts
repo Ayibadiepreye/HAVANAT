@@ -29,7 +29,7 @@ auditRouter.get('/export.csv', requireAuth, requireRole('admin'), async (req, re
   const where = filters.length > 0 ? and(...filters) : undefined;
   const rows = await db.select().from(auditLog).where(where as any).orderBy(desc(auditLog.createdAt));
   const header = 'timestamp,userId,userName,userRole,action,entityType,entityId,summary';
-  const csv = [header, ...rows.map((r) => `${r.timestamp.toISOString()},${r.userId},"${r.userName}",${r.userRole},${r.action},${r.entityType},${r.entityId},"${(r.summary ?? '').replace(/"/g, '""')}"`)].join('\n');
+  const csv = [header, ...rows.map((r) => `${r.createdAt.toISOString()},${r.userId},"${r.userName}",${r.userRole},${r.action},${r.entityType},${r.entityId},"${(r.summary ?? '').replace(/"/g, '""')}"`)].join('\n');
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="audit-log-${Date.now()}.csv"`);
   res.send(csv);

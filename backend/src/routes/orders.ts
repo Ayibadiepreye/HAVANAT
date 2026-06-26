@@ -26,7 +26,7 @@ ordersRouter.get('/', requireAuth, requireRole('admin', 'moderator'), async (req
 });
 
 // Public: track order by order number (no auth needed — tracking ID is the secret)
-ordersRouter.get('/track/:orderNumber', async (req, res) => {
+ordersRouter.get('/track/:orderNumber', async (req, res, next) => {
   try {
     const { orderNumber } = req.params;
     const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
@@ -98,11 +98,11 @@ ordersRouter.post('/', requireAuth, async (req, res) => {
   const [order] = await db.insert(orders).values({
     orderNumber, userId: Number(req.user!.sub), status: 'received',
     subtotal: String(subtotal), shippingFee, total,
-    paymentMethod, addressId,
+    paymentMethod, addressId: addressId ?? null,
     customerName, customerPhone, customerEmail: req.user!.email,
-    shippingAddress: req.body?.shippingAddress ?? { fullName: customerName, phone: customerPhone, street: 'TBD', city: 'TBD', state: 'TBD' },
+    shippingAddress: ((req.body as any)?.shippingAddress ?? { fullName: customerName, phone: customerPhone, street: 'TBD', city: 'TBD', state: 'TBD' }) as any,
     tracking: [{ status: 'received', timestamp: new Date().toISOString() }],
-  }).returning();
+  } as any).returning();
   if (!order) return res.status(500).json({ error: 'Failed to create order' });
   await db.insert(orderItems).values(orderItemsToInsert.map((i) => ({ ...i, orderId: order.id })));
   // Send order confirmation email

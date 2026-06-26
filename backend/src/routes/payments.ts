@@ -6,12 +6,7 @@ import { eq } from 'drizzle-orm';
 import { requireAuth } from '../middleware/auth.js';
 import { logAction } from '../audit/logger.js';
 import { initializeTransaction, verifyTransaction, refundTransaction, verifyWebhookSignature, isPaystackConfigured, paystackMode } from '../lib/paystack.js';
-import { sendEmail, sendEmailSafe, orderConfirmationEmail } from '../lib/email.js';
-function sendEmailSafe(...args: Parameters<typeof sendEmail>) {
-  sendEmail(...args).catch((err: any) => console.warn('[email-failed]', err?.message ?? err));
-}
-
-
+import { sendEmailSafe, orderConfirmationEmail } from '../lib/email.js';
 export const paymentsRouter = Router();
 
 paymentsRouter.get('/status', (_req, res) => {
@@ -161,7 +156,7 @@ paymentsRouter.post('/webhook', raw({ type: 'application/json' }), async (req, r
             reference: order.orderNumber,
             total: Number(order.total),
             items: [],
-            deliveryAddress: `${order.shippingAddress?.street ?? ''}, ${order.shippingAddress?.city ?? ''}, ${order.shippingAddress?.state ?? ''}`,
+            deliveryAddress: order.shippingAddress as any,
           }),
         });
       }

@@ -48,13 +48,8 @@ messagesRouter.get(
       if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
       const [msg] = await db.select().from(contactMessages).where(eq(contactMessages.id, id)).limit(1);
       if (!msg) return res.status(404).json({ error: 'Not found' });
-      // Mark as read
-      if (!msg.resolved) {
-        await db
-          .update(contactMessages)
-          .set({ status: 'read' })
-          .where(eq(contactMessages.id, id));
-      }
+      // NOTE: contact_messages table only tracks 'resolved', not a separate 'read' state.
+      // Viewing a message doesn't change its state — only marking it resolved does.
       const conversation = {
         id: `msg-${msg.id}`,
         customerName: msg.name,

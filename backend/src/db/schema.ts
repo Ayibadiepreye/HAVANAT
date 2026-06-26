@@ -128,6 +128,9 @@ export const riderProfiles = pgTable('rider_profiles', {
   address: text('address'),
   idVerified: boolean('id_verified').notNull().default(false),
   status: riderStatus('status').notNull().default('pending'),
+  bankName: varchar('bank_name', { length: 120 }),
+  accountNumber: varchar('account_number', { length: 30 }),
+  accountName: varchar('account_name', { length: 200 }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -142,6 +145,8 @@ export const deliveries = pgTable('deliveries', {
   pickedUpAt: timestamp('picked_up_at', { withTimezone: true }),
   completedAt: timestamp('completed_at', { withTimezone: true }),
   proofOfDeliveryUrl: text('proof_of_delivery_url'),
+  proofPhotoUrl: text('proof_photo_url'),
+  proofSignatureUrl: text('proof_signature_url'),
   notes: text('notes'),
 }, (t) => ({
   orderIdx: index('deliveries_order_idx').on(t.orderId),
@@ -175,6 +180,7 @@ export const orders = pgTable('orders', {
   paymentMethod: varchar('payment_method', { length: 30 }).notNull().default('paystack'),
   paymentReference: varchar('payment_reference', { length: 200 }),
   paidAt: timestamp('paid_at', { withTimezone: true }),
+  riderId: integer('rider_id').references(() => users.id, { onDelete: 'set null' }),
   customerName: varchar('customer_name', { length: 200 }).notNull(),
   customerEmail: varchar('customer_email', { length: 200 }).notNull(),
   customerPhone: varchar('customer_phone', { length: 30 }),
@@ -212,12 +218,18 @@ export const returns = pgTable('returns', {
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   status: returnStatus('status').notNull().default('pending'),
   reason: text('reason').notNull(),
+  description: text('description').notNull().default(''),
+  images: jsonb('images').$type<string[]>().notNull().default([]),
+  approvedBy: integer('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  rejectionReason: text('rejection_reason'),
   refundAmount: decimal('refund_amount', { precision: 12, scale: 2 }),
   refundReference: varchar('refund_reference', { length: 200 }),
+  refundedAt: timestamp('refunded_at', { withTimezone: true }),
   riderId: integer('rider_id').references(() => users.id, { onDelete: 'set null' }),
   scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
   completedAt: timestamp('completed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   userIdx: index('returns_user_idx').on(t.userId),
   orderIdx: index('returns_order_idx').on(t.orderId),
@@ -242,6 +254,20 @@ export const memberships = pgTable('memberships', {
 }, (t) => ({
   userIdx: index('memberships_user_idx').on(t.userId),
 }));
+
+export const membershipTiers = pgTable('membership_tiers', {
+  id: serial('id').primaryKey(),
+  tier: tierName('tier').notNull().unique(),
+  displayName: varchar('display_name', { length: 100 }).notNull(),
+  price: decimal('price', { precision: 12, scale: 2 }).notNull(),
+  billingCycles: jsonb('billing_cycles').$type<('monthly' | 'quarterly' | 'yearly')[]>().notNull().default(['monthly']),
+  features: jsonb('features').$type<string[]>().notNull().default([]),
+  description: text('description').notNull().default(''),
+  sortOrder: integer('sort_order').notNull().default(0),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const members = pgTable('members', {
   id: serial('id').primaryKey(),
@@ -297,8 +323,12 @@ export const newsletterSubscribers = pgTable('newsletter_subscribers', {
 
 export const homepage = pgTable('homepage', {
   id: serial('id').primaryKey(),
-  section: varchar('section', { length: 60 }).notNull().unique(),
-  content: jsonb('content').notNull(),
+  // Single-row table (id=1) for the landing page hero + featured grids
+  heroImage: text('hero_image'),
+  heroHeadline: varchar('hero_headline', { length: 200 }),
+  heroTagline: text('hero_tagline'),
+  featuredProductIds: jsonb('featured_product_ids').$type<number[]>().notNull().default([]),
+  lookbookImageIds: jsonb('lookbook_image_ids').$type<string[]>().notNull().default([]),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

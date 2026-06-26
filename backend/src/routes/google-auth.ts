@@ -2,12 +2,12 @@ import { Router } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import bcrypt from 'bcryptjs';
 import { db } from '../db/client.js';
-import { users, refreshTokens } from '../db/schema.js';
+import { users, refreshTokens, twoFactorOtps } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import crypto from 'node:crypto';
 import { config } from '../config.js';
 import { signAccessToken, signRefreshToken } from '../lib/jwt.js';
-import { sendEmailSafe, welcomeEmail } from '../lib/email.js';
+import { sendEmailSafe, welcomeEmail, twoFactorCodeEmail } from '../lib/email.js';
 
 export const googleAuthRouter = Router();
 

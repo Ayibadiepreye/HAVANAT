@@ -9,10 +9,7 @@ import {
   twoFactorOtps,
 } from '../db/schema.js';
 import { and, eq, gt, isNull } from 'drizzle-orm';
-import { sendEmail, sendEmailSafe, passwordResetEmail, twoFactorCodeEmail } from '../lib/email.js';
-function sendEmailSafe(...args: Parameters<typeof sendEmail>) {
-  sendEmail(...args).catch((err: any) => console.warn('[email-failed]', err?.message ?? err));
-}
+import { sendEmailSafe, passwordResetEmail, twoFactorCodeEmail } from '../lib/email.js';
 
 import { signAccessToken, signRefreshToken } from '../lib/jwt.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -170,11 +167,12 @@ authExtendedRouter.post('/forgot-password/complete', async (req, res, next) => {
     }).where(eq(users.id, session.userId));
 
     logAction({
-      req, user: { id: session.userId, email: '', role: 'customer' },
+      req, user: { id: session.userId, sub: String(session.userId), email: '', role: 'customer' },
       action: 'user.password.reset',
       entityType: 'user',
       entityId: String(session.userId),
       entityLabel: `User ${session.userId}`,
+      summary: 'Password reset completed',
     }).catch(() => {});
 
     res.json({ ok: true });
@@ -381,6 +379,7 @@ authExtendedRouter.post('/oauth/set-password/complete', requireAuth, async (req,
       entityType: 'user',
       entityId: String(userId),
       entityLabel: user.email,
+      summary: 'Password set via OAuth flow',
     }).catch(() => {});
 
     res.json({ ok: true });
@@ -577,6 +576,7 @@ authExtendedRouter.post('/change-password', requireAuth, async (req, res, next) 
       entityType: 'user',
       entityId: String(userId),
       entityLabel: user.email,
+      summary: 'Password changed',
     }).catch(() => {});
 
     res.json({ ok: true });

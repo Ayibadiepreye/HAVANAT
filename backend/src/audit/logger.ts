@@ -9,7 +9,7 @@ export type EntityType =
   | 'membership' | 'homepage' | 'lookbook' | 'testimonial'
   | 'banner' | 'branding' | 'delivery_zone' | 'settings' | 'staff'
   | 'event_discount' | 'tier_discount' | 'bespoke_request' | 'contact_message'
-  | 'address' | 'auth' | 'password_reset' | 'email_verify' | 'payment';
+  | 'address' | 'auth' | 'password_reset' | 'email_verify' | 'payment' | 'user' | 'lockout';
 
 interface LogParams {
   req: Request;
@@ -36,7 +36,9 @@ export interface LogActionSimple {
   meta?: Record<string, unknown>;
 }
 
-export async function logAction(params: LogParams | (LogActionSimple & { req: Request })): Promise<void> {
+export async function logAction(
+  params: LogParams | (LogActionSimple & { req?: Request })
+): Promise<void> {
   try {
     if ('req' in params && 'user' in params) {
       // Legacy shape (full Request + user payload)
@@ -46,13 +48,13 @@ export async function logAction(params: LogParams | (LogActionSimple & { req: Re
         userName: user.email,
         userRole: user.role,
         action,
-        entityType,
+        entityType: entityType as string,
         entityId: String(entityId),
         entityLabel,
         summary,
         before: (before as any) ?? null,
         after: (after as any) ?? null,
-      });
+      } as any);
     } else {
       // Simple shape (req.user available)
       const { req, actorId, actorRole, action, targetType, targetId, meta } = params as LogActionSimple & { req: Request };
@@ -62,12 +64,12 @@ export async function logAction(params: LogParams | (LogActionSimple & { req: Re
         userName: (user?.email as string | undefined) ?? 'system',
         userRole: actorRole,
         action,
-        entityType: targetType,
+        entityType: targetType as string,
         entityId: String(targetId),
         entityLabel: meta?.name as string | undefined,
         summary: meta?.summary as string || `${actorRole}.${action}`,
         after: meta ? JSON.stringify(meta) : null,
-      });
+      } as any);
     }
   } catch (err) {
     // Logging must never break the request.

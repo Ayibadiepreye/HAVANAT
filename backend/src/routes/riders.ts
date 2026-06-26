@@ -58,7 +58,17 @@ ridersRouter.get('/me/payouts', requireAuth, requireRole('rider'), async (req, r
 });
 
 ridersRouter.post('/me/payouts', requireAuth, requireRole('rider'), async (req, res) => {
-  const [created] = await db.insert(payouts).values({ riderId: Number(req.user!.sub), amount: req.body.amount, status: 'pending' }).returning();
+  const { amount } = req.body as { amount: number };
+  const now = new Date();
+  const periodStart = new Date(now);
+  periodStart.setDate(periodStart.getDate() - 7); // last week
+  const [created] = await db.insert(payouts).values({
+    riderId: Number(req.user!.sub),
+    amount: String(amount),
+    status: 'pending',
+    periodStart,
+    periodEnd: now,
+  }).returning();
   res.status(201).json(created);
 });
 
@@ -72,7 +82,7 @@ ridersRouter.patch('/deliveries/:id/status', requireAuth, requireRole('rider'), 
   const [delivery] = await db.select().from(deliveries).where(eq(deliveries.id, id));
   if (!delivery) return res.status(404).json({ error: 'Not found' });
   if (delivery.riderId !== Number(req.user!.sub)) return res.status(403).json({ error: 'Not your delivery' });
-  if ((status === 'picked_up' || status === 'delivered') && otp && delivery.otp !== otp) {
+  if ((status === 'picked_up' || status === 'delivered') && otp && delivery.deliveryOtp !== otp) {
     return res.status(400).json({ error: 'Invalid OTP' });
   }
   if (status === 'delivered' && (!proofPhotoUrl || !proofSignatureUrl)) {

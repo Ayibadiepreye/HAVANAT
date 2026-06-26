@@ -61,12 +61,12 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     },
     body: JSON.stringify(body),
   });
-  const data = await res.json().catch(() => ({}));
+  const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
   if (!res.ok) {
-    const msg = (data && (data.message as string)) || `Resend ${res.status}`;
+    const msg = (data && data.message) || `Resend ${res.status}`;
     throw new Error(msg);
   }
-  return { id: data.id as string, simulated: false };
+  return { id: data.id ?? '', simulated: false };
 }
 
 /** Send an email and swallow errors (logs to console). Used for non-critical notifications. */
@@ -242,7 +242,7 @@ export function orderConfirmationEmail(order: {
       <tr>
         <td style="padding:14px 0;border-bottom:1px solid ${SOFT_LINE};font-family:${FONT_SANS};font-size:14px;color:${INK};">${escapeHtml(i.name)}</td>
         <td style="padding:14px 0;border-bottom:1px solid ${SOFT_LINE};font-family:${FONT_SANS};font-size:13px;color:${MUTED};text-align:center;width:60px;">× ${i.quantity}</td>
-        <td style="padding:14px 0;border-bottom:1px solid ${SOFT_LINE};font-family:${FONT_SANS};font-size:14px;color:${INK};text-align:right;width:120px;">₦${Number(i.price * i.quantity).toLocaleString()}</td>
+        <td style="padding:14px 0;border-bottom:1px solid ${SOFT_LINE};font-family:${FONT_SANS};font-size:14px;color:${INK};text-align:right;width:120px;">₦${(Number(i.price) * Number(i.quantity)).toLocaleString()}</td>
       </tr>`
     )
     .join('');

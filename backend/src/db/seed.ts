@@ -91,7 +91,7 @@ async function seedProducts() {
   return inserted;
 }
 
-async function seedOrdersAndAddresses() {
+async function seedOrdersAndAddresses(_users?: { id: number }[]) {
   console.log('Skipping sample orders in seed (data layer out of scope for this cutover)…');
 }
 

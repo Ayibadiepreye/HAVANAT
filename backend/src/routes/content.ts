@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
-import { homepage, lookbook, testimonials, banners, branding, deliveryZones, paymentGateways, emailTemplates, memberships, members } from '../db/schema.js';
+import { homepage, lookbook, testimonials, banners, branding, deliveryZones, paymentGateways, emailTemplates, memberships, membershipTiers, members } from '../db/schema.js';
 import { eq, asc } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { CreateDeliveryZoneSchema, UpdateHomepageSchema, UpdateMembershipTierSchema } from '../lib/validators.js';
@@ -58,7 +58,7 @@ contentRouter.get('/testimonials', async (_req, res) => {
 });
 contentRouter.post('/testimonials', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const [created] = await db.insert(testimonials).values(req.body).returning();
-  await logAction({ req, user: req.user!, action: 'create', entityType: 'testimonial', entityId: created!.id, entityLabel: `Testimonial: ${created!.name}`, summary: 'Added testimonial', after: created });
+  await logAction({ req, user: req.user!, action: 'create', entityType: 'testimonial', entityId: created!.id, entityLabel: `Testimonial: ${created!.customerName}`, summary: 'Added testimonial', after: created });
   res.status(201).json(created);
 });
 contentRouter.patch('/testimonials/:id', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
@@ -66,7 +66,7 @@ contentRouter.patch('/testimonials/:id', requireAuth, requireRole('admin', 'mode
   const [before] = await db.select().from(testimonials).where(eq(testimonials.id, id));
   if (!before) return res.status(404).json({ error: 'Not found' });
   const [after] = await db.update(testimonials).set(req.body).where(eq(testimonials.id, id)).returning();
-  await logAction({ req, user: req.user!, action: 'update', entityType: 'testimonial', entityId: id, entityLabel: `Testimonial: ${after!.name}`, summary: 'Updated testimonial', before, after });
+  await logAction({ req, user: req.user!, action: 'update', entityType: 'testimonial', entityId: id, entityLabel: `Testimonial: ${after!.customerName}`, summary: 'Updated testimonial', before, after });
   res.json(after);
 });
 contentRouter.delete('/testimonials/:id', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
@@ -74,7 +74,7 @@ contentRouter.delete('/testimonials/:id', requireAuth, requireRole('admin', 'mod
   const [before] = await db.select().from(testimonials).where(eq(testimonials.id, id));
   if (!before) return res.status(404).json({ error: 'Not found' });
   await db.delete(testimonials).where(eq(testimonials.id, id));
-  await logAction({ req, user: req.user!, action: 'delete', entityType: 'testimonial', entityId: id, entityLabel: `Testimonial: ${before.name}`, summary: 'Deleted testimonial', before });
+  await logAction({ req, user: req.user!, action: 'delete', entityType: 'testimonial', entityId: id, entityLabel: `Testimonial: ${before.customerName}`, summary: 'Deleted testimonial', before });
   res.json({ ok: true });
 });
 
@@ -127,7 +127,7 @@ contentRouter.get('/delivery-zones', async (_req, res) => {
 contentRouter.post('/delivery-zones', requireAuth, requireRole('admin'), async (req, res) => {
   const parsed = CreateDeliveryZoneSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
-  const [created] = await db.insert(deliveryZones).values(parsed.data).returning();
+  const [created] = await db.insert(deliveryZones).values(parsed.data as any).returning();
   await logAction({ req, user: req.user!, action: 'create', entityType: 'delivery_zone', entityId: created!.id, entityLabel: `Zone: ${created!.state}`, summary: 'Added delivery zone', after: created });
   res.status(201).json(created);
 });
@@ -148,19 +148,19 @@ contentRouter.delete('/delivery-zones/:id', requireAuth, requireRole('admin'), a
   res.json({ ok: true });
 });
 
-// Memberships (tiers)
+// Memberships (tier settings — per-tier price/features, not per-user subscriptions)
 contentRouter.get('/memberships', async (_req, res) => {
-  const rows = await db.select().from(memberships);
+  const rows = await db.select().from(membershipTiers).orderBy(membershipTiers.sortOrder);
   res.json({ items: rows });
 });
 contentRouter.put('/memberships/:tier', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const parsed = UpdateMembershipTierSchema.safeParse({ ...req.body, tier: req.params.tier });
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
-  const [before] = await db.select().from(memberships).where(eq(memberships.tier, parsed.data.tier));
+  const [before] = await db.select().from(membershipTiers).where(eq(membershipTiers.tier, parsed.data.tier));
   if (!before) return res.status(404).json({ error: 'Tier not found' });
-  const [after] = await db.update(memberships).set({
-    price: String(parsed.data.price), billingCycles: parsed.data.billingCycles, features: parsed.data.features, updatedAt: new Date(),
-  }).where(eq(memberships.tier, parsed.data.tier)).returning();
+  const [after] = await db.update(membershipTiers).set({
+    price: String(parsed.data.price), billingCycles: parsed.data.billingCycles, features: parsed.data.features.map((f: any) => `${f.included ? '✓' : '·'} ${f.label}`), updatedAt: new Date(),
+  }).where(eq(membershipTiers.tier, parsed.data.tier)).returning();
   await logAction({ req, user: req.user!, action: 'update', entityType: 'membership', entityId: parsed.data.tier, entityLabel: `Tier: ${parsed.data.tier}`, summary: 'Updated tier', before, after });
   res.json(after);
 });
@@ -175,7 +175,7 @@ contentRouter.patch('/payment-gateways/:id', requireAuth, requireRole('admin'), 
   const [before] = await db.select().from(paymentGateways).where(eq(paymentGateways.id, id));
   if (!before) return res.status(404).json({ error: 'Not found' });
   const [after] = await db.update(paymentGateways).set(req.body).where(eq(paymentGateways.id, id)).returning();
-  await logAction({ req, user: req.user!, action: 'update', entityType: 'settings', entityId: id, entityLabel: `Gateway: ${before.name}`, summary: 'Toggled gateway', before, after });
+  await logAction({ req, user: req.user!, action: 'update', entityType: 'settings', entityId: id, entityLabel: `Gateway: ${before.provider}`, summary: 'Toggled gateway', before, after });
   res.json(after);
 });
 

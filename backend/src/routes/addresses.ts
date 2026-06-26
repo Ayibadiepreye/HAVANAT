@@ -67,7 +67,7 @@ addressesRouter.post('/', async (req, res, next) => {
 
     const [row] = await db
       .insert(addresses)
-      .values({ ...input, userId })
+      .values({ ...(input as any), userId })
       .returning();
 
     await logAction({

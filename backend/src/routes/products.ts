@@ -60,7 +60,7 @@ productsRouter.patch('/:id', requireAuth, requireRole('admin', 'moderator'), asy
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
   const [before] = await db.select().from(products).where(eq(products.id, id));
   if (!before) return res.status(404).json({ error: 'Product not found' });
-  const [after] = await db.update(products).set({ ...parsed.data, updatedAt: new Date() }).where(eq(products.id, id)).returning();
+  const [after] = await db.update(products).set({ ...(parsed.data as any), updatedAt: new Date() }).where(eq(products.id, id)).returning();
   if (!after) return res.status(500).json({ error: 'Failed to update' });
   await logAction({
     req, user: req.user!, action: 'update', entityType: 'product',

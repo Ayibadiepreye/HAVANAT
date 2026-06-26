@@ -34,9 +34,9 @@ async function paystackFetch<T>(path: string, init: RequestInit): Promise<T> {
       ...(init.headers as Record<string, string> | undefined),
     },
   });
-  const data = await res.json().catch(() => ({}));
+  const data = (await res.json().catch(() => ({}))) as { status?: boolean; message?: string; data?: T };
   if (!res.ok || !data.status) {
-    const msg = (data && (data.message as string)) || `Paystack ${res.status}`;
+    const msg = (data && data.message) || `Paystack ${res.status}`;
     throw new Error(msg);
   }
   return data.data as T;

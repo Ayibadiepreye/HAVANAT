@@ -4,6 +4,7 @@ import { config } from '../config.js';
 
 export interface JwtPayload {
   sub: string;        // user id
+  id?: number;        // alias for sub (numeric) — used by audit logger
   email: string;
   role: 'customer' | 'admin' | 'moderator' | 'rider';
   tier?: 'standard' | 'deluxe' | 'elite';

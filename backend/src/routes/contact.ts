@@ -5,12 +5,7 @@ import { contactMessages, notifications, users } from '../db/schema.js';
 import { desc, eq } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { logAction } from '../audit/logger.js';
-import { sendEmail, sendEmailSafe, contactFormEmailToAdmin } from '../lib/email.js';
-function sendEmailSafe(...args: Parameters<typeof sendEmail>) {
-  sendEmail(...args).catch((err: any) => console.warn('[email-failed]', err?.message ?? err));
-}
-
-
+import { sendEmailSafe, contactFormEmailToAdmin } from '../lib/email.js';
 export const contactRouter = Router();
 
 // ─── Public: submit a contact form message ────────────────────────

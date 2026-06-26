@@ -5,12 +5,7 @@ import { bespokeRequests, notifications, users } from '../db/schema.js';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { logAction } from '../audit/logger.js';
-import { sendEmail, sendEmailSafe, bespokeRequestEmailToAdmin, bespokeRequestConfirmationToCustomer } from '../lib/email.js';
-function sendEmailSafe(...args: Parameters<typeof sendEmail>) {
-  sendEmail(...args).catch((err: any) => console.warn('[email-failed]', err?.message ?? err));
-}
-
-
+import { sendEmailSafe, bespokeRequestEmailToAdmin, bespokeRequestConfirmationToCustomer } from '../lib/email.js';
 export const bespokeRouter = Router();
 
 function makeReference(): string {
@@ -44,9 +39,9 @@ bespokeRouter.post('/', async (req, res, next) => {
     let userId: number | null = null;
     if (auth && auth.startsWith('Bearer ')) {
       try {
-        const { verifyAccessToken } = await import('../lib/auth.js');
+        const { verifyAccessToken } = await import('../lib/jwt.js');
         const payload = verifyAccessToken(auth.slice(7));
-        if (payload) userId = payload.sub;
+        if (payload) userId = Number(payload.sub);
       } catch {
         /* anonymous */
       }
@@ -113,8 +108,9 @@ bespokeRouter.post('/', async (req, res, next) => {
       subject: `[Havanat] We received your bespoke request — ${reference}`,
       html: bespokeRequestConfirmationToCustomer({
         reference,
+        customerName: parsed.data.customerName,
         occasion: parsed.data.occasion,
-        adminLink: customerLink,
+        trackingLink: customerLink,
       }),
       tags: [{ name: 'type', value: 'bespoke_customer' }],
     });

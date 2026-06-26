@@ -73,8 +73,8 @@ export const CreateRiderSchema = z.object({
 
 export const CreateDeliveryZoneSchema = z.object({
   state: z.string().min(2),
-  fee: z.number().min(0),
-  etaDays: z.number().int().min(1).max(14),
+  fee: z.string().min(1),         // decimal stored as string in Drizzle
+  eta: z.string().min(1),         // human-readable ETA like '3-5 business days'
 });
 
 export const UpdateHomepageSchema = z.object({

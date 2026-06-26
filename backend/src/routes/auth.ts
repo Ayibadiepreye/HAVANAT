@@ -61,11 +61,11 @@ authRouter.post('/refresh', async (req, res) => {
   if (!payload) return res.status(401).json({ error: 'Invalid refresh token' });
   const tokenHash = hashToken(refreshToken);
   const [stored] = await db.select().from(refreshTokens).where(eq(refreshTokens.tokenHash, tokenHash));
-  if (!stored || stored.revoked || stored.expiresAt < new Date()) {
+  if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
     return res.status(401).json({ error: 'Refresh token revoked or expired' });
   }
   // Rotate
-  await db.update(refreshTokens).set({ revoked: true }).where(eq(refreshTokens.id, stored.id));
+  await db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.id, stored.id));
   const tokens = await issueTokens(payload);
   return res.json(tokens);
 });
@@ -74,7 +74,7 @@ authRouter.post('/logout', async (req, res) => {
   const { refreshToken } = req.body ?? {};
   if (refreshToken) {
     const tokenHash = hashToken(refreshToken);
-    await db.update(refreshTokens).set({ revoked: true }).where(eq(refreshTokens.tokenHash, tokenHash));
+    await db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.tokenHash, tokenHash));
   }
   return res.json({ ok: true });
 });
