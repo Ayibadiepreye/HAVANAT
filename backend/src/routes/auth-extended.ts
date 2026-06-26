@@ -70,12 +70,13 @@ authExtendedRouter.post('/forgot-password', async (req, res, next) => {
       purpose: 'forgot_password',
     });
 
-    sendEmailSafe({
+    const fpResult = await sendEmailSafe({
       to: user.email,
       subject: 'Your Havanat password-reset code',
       html: twoFactorCodeEmail(code),
       tags: [{ name: 'type', value: 'forgot_password' }],
     });
+    if (!fpResult.ok) console.warn('[forgot-password] email failed:', fpResult.error);
 
     // Reset the counter — this request succeeded
     await recordSuccess({ email, reason: 'forgot_password_send' });
@@ -205,12 +206,13 @@ authExtendedRouter.post('/2fa/send', async (req, res, next) => {
       purpose: 'login',
     });
 
-    sendEmailSafe({
+    const tfaResult = await sendEmailSafe({
       to: user.email,
       subject: 'Your Havanat verification code',
       html: twoFactorCodeEmail(code),
       tags: [{ name: 'type', value: 'two_factor' }],
     });
+    if (!tfaResult.ok) console.warn('[2fa] email failed:', tfaResult.error);
 
     res.json({ ok: true });
   } catch (err) {
@@ -243,13 +245,20 @@ authExtendedRouter.post('/oauth/verify-email/send', requireAuth, async (req, res
       purpose: 'oauth_email_verify',
     });
 
-    sendEmailSafe({
+    // AWAIT sendEmailSafe so the response only returns after Resend has
+    // accepted the email. Logs the result for debugging.
+    const result = await sendEmailSafe({
       to: user.email,
       subject: 'Verify your Havanat email',
       html: twoFactorCodeEmail(code),
       tags: [{ name: 'type', value: 'email_verify' }],
     });
-    res.json({ ok: true });
+    if (!result.ok) {
+      console.warn('[oauth/verify-email/send] OTP email failed:', result.error);
+    } else {
+      console.info('[oauth/verify-email/send] OTP sent to', user.email);
+    }
+    res.json({ ok: true, emailSent: result.ok });
   } catch (err) {
     next(err);
   }
@@ -315,13 +324,14 @@ authExtendedRouter.post('/oauth/set-password/send', requireAuth, async (req, res
       expiresAt,
       purpose: 'set_password',
     });
-    sendEmailSafe({
+    const spResult = await sendEmailSafe({
       to: user.email,
       subject: 'Confirm your new Havanat password',
       html: twoFactorCodeEmail(code),
       tags: [{ name: 'type', value: 'set_password' }],
     });
-    res.json({ ok: true });
+    if (!spResult.ok) console.warn('[set-password] email failed:', spResult.error);
+    res.json({ ok: true, emailSent: spResult.ok });
   } catch (err) {
     next(err);
   }
@@ -511,13 +521,14 @@ authExtendedRouter.post('/verify-email/request', async (req, res, next) => {
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
-    sendEmailSafe({
+    const veResult = await sendEmailSafe({
       to: user.email,
       subject: 'Verify your Havanat email',
       html: `<p>Welcome to Havanat. Click below to verify your email address:</p><p><a href="${frontendUrl}/verify-email?token=${token}" style="display:inline-block;padding:14px 32px;background:#000;color:#fff;text-decoration:none;">Verify email</a></p><p>If you didn't sign up, ignore this email.</p>`,
       tags: [{ name: 'type', value: 'email_verify' }],
     });
-    res.json({ ok: true });
+    if (!veResult.ok) console.warn('[verify-email-link] email failed:', veResult.error);
+    res.json({ ok: true, emailSent: veResult.ok });
   } catch (err) {
     next(err);
   }

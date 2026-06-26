@@ -3,7 +3,7 @@ import { OAuth2Client } from 'google-auth-library';
 import bcrypt from 'bcryptjs';
 import { db } from '../db/client.js';
 import { users, refreshTokens, twoFactorOtps } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull, sql } from 'drizzle-orm';
 import crypto from 'node:crypto';
 import { config } from '../config.js';
 import { signAccessToken, signRefreshToken } from '../lib/jwt.js';
@@ -270,29 +270,45 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
       user = { ...user, avatarUrl };
     }
 
-    // NEW: for OAuth users without verified email, automatically send an
-    // OTP to their email right after Google returns. Frontend prompts
-    // for the code on /auth/google/callback when verifyEmail=1 is set.
+    // For OAuth users whose email is not yet verified, automatically send
+    // a 6-digit OTP right after Google returns. Frontend prompts for the
+    // code on /auth/google/callback when verifyEmail=1 is in the URL.
+    // We AWAIT sendEmailSafe (not fire-and-forget) so the redirect only
+    // happens after the email is confirmed sent by Resend. The frontend
+    // will show the OTP input, and if the user clicks 'Resend code' they
+    // will get a NEW code (because we wait for this one to be sent).
     if (!user.emailVerified) {
       try {
         const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
         const tokenHash = crypto.createHash('sha256').update(code).digest('hex');
-        await db.execute(
-          (await import('drizzle-orm')).sql`UPDATE two_factor_otps SET used_at = NOW() WHERE user_id = ${user.id} AND purpose = 'oauth_email_verify' AND used_at IS NULL`
-        );
+        // Invalidate any prior unverified OTPs for this user + purpose
+        await db.update(twoFactorOtps)
+          .set({ usedAt: new Date() })
+          .where(and(
+            eq(twoFactorOtps.userId, user.id),
+            eq(twoFactorOtps.purpose, 'oauth_email_verify'),
+            isNull(twoFactorOtps.usedAt)
+          ));
         await db.insert(twoFactorOtps).values({
           userId: user.id,
           codeHash: tokenHash,
           expiresAt,
           purpose: 'oauth_email_verify',
         });
-        sendEmailSafe({
+        // AWAIT (not fire-and-forget) so the redirect waits for the email
+        // to be accepted by Resend. sendEmailSafe now returns {ok, error}.
+        const result = await sendEmailSafe({
           to: user.email,
           subject: 'Verify your Havanat email',
           html: twoFactorCodeEmail(code),
           tags: [{ name: 'type', value: 'email_verify' }],
         });
+        if (!result.ok) {
+          console.warn('[oauth] verify-email OTP email failed:', result.error);
+        } else {
+          console.info('[oauth] verify-email OTP sent to', user.email, 'for user', user.id);
+        }
       } catch (e) {
         console.warn('[oauth] failed to send verify-email OTP:', e);
       }
@@ -367,8 +383,44 @@ googleAuthRouter.post('/verify', async (req, res, next) => {
       user = { ...user, avatarUrl };
     }
 
+    // Same auto-OTP logic as /callback: send a 6-digit code if email unverified.
+    if (!user.emailVerified) {
+      try {
+        const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        const tokenHash = crypto.createHash('sha256').update(code).digest('hex');
+        await db.update(twoFactorOtps)
+          .set({ usedAt: new Date() })
+          .where(and(
+            eq(twoFactorOtps.userId, user.id),
+            eq(twoFactorOtps.purpose, 'oauth_email_verify'),
+            isNull(twoFactorOtps.usedAt)
+          ));
+        await db.insert(twoFactorOtps).values({
+          userId: user.id,
+          codeHash: tokenHash,
+          expiresAt,
+          purpose: 'oauth_email_verify',
+        });
+        const result = await sendEmailSafe({
+          to: user.email,
+          subject: 'Verify your Havanat email',
+          html: twoFactorCodeEmail(code),
+          tags: [{ name: 'type', value: 'email_verify' }],
+        });
+        if (!result.ok) console.warn('[oauth/verify] OTP email failed:', result.error);
+        else console.info('[oauth/verify] OTP sent to', user.email);
+      } catch (e) {
+        console.warn('[oauth/verify] failed to send verify-email OTP:', e);
+      }
+    }
+
     const issued = await issueTokensForUser(user);
-    res.json({ ...issued, redirect: redirectTo ?? '/account' });
+    res.json({
+      ...issued,
+      redirect: redirectTo ?? '/account',
+      emailVerified: user.emailVerified,
+    });
   } catch (err) {
     next(err);
   }
