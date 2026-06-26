@@ -12,6 +12,13 @@ export interface DashboardUser {
   avatar?: string;
   phone?: string;
   createdAt: string;
+  // Auth provider: 'google' if signed up via OAuth, 'email' otherwise.
+  provider?: 'google' | 'email';
+  // True when the user has a real, usable password set.
+  // False for OAuth-only users who haven't completed the set-password flow.
+  hasPassword?: boolean;
+  // Google's stable user ID, if linked.
+  googleId?: string | null;
 }
 
 // Order lifecycle:

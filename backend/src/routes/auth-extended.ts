@@ -6,7 +6,6 @@ import { db } from '../db/client.js';
 import {
   users,
   emailVerifyTokens,
-  passwordResetTokens,
   twoFactorOtps,
 } from '../db/schema.js';
 import { and, eq, gt, isNull } from 'drizzle-orm';
@@ -16,6 +15,8 @@ function sendEmailSafe(...args: Parameters<typeof sendEmail>) {
 }
 
 import { signAccessToken, signRefreshToken } from '../lib/jwt.js';
+import { requireAuth } from '../middleware/auth.js';
+import { logAction } from '../audit/logger.js';
 
 export const authExtendedRouter = Router();
 
@@ -24,10 +25,14 @@ function hashToken(token: string): string {
 }
 
 function generateOtp(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  // Cryptographically strong 6-digit code (000000–999999).
+  // crypto.randomInt avoids Math.random predictability.
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
 }
 
-// ─── Forgot password: send reset link ─────────────────────────────
+// ─── Forgot password (step 1): send OTP to user's email ──────────
+// OTP replaces the previous long-token-link email. Same table (twoFactorOtps)
+// but purpose='forgot_password' so it can't be confused with login OTPs.
 authExtendedRouter.post('/forgot-password', async (req, res, next) => {
   try {
     const Schema = z.object({ email: z.string().email().max(200) });
@@ -39,21 +44,28 @@ authExtendedRouter.post('/forgot-password', async (req, res, next) => {
     // Always respond success (don't leak which emails exist)
     if (!user) return res.json({ ok: true });
 
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    await db.insert(passwordResetTokens).values({
+    const code = generateOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    // Invalidate any prior unused forgot_password OTPs for this user
+    await db.update(twoFactorOtps)
+      .set({ usedAt: new Date() })
+      .where(and(
+        eq(twoFactorOtps.userId, user.id),
+        eq(twoFactorOtps.purpose, 'forgot_password'),
+        isNull(twoFactorOtps.usedAt)
+      ));
+    await db.insert(twoFactorOtps).values({
       userId: user.id,
-      tokenHash: hashToken(token),
+      codeHash: hashToken(code),
       expiresAt,
+      purpose: 'forgot_password',
     });
 
-    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
-    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
     sendEmailSafe({
       to: user.email,
-      subject: 'Reset your Havanat password',
-      html: passwordResetEmail(resetLink),
-      tags: [{ name: 'type', value: 'password_reset' }],
+      subject: 'Your Havanat password-reset code',
+      html: twoFactorCodeEmail(code),
+      tags: [{ name: 'type', value: 'forgot_password' }],
     });
 
     res.json({ ok: true });
@@ -62,57 +74,83 @@ authExtendedRouter.post('/forgot-password', async (req, res, next) => {
   }
 });
 
-// ─── Validate reset token (does NOT consume it) ────────────────────
-// Lets the frontend check the token from the email link and pre-fill
-// the email field before the user types their new password.
-authExtendedRouter.get('/reset-password', async (req, res) => {
-  try {
-    const token = String(req.query.token || '');
-    if (token.length < 20) return res.status(400).json({ ok: false, error: 'Invalid token' });
-    const tokenHash = hashToken(token);
-    const [stored] = await db
-      .select({ userId: passwordResetTokens.userId, expiresAt: passwordResetTokens.expiresAt, usedAt: passwordResetTokens.usedAt })
-      .from(passwordResetTokens)
-      .where(eq(passwordResetTokens.tokenHash, tokenHash))
-      .limit(1);
-    if (!stored) return res.status(400).json({ ok: false, error: 'Token not found' });
-    if (stored.usedAt) return res.status(400).json({ ok: false, error: 'This reset link has already been used' });
-    if (stored.expiresAt < new Date()) return res.status(400).json({ ok: false, error: 'This reset link has expired' });
-    const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, stored.userId)).limit(1);
-    if (!user) return res.status(400).json({ ok: false, error: 'Account no longer exists' });
-    res.json({ ok: true, email: user.email });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'Server error' });
-  }
-});
-
-// ─── Reset password: confirm new password with token ──────────────
-authExtendedRouter.post('/reset-password', async (req, res, next) => {
+// ─── Forgot password (step 2): verify OTP, return short-lived reset token
+// Frontend keeps this token and uses it on step 3 (set new password).
+// The token is a random 32-byte string hashed in DB; lasts 10 min.
+const passwordResetSessions = new Map<string, { userId: number; expiresAt: number }>();
+authExtendedRouter.post('/forgot-password/verify', async (req, res, next) => {
   try {
     const Schema = z.object({
-      token: z.string().min(20),
-      password: z.string().min(8).max(200),
+      email: z.string().email(),
+      code: z.string().length(6),
     });
     const parsed = Schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, error: 'Invalid input' });
 
-    const tokenHash = hashToken(parsed.data.token);
-    const [stored] = await db
+    const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email.toLowerCase())).limit(1);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid code' });
+
+    const [otp] = await db
       .select()
-      .from(passwordResetTokens)
-      .where(
-        and(
-          eq(passwordResetTokens.tokenHash, tokenHash),
-          gt(passwordResetTokens.expiresAt, new Date()),
-          isNull(passwordResetTokens.usedAt)
-        )
-      )
+      .from(twoFactorOtps)
+      .where(and(
+        eq(twoFactorOtps.userId, user.id),
+        eq(twoFactorOtps.purpose, 'forgot_password'),
+        eq(twoFactorOtps.codeHash, hashToken(parsed.data.code)),
+        gt(twoFactorOtps.expiresAt, new Date()),
+        isNull(twoFactorOtps.usedAt)
+      ))
       .limit(1);
-    if (!stored) return res.status(400).json({ ok: false, error: 'Token expired or already used' });
+    if (!otp) {
+      await db.execute(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        (await import('drizzle-orm')).sql`UPDATE two_factor_otps SET attempts = attempts + 1 WHERE user_id = ${user.id} AND purpose = 'forgot_password' AND used_at IS NULL`
+      );
+      return res.status(401).json({ ok: false, error: 'Invalid or expired code' });
+    }
+    await db.update(twoFactorOtps).set({ usedAt: new Date() }).where(eq(twoFactorOtps.id, otp.id));
+
+    // Issue a short-lived reset session token (10 min)
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    passwordResetSessions.set(sessionToken, { userId: user.id, expiresAt: Date.now() + 10 * 60 * 1000 });
+    res.json({ ok: true, resetToken: sessionToken, email: user.email });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Forgot password (step 3): consume reset token, set new password
+authExtendedRouter.post('/forgot-password/complete', async (req, res, next) => {
+  try {
+    const Schema = z.object({
+      resetToken: z.string().min(20),
+      password: z.string().min(8).max(200),
+    });
+    const parsed = Schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, error: 'Password must be at least 8 characters' });
+
+    const session = passwordResetSessions.get(parsed.data.resetToken);
+    if (!session) return res.status(401).json({ ok: false, error: 'Reset session expired. Please start over.' });
+    if (session.expiresAt < Date.now()) {
+      passwordResetSessions.delete(parsed.data.resetToken);
+      return res.status(401).json({ ok: false, error: 'Reset session expired. Please start over.' });
+    }
+    passwordResetSessions.delete(parsed.data.resetToken);
 
     const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-    await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, stored.userId));
-    await db.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.id, stored.id));
+    await db.update(users).set({
+      passwordHash,
+      passwordSetAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(users.id, session.userId));
+
+    logAction({
+      req, user: { id: session.userId, email: '', role: 'customer' },
+      action: 'user.password.reset',
+      entityType: 'user',
+      entityId: String(session.userId),
+      entityLabel: `User ${session.userId}`,
+    }).catch(() => {});
 
     res.json({ ok: true });
   } catch (err) {
@@ -120,7 +158,13 @@ authExtendedRouter.post('/reset-password', async (req, res, next) => {
   }
 });
 
-// ─── Send 2FA OTP to user's email ─────────────────────────────────
+
+
+
+
+
+
+// ─── Send 2FA OTP to user's email (login flow) ───────────────────
 authExtendedRouter.post('/2fa/send', async (req, res, next) => {
   try {
     const Schema = z.object({ email: z.string().email().max(200) });
@@ -135,6 +179,7 @@ authExtendedRouter.post('/2fa/send', async (req, res, next) => {
       userId: user.id,
       codeHash: hashToken(code),
       expiresAt,
+      purpose: 'login',
     });
 
     sendEmailSafe({
@@ -150,7 +195,159 @@ authExtendedRouter.post('/2fa/send', async (req, res, next) => {
   }
 });
 
-// ─── Verify 2FA OTP and issue JWTs ────────────────────────────────
+// ─── Send OTP to verify email after OAuth signup (purpose=oauth_email_verify)
+authExtendedRouter.post('/oauth/verify-email/send', requireAuth, async (req, res, next) => {
+  try {
+    const userId = Number(req.user!.sub);
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+    if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
+
+    const code = generateOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    // Invalidate prior unverified OTPs for this purpose
+    await db.update(twoFactorOtps)
+      .set({ usedAt: new Date() })
+      .where(and(
+        eq(twoFactorOtps.userId, userId),
+        eq(twoFactorOtps.purpose, 'oauth_email_verify'),
+        isNull(twoFactorOtps.usedAt)
+      ));
+    await db.insert(twoFactorOtps).values({
+      userId,
+      codeHash: hashToken(code),
+      expiresAt,
+      purpose: 'oauth_email_verify',
+    });
+
+    sendEmailSafe({
+      to: user.email,
+      subject: 'Verify your Havanat email',
+      html: twoFactorCodeEmail(code),
+      tags: [{ name: 'type', value: 'email_verify' }],
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Verify OTP for OAuth email verification ──────────────────────
+authExtendedRouter.post('/oauth/verify-email/verify', requireAuth, async (req, res, next) => {
+  try {
+    const Schema = z.object({ code: z.string().length(6) });
+    const parsed = Schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, error: 'Enter the 6-digit code' });
+
+    const userId = Number(req.user!.sub);
+    const [otp] = await db
+      .select()
+      .from(twoFactorOtps)
+      .where(and(
+        eq(twoFactorOtps.userId, userId),
+        eq(twoFactorOtps.purpose, 'oauth_email_verify'),
+        eq(twoFactorOtps.codeHash, hashToken(parsed.data.code)),
+        gt(twoFactorOtps.expiresAt, new Date()),
+        isNull(twoFactorOtps.usedAt)
+      ))
+      .limit(1);
+    if (!otp) return res.status(401).json({ ok: false, error: 'Invalid or expired code' });
+    await db.update(twoFactorOtps).set({ usedAt: new Date() }).where(eq(twoFactorOtps.id, otp.id));
+    await db.update(users).set({ emailVerified: true, updatedAt: new Date() }).where(eq(users.id, userId));
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Send OTP for OAuth user to set their first password ───────────
+authExtendedRouter.post('/oauth/set-password/send', requireAuth, async (req, res, next) => {
+  try {
+    const userId = Number(req.user!.sub);
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+    if (user.passwordSetAt) return res.status(400).json({ ok: false, error: 'You already have a password set. Use the change-password flow.' });
+
+    const code = generateOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await db.update(twoFactorOtps)
+      .set({ usedAt: new Date() })
+      .where(and(
+        eq(twoFactorOtps.userId, userId),
+        eq(twoFactorOtps.purpose, 'set_password'),
+        isNull(twoFactorOtps.usedAt)
+      ));
+    await db.insert(twoFactorOtps).values({
+      userId,
+      codeHash: hashToken(code),
+      expiresAt,
+      purpose: 'set_password',
+    });
+    sendEmailSafe({
+      to: user.email,
+      subject: 'Confirm your new Havanat password',
+      html: twoFactorCodeEmail(code),
+      tags: [{ name: 'type', value: 'set_password' }],
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Complete set-password for OAuth user (after OTP verified) ─────
+authExtendedRouter.post('/oauth/set-password/complete', requireAuth, async (req, res, next) => {
+  try {
+    const Schema = z.object({
+      code: z.string().length(6),
+      newPassword: z.string().min(8).max(200),
+    });
+    const parsed = Schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, error: 'Code + 8+ char password required' });
+
+    const userId = Number(req.user!.sub);
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+    if (user.passwordSetAt) return res.status(400).json({ ok: false, error: 'You already have a password set. Use the change-password flow.' });
+
+    const [otp] = await db
+      .select()
+      .from(twoFactorOtps)
+      .where(and(
+        eq(twoFactorOtps.userId, userId),
+        eq(twoFactorOtps.purpose, 'set_password'),
+        eq(twoFactorOtps.codeHash, hashToken(parsed.data.code)),
+        gt(twoFactorOtps.expiresAt, new Date()),
+        isNull(twoFactorOtps.usedAt)
+      ))
+      .limit(1);
+    if (!otp) return res.status(401).json({ ok: false, error: 'Invalid or expired code' });
+
+    const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
+    await db.update(twoFactorOtps).set({ usedAt: new Date() }).where(eq(twoFactorOtps.id, otp.id));
+    await db.update(users).set({
+      passwordHash,
+      passwordSetAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(users.id, userId));
+
+    logAction({
+      req,
+      user: req.user!,
+      action: 'user.password.set',
+      entityType: 'user',
+      entityId: String(userId),
+      entityLabel: user.email,
+    }).catch(() => {});
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+// ─── Verify 2FA OTP and issue JWTs (login flow) ───────────────────
 authExtendedRouter.post('/2fa/verify', async (req, res, next) => {
   try {
     const Schema = z.object({
@@ -163,13 +360,14 @@ authExtendedRouter.post('/2fa/verify', async (req, res, next) => {
     const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email.toLowerCase())).limit(1);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid code' });
 
-    // Find a fresh, unused OTP
+    // Find a fresh, unused OTP for login
     const [otp] = await db
       .select()
       .from(twoFactorOtps)
       .where(
         and(
           eq(twoFactorOtps.userId, user.id),
+          eq(twoFactorOtps.purpose, 'login'),
           eq(twoFactorOtps.codeHash, hashToken(parsed.data.code)),
           gt(twoFactorOtps.expiresAt, new Date()),
           isNull(twoFactorOtps.usedAt)
@@ -177,9 +375,9 @@ authExtendedRouter.post('/2fa/verify', async (req, res, next) => {
       )
       .limit(1);
     if (!otp) {
-      // Increment attempts on the most recent active OTP
+      // Increment attempts on the most recent active login OTP
       const { sql } = await import('drizzle-orm');
-      await db.execute(sql`UPDATE two_factor_otps SET attempts = attempts + 1 WHERE user_id = ${user.id} AND used_at IS NULL`);
+      await db.execute(sql`UPDATE two_factor_otps SET attempts = attempts + 1 WHERE user_id = ${user.id} AND purpose = 'login' AND used_at IS NULL`);
       return res.status(401).json({ ok: false, error: 'Invalid or expired code' });
     }
     await db.update(twoFactorOtps).set({ usedAt: new Date() }).where(eq(twoFactorOtps.id, otp.id));
@@ -206,6 +404,9 @@ authExtendedRouter.post('/2fa/verify', async (req, res, next) => {
         phone: user.phone,
         avatar: user.avatarUrl,
         createdAt: user.createdAt.toISOString(),
+        provider: user.googleId ? 'google' : 'email',
+        hasPassword: !!user.passwordSetAt,
+        googleId: user.googleId,
       },
       accessToken,
       refreshToken,
@@ -215,6 +416,7 @@ authExtendedRouter.post('/2fa/verify', async (req, res, next) => {
     next(err);
   }
 });
+
 
 // ─── Email verification (called after signup if needed) ───────────
 authExtendedRouter.post('/verify-email', async (req, res, next) => {
@@ -268,3 +470,55 @@ authExtendedRouter.post('/verify-email/request', async (req, res, next) => {
     next(err);
   }
 });
+
+
+// ─── Change password (logged-in user, with current password) ─────
+// For email/password users: provide currentPassword.
+// For OAuth users that already have a real password set:
+//   provide currentPassword (their last set one) — change flow.
+// For OAuth users that haven't set a password yet:
+//   use /api/auth/oauth/set-password/send + /complete instead.
+// This endpoint refuses to set a FIRST password — that requires OTP
+// verification via the set-password flow.
+authExtendedRouter.post('/change-password', requireAuth, async (req, res, next) => {
+  try {
+    const Schema = z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(8).max(200),
+    });
+    const parsed = Schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, error: 'Current + new (8+ chars) password required' });
+
+    const userId = Number(req.user!.sub);
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+
+    if (!user.passwordSetAt) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Use the set-password flow (OTP verification required) — see /api/auth/oauth/set-password/send',
+        useSetPasswordFlow: true,
+      });
+    }
+
+    const valid = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
+    if (!valid) return res.status(400).json({ ok: false, error: 'Current password is incorrect' });
+
+    const newHash = await bcrypt.hash(parsed.data.newPassword, 10);
+    await db.update(users).set({ passwordHash: newHash, passwordSetAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
+
+    logAction({
+      req,
+      user: req.user!,
+      action: 'user.password.change',
+      entityType: 'user',
+      entityId: String(userId),
+      entityLabel: user.email,
+    }).catch(() => {});
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+

@@ -27,6 +27,9 @@ interface BackendLoginResponse {
     phone?: string;
     avatarUrl?: string | null;
     createdAt: string;
+    provider?: 'google' | 'email';
+    hasPassword?: boolean;
+    googleId?: string | null;
   };
   accessToken: string;
   refreshToken: string;
@@ -45,6 +48,9 @@ function toDashboardUser(u: BackendLoginResponse['user']): DashboardUser {
     phone: u.phone,
     avatar: u.avatarUrl ?? undefined,
     createdAt: u.createdAt,
+    provider: u.provider,
+    hasPassword: u.hasPassword,
+    googleId: u.googleId ?? null,
   };
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
 import { User as UserIcon, Shield, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -82,10 +83,32 @@ export default function ProfilePage() {
 
 
   // ───── Security ─────
-  const handleChangePassword = (e: React.FormEvent) => {
+  // Decides which password UI to show:
+  //   hasPassword === true   → show ONLY "Change Password" form
+  //                             (user has a usable password, needs to confirm current)
+  //   hasPassword === false  → show ONLY "Set a Password" form
+  //                             (OAuth user, or user never set one — OTP verified)
+  // This is the SINGLE source of truth. OAuth users who have completed the
+  // set-password flow get hasPassword=true and see the same form as anyone else.
+  // We treat undefined as false (safer default — don't expose a flow the
+  // user can't actually complete).
+  const hasPassword = !!(user && (user as any).hasPassword === true);
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwStage, setPwStage] = useState<'idle' | 'awaitingCode'>('idle');
+  const [pwCode, setPwCode] = useState('');
+  const [pwCodeErr, setPwCodeErr] = useState<string | null>(null);
+  const [pwResendIn, setPwResendIn] = useState(0);
+
+  useEffect(() => {
+    if (pwResendIn <= 0) return;
+    const id = setTimeout(() => setPwResendIn((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [pwResendIn]);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
-      showToast('Please fill in all password fields', 'error');
+    if (!pwForm.next || !pwForm.confirm) {
+      showToast('Please fill in the new password fields', 'error');
       return;
     }
     if (pwForm.next.length < 8) {
@@ -96,9 +119,68 @@ export default function ProfilePage() {
       showToast('New passwords do not match', 'error');
       return;
     }
-    setPwForm({ current: '', next: '', confirm: '' });
-    showToast('Password updated successfully', 'success');
+    if (hasPassword && !pwForm.current) {
+      showToast('Please enter your current password', 'error');
+      return;
+    }
+    setPwBusy(true);
+    try {
+      if (!hasPassword) {
+        // User has no usable password yet — verify OTP to set one
+        await api('/api/auth/oauth/set-password/send', { method: 'POST', auth: true });
+        setPwStage('awaitingCode');
+        setPwResendIn(30);
+        showToast('Check your email for a 6-digit code', 'success');
+      } else {
+        // User already has a password — verify current + set new
+        await api('/api/auth/change-password', {
+          method: 'POST',
+          body: { currentPassword: pwForm.current, newPassword: pwForm.next },
+          auth: true,
+        });
+        showToast('Password updated successfully', 'success');
+        setPwForm({ current: '', next: '', confirm: '' });
+      }
+    } catch (err: any) {
+      showToast(err?.message ?? 'Could not update password', 'error');
+    } finally {
+      setPwBusy(false);
+    }
   };
+
+  async function handleSubmitOtp(e: React.FormEvent) {
+    e.preventDefault();
+    setPwCodeErr(null);
+    if (pwCode.length !== 6) {
+      setPwCodeErr('Enter the 6-digit code.');
+      return;
+    }
+    setPwBusy(true);
+    try {
+      await api('/api/auth/oauth/set-password/complete', {
+        method: 'POST',
+        body: { code: pwCode, newPassword: pwForm.next },
+        auth: true,
+      });
+      showToast('Password set — you can now sign in with email + password', 'success');
+      setPwForm({ current: '', next: '', confirm: '' });
+      setPwCode('');
+      setPwStage('idle');
+    } catch (err: any) {
+      setPwCodeErr(err?.message ?? 'Invalid or expired code.');
+    } finally {
+      setPwBusy(false);
+    }
+  }
+
+  async function handlePwResend() {
+    if (pwResendIn > 0) return;
+    try {
+      await api('/api/auth/oauth/set-password/send', { method: 'POST', auth: true });
+      showToast('A new code was sent', 'success');
+      setPwResendIn(30);
+    } catch {}
+  }
 
 
 
@@ -168,6 +250,17 @@ export default function ProfilePage() {
             onPwChange={setPwForm}
             onToggleShow={(k) => setShowPw({ ...showPw, [k]: !showPw[k] })}
             onSubmit={handleChangePassword}
+            hasPassword={hasPassword}
+            pwBusy={pwBusy}
+            pwStage={pwStage}
+            pwCode={pwCode}
+            setPwCode={setPwCode}
+            pwCodeErr={pwCodeErr}
+            handleSubmitOtp={handleSubmitOtp}
+            handlePwResend={handlePwResend}
+            pwResendIn={pwResendIn}
+            setPwStage={setPwStage}
+            setPwForm={setPwForm}
           />
         )}
       </div>
@@ -307,6 +400,17 @@ interface SecurityTabProps {
   onPwChange: (next: { current: string; next: string; confirm: string }) => void;
   onToggleShow: (k: 'current' | 'next' | 'confirm') => void;
   onSubmit: (e: React.FormEvent) => void;
+  hasPassword: boolean;
+  pwBusy: boolean;
+  pwStage: 'idle' | 'awaitingCode';
+  pwCode: string;
+  setPwCode: (v: string) => void;
+  pwCodeErr: string | null;
+  handleSubmitOtp: (e: React.FormEvent) => void;
+  handlePwResend: () => void;
+  pwResendIn: number;
+  setPwStage: (s: 'idle' | 'awaitingCode') => void;
+  setPwForm: (v: { current: string; next: string; confirm: string }) => void;
 }
 
 function SecurityTab({
@@ -315,6 +419,17 @@ function SecurityTab({
   onPwChange,
   onToggleShow,
   onSubmit,
+  hasPassword,
+  pwBusy,
+  pwStage,
+  pwCode,
+  setPwCode,
+  pwCodeErr,
+  handleSubmitOtp,
+  handlePwResend,
+  pwResendIn,
+  setPwStage,
+  setPwForm,
 }: SecurityTabProps) {
   const user = useAuthStore((s) => s.user);
 
@@ -403,9 +518,59 @@ function SecurityTab({
     <div className="space-y-10">
       {/* Change password */}
       <section>
-        <h2 className="text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-4">Change Password</h2>
+        <h2 className="text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
+          {hasPassword ? 'Change Password' : 'Set a Password'}
+        </h2>
+        {!hasPassword && (
+          <p className="text-xs text-gray-500 mb-4 max-w-md">
+            Set a password below so you can also sign in with your email and password.
+            We&apos;ll send a 6-digit code to your email to confirm it&apos;s really you.
+          </p>
+        )}
+        {pwStage === 'awaitingCode' ? (
+          <form onSubmit={handleSubmitOtp} className="max-w-md space-y-4 border border-black p-5 bg-gray-50">
+            <p className="text-sm font-medium">Enter the verification code</p>
+            <p className="text-xs text-gray-600">Check your email (and spam folder) for the 6-digit code.</p>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              value={pwCode}
+              onChange={(e) => setPwCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
+              className="w-full px-3 py-3 text-base border border-gray-200 focus:border-black focus:outline-none bg-white tracking-[0.4em] text-center font-serif text-2xl"
+              required
+            />
+            {pwCodeErr && <p className="text-sm text-red-600">{pwCodeErr}</p>}
+            <div className="flex gap-2 items-center">
+              <button
+                type="submit"
+                disabled={pwBusy || pwCode.length !== 6}
+                className="px-5 py-2.5 bg-black text-white text-[10px] uppercase tracking-[0.15em] font-medium disabled:opacity-30"
+              >
+                {pwBusy ? 'Setting…' : 'Confirm & set password'}
+              </button>
+              <button
+                type="button"
+                onClick={handlePwResend}
+                disabled={pwResendIn > 0}
+                className="px-5 py-2.5 border text-[10px] uppercase tracking-[0.15em] font-medium disabled:opacity-30"
+              >
+                {pwResendIn > 0 ? `Resend in ${pwResendIn}s` : 'Resend code'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setPwStage('idle'); setPwCode(''); setPwForm({ current: '', next: '', confirm: '' }); }}
+                className="px-5 py-2.5 border text-[10px] uppercase tracking-[0.15em] font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
         <form onSubmit={onSubmit} className="max-w-md space-y-4">
-          {(['current', 'next', 'confirm'] as const).map((k) => (
+          {(hasPassword ? (['current', 'next', 'confirm'] as const) : (['next', 'confirm'] as const)).map((k) => (
             <div key={k}>
               <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
                 {k === 'current' ? 'Current Password' : k === 'next' ? 'New Password' : 'Confirm New Password'}
@@ -429,10 +594,11 @@ function SecurityTab({
               </div>
             </div>
           ))}
-          <button type="submit" className="px-8 py-3 bg-black text-white text-xs uppercase tracking-[0.2em] font-medium hover:bg-gray-900 transition-colors">
-            Update password
+          <button type="submit" disabled={pwBusy} className="px-8 py-3 bg-black text-white text-xs uppercase tracking-[0.2em] font-medium hover:bg-gray-900 transition-colors disabled:opacity-50">
+            {pwBusy ? (hasPassword ? 'Updating...' : 'Sending code...') : (hasPassword ? 'Update password' : 'Send verification code')}
           </button>
         </form>
+        )}
       </section>
 
       {/* Two-factor (email OTP) */}

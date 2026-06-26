@@ -27,7 +27,7 @@ authRouter.post('/register', async (req, res) => {
   }
   const passwordHash = await bcrypt.hash(password, 10);
   const [user] = await db.insert(users).values({
-    name, email: email.toLowerCase(), passwordHash, phone, role: 'customer', tier: 'standard',
+    name, email: email.toLowerCase(), passwordHash, passwordSetAt: new Date(), phone, role: 'customer', tier: 'standard',
   }).returning();
   if (!user) return res.status(500).json({ error: 'Failed to create user' });
   const tokens = await issueTokens({ sub: String(user.id), email: user.email, role: user.role, tier: user.tier ?? undefined });
@@ -107,5 +107,15 @@ function toUserResponse(user: typeof users.$inferSelect) {
     phone: user.phone,
     avatar: user.avatarUrl,
     createdAt: user.createdAt.toISOString(),
+    // 'google' if signed up via OAuth, otherwise 'email'.
+    // Frontend uses this to decide whether to show 'Current password' field
+    // on the change-password form.
+    provider: user.googleId ? 'google' : 'email',
+    // True if the user has a usable password (email signup, OR they called
+    // /change-password to set one). OAuth-only users have a random hash
+    // they can't use, so this starts false and becomes true after they set
+    // a real password. Tracked via passwordSetAt column.
+    hasPassword: !!user.passwordSetAt,
+    googleId: user.googleId,
   };
 }

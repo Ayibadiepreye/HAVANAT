@@ -29,6 +29,10 @@ export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   email: varchar('email', { length: 200 }).notNull().unique(),
   passwordHash: text('password_hash'),
+  // Timestamp when user last set their own password (via signup, change-password,
+  // or reset-password). NULL means they have the random placeholder hash from
+  // OAuth signup and have never set a real password.
+  passwordSetAt: timestamp('password_set_at'),
   googleId: varchar('google_id', { length: 200 }),
   name: varchar('name', { length: 200 }).notNull(),
   role: userRole('role').notNull().default('customer'),
@@ -511,9 +515,16 @@ export const twoFactorOtps = pgTable('two_factor_otps', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
   attempts: integer('attempts').notNull().default(0),
+  // Why this OTP was issued:
+  //   'login'             — 2FA at sign-in
+  //   'forgot_password'   — user requested a password reset (replaces token link)
+  //   'oauth_email_verify'— verify email after first OAuth signup
+  //   'set_password'      — OAuth user is setting their first password
+  purpose: varchar('purpose', { length: 32 }).notNull().default('login'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   userIdx: index('two_factor_user_idx').on(t.userId),
+  purposeIdx: index('two_factor_purpose_idx').on(t.userId, t.purpose),
 }));
 
 export type TierDiscount = typeof tierDiscounts.$inferSelect;

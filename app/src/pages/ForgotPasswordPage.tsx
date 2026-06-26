@@ -59,35 +59,18 @@ export default function ForgotPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendCountdown, setResendCountdown] = useState(0);
-  const [generatedOtp, setGeneratedOtp] = useState<string>('');
 
   useEffect(() => {
     if (email) saveState({ email, step });
   }, [email, step]);
 
-  // If arriving from a password-reset email link, validate the token
-  // and jump straight to the 'reset' step.
+  // Forgot-password flow is now OTP-based; no URL token handling needed.
+  // Kept for backwards compatibility: if someone visits an old ?token= link,
+  // just show them the email-entry step.
   useEffect(() => {
     if (!tokenFromUrl) return;
-    (async () => {
-      try {
-        const r = await fetch(`/api/auth/reset-password?token=${encodeURIComponent(tokenFromUrl)}`, { method: 'GET' });
-        if (!r.ok) {
-          setError('This reset link is invalid or has expired. Please request a new one.');
-          setStep('email');
-          return;
-        }
-        const d = await r.json();
-        if (d.email) {
-          setEmail(d.email);
-          setStep('reset');
-          showToast('Reset link verified. Choose a new password.', 'success');
-        }
-      } catch (e) {
-        setError('Could not verify reset link. Please request a new one.');
-        setStep('email');
-      }
-    })();
+    setError('Reset links have been replaced with one-time codes. Please enter your email to receive a new code.');
+    setStep('email');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokenFromUrl]);
 
@@ -110,17 +93,25 @@ export default function ForgotPasswordPage() {
     }
     recordAttempt('forgot-password');
     setSubmitting(true);
-    // Mock: in production POST /api/auth/forgot-password. Server returns 200 always.
-    await new Promise((r) => setTimeout(r, 700));
-    // Generate a 6-digit OTP (mock) and log it
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    setGeneratedOtp(otp);
-    // eslint-disable-next-line no-console
-    console.info(`[mock-email] To: ${email} — Your Havanat password-reset code is ${otp}. Expires in 10 minutes.`);
-    setSubmitting(false);
-    setStep('reset');
-    showToast('Check your email for the verification code', 'success');
-    setResendCountdown(30);
+    try {
+      const r = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!r.ok) {
+        setError('Could not send code. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+      setStep('reset');
+      showToast('Check your email for the 6-digit code', 'success');
+      setResendCountdown(30);
+    } catch (e) {
+      setError('Network error. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Cooldown ticker for the resend button
@@ -130,9 +121,7 @@ export default function ForgotPasswordPage() {
     return () => clearTimeout(id);
   }, [resendCountdown]);
 
-  function handleResend(): void {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _unused: typeof handleResend | null = handleResend; void _unused;
+  async function handleResend(): Promise<void> {
     if (resendCountdown > 0) return;
     const allowed = canAttempt('forgot-password', 5, 15 * 60 * 1000);
     if (!allowed.allowed) {
@@ -140,12 +129,17 @@ export default function ForgotPasswordPage() {
       return;
     }
     recordAttempt('forgot-password');
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    setGeneratedOtp(otp);
-    // eslint-disable-next-line no-console
-    console.info(`[mock-email] To: ${email} — Your Havanat password-reset code is ${otp}. (resend)`);
-    showToast('A new code was sent to your email', 'success');
-    setResendCountdown(30);
+    try {
+      const r = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (r.ok) {
+        showToast('A new code was sent to your email', 'success');
+        setResendCountdown(30);
+      }
+    } catch {}
   }
 
   // ───── Step 2: OTP + new password ─────
@@ -154,10 +148,6 @@ export default function ForgotPasswordPage() {
     setError(null);
     if (otp.length !== 6) {
       setError('Enter the 6-digit code we sent to your email.');
-      return;
-    }
-    if (otp !== generatedOtp) {
-      setError('That code doesn’t match. Try again or resend.');
       return;
     }
     if (newPassword.length < 8) {
@@ -169,11 +159,39 @@ export default function ForgotPasswordPage() {
       return;
     }
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 800));
-    resetAttempts('forgot-password');
-    setSubmitting(false);
-    setStep('done');
-    showToast('Password updated successfully', 'success');
+    try {
+      // Step 2a: verify OTP, get reset token
+      const vr = await fetch('/api/auth/forgot-password/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: otp }),
+      });
+      const vd = await vr.json();
+      if (!vr.ok || !vd.ok || !vd.resetToken) {
+        setError(vd.error || 'Invalid or expired code.');
+        setSubmitting(false);
+        return;
+      }
+      // Step 2b: complete the reset
+      const cr = await fetch('/api/auth/forgot-password/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetToken: vd.resetToken, password: newPassword }),
+      });
+      const cd = await cr.json();
+      if (!cr.ok || !cd.ok) {
+        setError(cd.error || 'Could not set password.');
+        setSubmitting(false);
+        return;
+      }
+      resetAttempts('forgot-password');
+      setSubmitting(false);
+      setStep('done');
+      showToast('Password updated successfully', 'success');
+    } catch (e) {
+      setError('Network error. Please try again.');
+      setSubmitting(false);
+    }
   };
 
   // ───── Step 3: success → bounce to login ─────

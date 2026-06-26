@@ -169,6 +169,34 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
       user = { ...user, avatarUrl };
     }
 
+    // NEW: for OAuth users without verified email, automatically send an
+    // OTP to their email right after Google returns. Frontend prompts
+    // for the code on /auth/google/callback when verifyEmail=1 is set.
+    if (!user.emailVerified) {
+      try {
+        const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        const tokenHash = crypto.createHash('sha256').update(code).digest('hex');
+        await db.execute(
+          (await import('drizzle-orm')).sql`UPDATE two_factor_otps SET used_at = NOW() WHERE user_id = ${user.id} AND purpose = 'oauth_email_verify' AND used_at IS NULL`
+        );
+        await db.insert(twoFactorOtps).values({
+          userId: user.id,
+          codeHash: tokenHash,
+          expiresAt,
+          purpose: 'oauth_email_verify',
+        });
+        sendEmailSafe({
+          to: user.email,
+          subject: 'Verify your Havanat email',
+          html: twoFactorCodeEmail(code),
+          tags: [{ name: 'type', value: 'email_verify' }],
+        });
+      } catch (e) {
+        console.warn('[oauth] failed to send verify-email OTP:', e);
+      }
+    }
+
     const issued = await issueTokensForUser(user);
     // Redirect to the frontend the user actually came from.
     // Priority: 1) Origin header, 2) Referer header (extract origin), 3) state redirectTo (if same-origin), 4) FRONTEND_URL env, 5) localhost default.
@@ -189,6 +217,10 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
       refresh_token: issued.refreshToken,
       redirect: redirectTo,
     });
+    // If email isn't verified, prompt the frontend to show the OTP input
+    if (!user.emailVerified) {
+      params.set('verifyEmail', '1');
+    }
     res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
   } catch (err) {
     next(err);
