@@ -1,6 +1,9 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
-import pkg from 'pg';
-const { Pool } = pkg;
+// `pg` is a CommonJS module that exports via `module.exports = ...`.
+// TypeScript's `@types/pg` doesn't include a default export, so we use
+// `import * as` with a cast (or the createRequire pattern).
+import * as pgNs from 'pg';
+const Pool = (pgNs as unknown as { Pool: typeof import('pg').Pool }).Pool;
 import { config } from '../config.js';
 import * as schema from './schema.js';
 

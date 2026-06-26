@@ -142,7 +142,20 @@ export default function ProfilePage() {
         setPwForm({ current: '', next: '', confirm: '' });
       }
     } catch (err: any) {
-      showToast(err?.message ?? 'Could not update password', 'error');
+      // err.details may include supportEmail, retryAfterMs, contactSupport
+      const d = err?.details ?? {};
+      if (err?.status === 429) {
+        const min = d.retryAfterMinutes ?? Math.ceil((d.retryAfterMs ?? 0) / 60000);
+        const email = d.supportEmail ?? 'concierge@havanat.store';
+        showToast(
+          d.contactSupport
+            ? `Your account is locked. Please contact ${email} to unlock it.`
+            : `Too many failed attempts. Try again in ${min} minute${min === 1 ? '': 's'}. If you keep having issues, contact ${email}.`,
+          'error'
+        );
+      } else {
+        showToast(err?.message ?? 'Could not update password', 'error');
+      }
     } finally {
       setPwBusy(false);
     }
@@ -167,7 +180,19 @@ export default function ProfilePage() {
       setPwCode('');
       setPwStage('idle');
     } catch (err: any) {
-      setPwCodeErr(err?.message ?? 'Invalid or expired code.');
+      // err.details may include supportEmail, retryAfterMs, contactSupport
+      const d = err?.details ?? {};
+      if (err?.status === 429) {
+        const min = d.retryAfterMinutes ?? Math.ceil((d.retryAfterMs ?? 0) / 60000);
+        const email = d.supportEmail ?? 'concierge@havanat.store';
+        setPwCodeErr(
+          d.contactSupport
+            ? `Your account is locked. Please contact ${email} to unlock it.`
+            : `Too many failed attempts. Try again in ${min} minute${min === 1 ? '' : 's'}. If you keep having issues, contact ${email}.`
+        );
+      } else {
+        setPwCodeErr(err?.message ?? 'Invalid or expired code.');
+      }
     } finally {
       setPwBusy(false);
     }

@@ -17,6 +17,7 @@ function sendEmailSafe(...args: Parameters<typeof sendEmail>) {
 import { signAccessToken, signRefreshToken } from '../lib/jwt.js';
 import { requireAuth } from '../middleware/auth.js';
 import { logAction } from '../audit/logger.js';
+import { recordFailure, recordSuccess, lockoutResponse } from '../middleware/securityRateLimit.js';
 
 export const authExtendedRouter = Router();
 
@@ -40,9 +41,20 @@ authExtendedRouter.post('/forgot-password', async (req, res, next) => {
     if (!parsed.success) return res.status(400).json({ ok: false, error: 'Invalid email' });
 
     const email = parsed.data.email.toLowerCase();
+    // Rate-limit by email (per forgot-password-send purpose)
+    const fpLock = await recordFailure({
+      email, reason: 'forgot_password_send', maxAttempts: 5, lockoutMs: 60 * 60 * 1000,
+    });
+    if (fpLock.blocked) {
+      return res.status(429).json(lockoutResponse(fpLock));
+    }
     const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     // Always respond success (don't leak which emails exist)
-    if (!user) return res.json({ ok: true });
+    if (!user) {
+      // Still record success to reset the counter (don't punish unknown emails)
+      await recordSuccess({ email, reason: 'forgot_password_send' });
+      return res.json({ ok: true });
+    }
 
     const code = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
@@ -68,6 +80,9 @@ authExtendedRouter.post('/forgot-password', async (req, res, next) => {
       tags: [{ name: 'type', value: 'forgot_password' }],
     });
 
+    // Reset the counter — this request succeeded
+    await recordSuccess({ email, reason: 'forgot_password_send' });
+
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -87,7 +102,15 @@ authExtendedRouter.post('/forgot-password/verify', async (req, res, next) => {
     const parsed = Schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, error: 'Invalid input' });
 
-    const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email.toLowerCase())).limit(1);
+    const email = parsed.data.email.toLowerCase();
+    // Rate-limit by email — failed verification attempts
+    const vLock = await recordFailure({
+      email, reason: 'otp_forgot_password', maxAttempts: 5, lockoutMs: 15 * 60 * 1000,
+    });
+    if (vLock.blocked) {
+      return res.status(429).json(lockoutResponse(vLock));
+    }
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid code' });
 
     const [otp] = await db
@@ -109,6 +132,8 @@ authExtendedRouter.post('/forgot-password/verify', async (req, res, next) => {
       return res.status(401).json({ ok: false, error: 'Invalid or expired code' });
     }
     await db.update(twoFactorOtps).set({ usedAt: new Date() }).where(eq(twoFactorOtps.id, otp.id));
+    // Reset rate-limit counter — verify succeeded
+    await recordSuccess({ email, reason: 'otp_forgot_password' });
 
     // Issue a short-lived reset session token (10 min)
     const sessionToken = crypto.randomBytes(32).toString('hex');
@@ -240,6 +265,13 @@ authExtendedRouter.post('/oauth/verify-email/verify', requireAuth, async (req, r
     if (!parsed.success) return res.status(400).json({ ok: false, error: 'Enter the 6-digit code' });
 
     const userId = Number(req.user!.sub);
+    // Rate-limit by userId — failed OAuth email-verify OTP
+    const vevLock = await recordFailure({
+      userId, reason: 'otp_oauth_email_verify', maxAttempts: 5, lockoutMs: 15 * 60 * 1000,
+    });
+    if (vevLock.blocked) {
+      return res.status(429).json(lockoutResponse(vevLock));
+    }
     const [otp] = await db
       .select()
       .from(twoFactorOtps)
@@ -254,6 +286,8 @@ authExtendedRouter.post('/oauth/verify-email/verify', requireAuth, async (req, r
     if (!otp) return res.status(401).json({ ok: false, error: 'Invalid or expired code' });
     await db.update(twoFactorOtps).set({ usedAt: new Date() }).where(eq(twoFactorOtps.id, otp.id));
     await db.update(users).set({ emailVerified: true, updatedAt: new Date() }).where(eq(users.id, userId));
+    // Reset rate-limit counter — verify succeeded
+    await recordSuccess({ userId, reason: 'otp_oauth_email_verify' });
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -310,6 +344,13 @@ authExtendedRouter.post('/oauth/set-password/complete', requireAuth, async (req,
     if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
     if (user.passwordSetAt) return res.status(400).json({ ok: false, error: 'You already have a password set. Use the change-password flow.' });
 
+    // Rate-limit by userId — failed set-password OTP
+    const spLock = await recordFailure({
+      userId, reason: 'otp_set_password', maxAttempts: 5, lockoutMs: 15 * 60 * 1000,
+    });
+    if (spLock.blocked) {
+      return res.status(429).json(lockoutResponse(spLock));
+    }
     const [otp] = await db
       .select()
       .from(twoFactorOtps)
@@ -330,6 +371,8 @@ authExtendedRouter.post('/oauth/set-password/complete', requireAuth, async (req,
       passwordSetAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(users.id, userId));
+    // Reset rate-limit counter — set-password completed
+    await recordSuccess({ userId, reason: 'otp_set_password' });
 
     logAction({
       req,
@@ -357,7 +400,15 @@ authExtendedRouter.post('/2fa/verify', async (req, res, next) => {
     const parsed = Schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, error: 'Invalid input' });
 
-    const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email.toLowerCase())).limit(1);
+    const email = parsed.data.email.toLowerCase();
+    // Rate-limit by email — failed verification attempts
+    const vLock = await recordFailure({
+      email, reason: 'otp_forgot_password', maxAttempts: 5, lockoutMs: 15 * 60 * 1000,
+    });
+    if (vLock.blocked) {
+      return res.status(429).json(lockoutResponse(vLock));
+    }
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid code' });
 
     // Find a fresh, unused OTP for login
@@ -381,6 +432,8 @@ authExtendedRouter.post('/2fa/verify', async (req, res, next) => {
       return res.status(401).json({ ok: false, error: 'Invalid or expired code' });
     }
     await db.update(twoFactorOtps).set({ usedAt: new Date() }).where(eq(twoFactorOtps.id, otp.id));
+    // Reset rate-limit counter — 2FA verify succeeded
+    await recordSuccess({ userId: user.id, reason: 'otp_login' });
 
     // Issue tokens
     const payload = { sub: String(user.id), email: user.email, role: user.role, tier: user.tier ?? undefined };
@@ -493,6 +546,14 @@ authExtendedRouter.post('/change-password', requireAuth, async (req, res, next) 
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
 
+    // Rate-limit by userId — failed change-password attempts
+    const cpLock = await recordFailure({
+      userId, reason: 'change_password', maxAttempts: 5, lockoutMs: 60 * 60 * 1000,
+    });
+    if (cpLock.blocked) {
+      return res.status(429).json(lockoutResponse(cpLock));
+    }
+
     if (!user.passwordSetAt) {
       return res.status(400).json({
         ok: false,
@@ -506,6 +567,8 @@ authExtendedRouter.post('/change-password', requireAuth, async (req, res, next) 
 
     const newHash = await bcrypt.hash(parsed.data.newPassword, 10);
     await db.update(users).set({ passwordHash: newHash, passwordSetAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
+    // Reset rate-limit counter — change-password succeeded
+    await recordSuccess({ userId, reason: 'change_password' });
 
     logAction({
       req,

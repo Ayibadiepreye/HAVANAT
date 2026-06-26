@@ -100,7 +100,18 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email }),
       });
       if (!r.ok) {
-        setError('Could not send code. Please try again.');
+        if (r.status === 429) {
+          const d = await r.json().catch(() => ({}));
+          const min = d.retryAfterMinutes ?? Math.ceil((d.retryAfterMs ?? 0) / 60000);
+          const supportEmail = d.supportEmail ?? 'concierge@havanat.store';
+          setError(
+            d.contactSupport
+              ? `Your account is locked. Please contact ${supportEmail} to unlock it.`
+              : `Too many attempts. Try again in ${min} minute${min === 1 ? '' : 's'}. If you keep having issues, contact ${supportEmail}.`
+          );
+        } else {
+          setError('Could not send code. Please try again.');
+        }
         setSubmitting(false);
         return;
       }
@@ -168,7 +179,17 @@ export default function ForgotPasswordPage() {
       });
       const vd = await vr.json();
       if (!vr.ok || !vd.ok || !vd.resetToken) {
-        setError(vd.error || 'Invalid or expired code.');
+        if (vr.status === 429) {
+          const min = vd.retryAfterMinutes ?? Math.ceil((vd.retryAfterMs ?? 0) / 60000);
+          const supportEmail = vd.supportEmail ?? 'concierge@havanat.store';
+          setError(
+            vd.contactSupport
+              ? `Your account is locked. Please contact ${supportEmail} to unlock it.`
+              : `Too many failed attempts. Try again in ${min} minute${min === 1 ? '' : 's'}. If you keep having issues, contact ${supportEmail}.`
+          );
+        } else {
+          setError(vd.error || 'Invalid or expired code.');
+        }
         setSubmitting(false);
         return;
       }

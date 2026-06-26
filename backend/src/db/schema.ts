@@ -537,3 +537,48 @@ export type ContactMessage = typeof contactMessages.$inferSelect;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type EmailVerifyToken = typeof emailVerifyTokens.$inferSelect;
 export type TwoFactorOtp = typeof twoFactorOtps.$inferSelect;
+
+// ─── Security lockouts ────────────────────────────────────────────
+// After 5 consecutive failed attempts at any auth-sensitive flow
+// (OTP verification, password change, etc.), the user is locked out
+// and must contact support to unlock. Tracks:
+//   - which flow was being attempted (purpose / action)
+//   - how many attempts have been made (count)
+//   - when the lockout expires (NULL = permanent until support)
+//   - when the user can try again (NULL = permanently locked)
+export const securityLockouts = pgTable('security_lockouts', {
+  id: serial('id').primaryKey(),
+  // The locked-out user. For forgot-password (where we don't require
+  // auth yet), this is set after the user is identified by email.
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  // Optional: the email that triggered the lockout. Allows us to lock
+  // a row before we know which user it belongs to (forgot-password).
+  email: varchar('email', { length: 200 }),
+  // Why they were locked:
+  //   'otp_login'              — too many failed /api/auth/2fa/verify
+  //   'otp_forgot_password'    — too many failed /api/auth/forgot-password/verify
+  //   'otp_oauth_email_verify' — too many failed /api/auth/oauth/verify-email/verify
+  //   'otp_set_password'       — too many failed /api/auth/oauth/set-password/complete
+  //   'change_password'        — too many failed /api/auth/change-password
+  //   'forgot_password_send'   — too many /api/auth/forgot-password requests
+  reason: varchar('reason', { length: 64 }).notNull(),
+  // Number of failed attempts in the current window.
+  attempts: integer('attempts').notNull().default(0),
+  // First attempt time in this window.
+  windowStartedAt: timestamp('window_started_at', { withTimezone: true }).notNull().defaultNow(),
+  // Lockout expiry. NULL = permanent (must contact support to lift).
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  // When the lock was first imposed.
+  lockedAt: timestamp('locked_at', { withTimezone: true }),
+  // Whether the lock is still active.
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userReasonIdx: index('security_lockouts_user_reason_idx').on(t.userId, t.reason),
+  emailReasonIdx: index('security_lockouts_email_reason_idx').on(t.email, t.reason),
+  activeIdx: index('security_lockouts_active_idx').on(t.isActive),
+}));
+
+export type SecurityLockout = typeof securityLockouts.$inferSelect;
+export type NewSecurityLockout = typeof securityLockouts.$inferInsert;
