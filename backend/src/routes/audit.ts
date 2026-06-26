@@ -40,18 +40,18 @@ auditRouter.get('/stats', requireAuth, requireRole('admin', 'moderator'), async 
   const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
   const actionsToday = await db.select({ count: sql<number>`count(*)::int` }).from(auditLog).where(gte(auditLog.createdAt, startOfDay));
   const mostActive = await db.execute(sql`
-    SELECT "userId", "userName", count(*)::int as count
+    SELECT "user_id", "user_name", count(*)::int as count
     FROM audit_log
-    WHERE timestamp >= now() - interval '7 days'
-    GROUP BY "userId", "userName"
+    WHERE created_at >= now() - interval '7 days'
+    GROUP BY "user_id", "user_name"
     ORDER BY count DESC
     LIMIT 1
   `);
   const mostEdited = await db.execute(sql`
-    SELECT "entityType", count(*)::int as count
+    SELECT "entity_type", count(*)::int as count
     FROM audit_log
-    WHERE timestamp >= now() - interval '7 days'
-    GROUP BY "entityType"
+    WHERE created_at >= now() - interval '7 days'
+    GROUP BY "entity_type"
     ORDER BY count DESC
     LIMIT 1
   `);
