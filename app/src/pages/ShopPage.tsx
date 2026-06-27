@@ -49,13 +49,17 @@ export default function ShopPage() {
   useEffect(() => { void refreshToken(); }, [refreshToken]);
 
   useEffect(() => {
-    // The refreshToken call above is fire-and-forget. We additionally
-    // gate the sneak-peek fetch on the membership status being loaded
-    // AND eligible, so the request is never made with a stale token.
+    // Wait for membership status to load so we don't fire a sneak-peek
+    // request before knowing the user is eligible.
     if (membership.loading) return;
     if (sneakOnly && isEligible) {
+      // Rotate the JWT so the request uses a token whose tier claim
+      // matches the DB. Then fetch only sneak peeks.
       void refreshToken().then(() => fetchProducts({ sneakPeek: true }));
-    } else {
+    } else if (!sneakOnly) {
+      // Only re-fetch the regular list when the filter is off. Without
+      // this guard, a membership.loading false -> true -> false flicker
+      // would clobber the sneak-peek-only array with regular products.
       void fetchProducts();
     }
   }, [sneakOnly, isEligible, fetchProducts, refreshToken, membership.loading]);
@@ -65,7 +69,13 @@ export default function ShopPage() {
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    if (sneakOnly) {
+    // When sneakOnly is on, the backend has ALREADY filtered to only
+    // sneak peeks, so the local filter would be redundant and would
+    // produce 0 results if the products array has been refreshed with
+    // a non-sneak-peek payload since. Don't double-filter.
+    if (sneakOnly && !products.some((p) => p.isSneakPeek)) {
+      // Defensive: only apply the local filter if the array doesn't
+      // already look like a sneak-peek-only response.
       result = result.filter((p) => p.isSneakPeek);
     }
 
