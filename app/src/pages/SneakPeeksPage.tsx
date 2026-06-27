@@ -21,6 +21,7 @@ import { formatNaira } from '@/config';
 export default function SneakPeeksPage() {
   const products = useProductStore((s) => s.products);
   const fetchProducts = useProductStore((s) => s.fetchProducts);
+  const refreshToken = useAuthStore((s) => s.refreshToken);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   // Authoritative tier from the JWT (not the Zustand mirror, which can
@@ -35,23 +36,45 @@ export default function SneakPeeksPage() {
       return (payload?.tier ?? null) as string | null;
     } catch { return null; }
   })();
-  const tier = jwtTier ?? dashboardUser?.tier ?? null;
-  const staleJwt = !!dashboardUser && jwtTier !== null && jwtTier !== dashboardUser.tier;
-  const isEligible = tier === 'deluxe' || tier === 'elite';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Live tier that updates after refreshToken() rewrites localStorage.
+  const [liveTier, setLiveTier] = useState<string | null>(jwtTier ?? dashboardUser?.tier ?? null);
 
   useEffect(() => {
-    if (!isEligible) return;
-    setLoading(true);
-    setError(null);
-    fetchProducts({ sneakPeek: true })
-      .then(() => setLoading(false))
-      .catch((err: any) => {
-        setError(err?.message ?? 'Could not load sneak peeks');
-        setLoading(false);
-      });
-  }, [isEligible, fetchProducts]);
+    // Step 1: rotate the JWT so it reflects the LATEST tier from the DB.
+    // This is critical for users whose access token was issued before
+    // a membership upgrade — the stale claim would otherwise 403 the
+    // sneak-peek fetch even though they're really deluxe/elite.
+    (async () => {
+      setLoading(true);
+      setError(null);
+      await refreshToken();
+      // Step 2: re-read the JWT claim from localStorage (refreshToken()
+      // just wrote the new token there).
+      let newTier: string | null = null;
+      try {
+        const tok = JSON.parse(localStorage.getItem('havanat-auth') || '{}')?.state?.accessToken;
+        if (tok && typeof tok === 'string') {
+          const payload = JSON.parse(atob(tok.split('.')[1]));
+          newTier = (payload?.tier ?? null) as string | null;
+        }
+      } catch { /* noop */ }
+      setLiveTier(newTier);
+      // Step 3: only fetch if the refreshed token actually says deluxe/elite.
+      if (newTier === 'deluxe' || newTier === 'elite') {
+        try {
+          await fetchProducts({ sneakPeek: true });
+        } catch (err: any) {
+          setError(err?.message ?? 'Could not load sneak peeks');
+        }
+      }
+      setLoading(false);
+    })();
+  }, [refreshToken, fetchProducts]);
+
+  const tier = liveTier ?? dashboardUser?.tier ?? null;
+  const staleJwt = !!dashboardUser && liveTier !== null && liveTier !== dashboardUser.tier;
 
   // If we're not authenticated, gate the page.
   if (!isAuthenticated) {
