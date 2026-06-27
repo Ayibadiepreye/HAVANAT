@@ -115,7 +115,7 @@ export default function App() {
 
 function PublicSite() {
   const location = useLocation();
-  const hideFooter = location.pathname.startsWith('/account');
+  const hideFooter = location.pathname.startsWith('/account') || location.pathname.startsWith('/profile');
   return (
     <>
       <Navbar />

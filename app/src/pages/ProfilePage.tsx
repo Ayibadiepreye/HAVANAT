@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { User as UserIcon, Shield, Eye, EyeOff } from 'lucide-react';
+import { User as UserIcon, Shield, Eye, EyeOff, Package, Crown, MapPin, Heart } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useTwoFactorStore, twoFactorActions } from '@/stores/useTwoFactorStore';
@@ -52,11 +53,18 @@ export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
   const showToast = useUIStore((s) => s.showToast);
 
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabKey>('personal');
 
+  // Use the same nav as AccountPage so users can navigate to the
+  // account tabs from here. 'Profile' goes to /profile (this page),
+  // the rest navigate to /account?tab=...
   const navItems: MobileBottomNavItem[] = [
-    { key: 'personal', label: 'Personal', icon: UserIcon, onClick: () => setActiveTab('personal') },
-    { key: 'security', label: 'Security', icon: Shield, onClick: () => setActiveTab('security') },
+    { key: 'profile', label: 'Profile', icon: UserIcon, onClick: () => navigate('/profile') },
+    { key: 'orders', label: 'Orders', icon: Package, onClick: () => navigate('/account?tab=orders') },
+    { key: 'membership', label: 'Membership', icon: Crown, onClick: () => navigate('/account?tab=membership') },
+    { key: 'addresses', label: 'Addresses', icon: MapPin, onClick: () => navigate('/account?tab=addresses') },
+    { key: 'wishlist', label: 'Wishlist', icon: Heart, onClick: () => navigate('/account?tab=wishlist') },
   ];
 
   // Personal
@@ -300,7 +308,7 @@ export default function ProfilePage() {
       </div>
 
     </main>
-    <MobileBottomNav activeKey={activeTab} items={navItems} />
+    <MobileBottomNav activeKey="profile" items={navItems} />
     </>
   );
 }

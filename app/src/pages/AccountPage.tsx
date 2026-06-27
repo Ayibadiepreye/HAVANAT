@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Package, Crown, MapPin, Heart, LogOut, Plus, Edit3, Trash2 } from 'lucide-react';
 import MobileBottomNav, { type MobileBottomNavItem } from '@/components/MobileBottomNav';
 import { useUIStore } from '@/stores/useUIStore';
@@ -31,7 +31,10 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AccountPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>('orders');
+  const [searchParams] = useSearchParams();
+  const validTabs: Tab[] = ['orders', 'membership', 'addresses', 'wishlist'];
+  const initialTab = (searchParams.get('tab') ?? 'orders') as Tab;
+  const [activeTab, setActiveTab] = useState<Tab>(validTabs.includes(initialTab) ? initialTab : 'orders');
   const addresses = useAddressStore((s) => s.addresses);
   const addAddress = useAddressStore((s) => s.addAddress);
   const updateAddress = useAddressStore((s) => s.updateAddress);
