@@ -6,9 +6,9 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useOrderStore } from '@/stores/useOrderStore';
 import { useAddressStore, type Address } from '@/stores/useAddressStore';
-import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useDeliveryZones } from '@/hooks/useDeliveryZones';
 import { formatNaira } from '@/config';
+import { apiPost } from '@/lib/api';
 
 // Nigerian states. Sourced from the official 36-state list.
 export const NIGERIAN_STATES = [
@@ -24,10 +24,8 @@ export default function CheckoutPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const showToast = useUIStore((s) => s.showToast);
-  const createOrder = useOrderStore((s) => s.createOrder);
   const addresses = useAddressStore((s) => s.addresses);
   const addAddress = useAddressStore((s) => s.addAddress);
-    const broadcast = useNotificationStore((s) => s.broadcast);
   const navigate = useNavigate();
   const { zoneFeeByState } = useDeliveryZones();
 
@@ -105,58 +103,83 @@ export default function CheckoutPage() {
       return;
     }
     setIsSubmitting(true);
-    // Mock: in production this opens the Paystack inline iframe via
-    // PaystackPop.setup({ key, email, amount, ref, callback, onClose }).
-    // On success the backend webhook marks the order `received`.
-    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      const customerEmail = user?.email ?? 'guest@havanat.store';
+      const customerName = user?.name ?? selectedAddress.fullName;
+      const customerPhone = user?.phone ?? selectedAddress.phone;
+      const tier = user?.membershipTier ?? 'standard';
+      const sub = cartSubtotal();
+      const tDisc = tierDiscount(tier);
+      const delFee = deliveryFee(zoneFeeByState ?? {});
+      const tot = cartTotal(tier, zoneFeeByState);
 
-    const orderId = `ORD-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
-    const customerEmail = user?.email ?? 'guest@havanat.store';
-    const customerName = user?.name ?? selectedAddress.fullName;
-    const customerPhone = user?.phone ?? selectedAddress.phone;
-    const tier = user?.membershipTier ?? 'standard';
-    const sub = cartSubtotal();
-    const tDisc = tierDiscount(tier);
-    const delFee = deliveryFee(zoneFeeByState ?? {});
-    const tot = cartTotal(tier, zoneFeeByState);
-    createOrder({
-      id: orderId,
-      customerId: user?.id ?? 'guest',
-      customerName,
-      customerEmail,
-      customerPhone,
-      items: items.map((it) => ({
-        productId: it.product.id, name: it.product.name, image: it.product.images[0],
-        size: it.size, quantity: it.quantity, price: it.product.price,
-      })),
-      subtotal: sub,
-      tierDiscount: tDisc,
-      deliveryFee: delFee,
-      total: tot,
-      shippingAddress: {
-        street: selectedAddress.street,
-        city: selectedAddress.city,
-        state: selectedAddress.state,
-      },
-      status: 'received',
-      paymentMethod: 'paystack',
-    });
-    broadcast(
-      {
-        title: `Order ${orderId} received`,
-        body: `Thanks ${customerName.split(' ')[0]} — we've received your order and it's being prepared. We'll email you as soon as a rider is on the way.`,
-        category: 'order',
-        channels: 'both',
-        scope: 'user',
-        targetUserId: user?.id ?? customerEmail,
-      },
-      { id: 'system', name: 'Havanat', role: 'system' }
-    );
-    setIsSubmitting(false);
-    setShowSuccess(true);
-    clearCart();
-    showToast('Payment successful — order placed!', 'success');
+      // Step 1: Create the order on the backend (status=received, paidAt=null).
+      // The backend assigns the orderNumber; we use it as the Paystack reference.
+      const order = await apiPost<{ id: number; orderNumber: string }>('/api/orders', {
+        customerName,
+        customerPhone,
+        customerEmail,
+        paymentMethod: 'paystack',
+        addressId: selectedAddress.id ?? null,
+        items: items.map((it) => ({
+          productId: it.product.id,
+          size: it.size,
+          quantity: it.quantity,
+        })),
+        subtotal: sub,
+        tierDiscount: tDisc,
+        deliveryFee: delFee,
+        total: tot,
+        shippingAddress: {
+          fullName: selectedAddress.fullName,
+          phone: selectedAddress.phone,
+          street: selectedAddress.street,
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+        },
+      }, true);
+
+      // Step 2: Initialize Paystack payment. Backend returns authorizationUrl.
+      const init = await apiPost<{
+        ok: boolean;
+        mode: 'live' | 'mock';
+        authorizationUrl: string;
+        reference: string;
+      }>('/api/payments/initialize', {
+        orderId: order.id,
+      }, true);
+
+      if (init.mode === 'mock') {
+        // No real Paystack configured - backend already marked order as paid.
+        await refreshOrdersInStore();
+        clearCart();
+        setShowSuccess(true);
+        showToast('Order placed! (mock mode — no real payment processed)', 'success');
+        return;
+      }
+
+      // Step 3: Redirect to Paystack. The callback URL is
+      // /account/orders/{orderId}?paid=1&reference={orderNumber}.
+      // The AccountPage or OrderDetailPage must call /api/payments/verify on
+      // return — that's where the DB paidAt + status flip happens.
+      window.location.href = init.authorizationUrl;
+    } catch (err: any) {
+      console.error('Payment failed', err);
+      const msg = err?.message ?? 'Could not start payment';
+      showToast(msg, 'error');
+      setIsSubmitting(false);
+    }
   };
+
+  // Helper: refresh orders in local store from backend after a mock-mode payment.
+  async function refreshOrdersInStore() {
+    try {
+      const fetchOrders = useOrderStore.getState().fetchOrders;
+      await fetchOrders();
+    } catch (e) {
+      console.warn('refreshOrders failed', e);
+    }
+  }
 
   if (showSuccess) {
     return (

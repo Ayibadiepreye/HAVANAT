@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCheck, ShoppingCart, RotateCcw, UserPlus, Settings as SettingsIcon, Bell } from 'lucide-react';
-import { relativeTime, formatDateTime } from '@/utils/formatters';
+import { formatDateTime } from '@/utils/formatters';
 import { useAuditLogStore } from '@/stores/useAuditLogStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import type { AuditLogEntry } from '@/types/dashboard';
-import type { NotificationCategory } from '@/types/notifications';
 
 type AdminCategory = 'order' | 'return' | 'member' | 'system' | 'audit';
 
@@ -75,7 +74,7 @@ export default function AdminNotifications() {
       category: categoryForAudit(l.entityType),
       title: l.entityLabel ?? l.entityType,
       body: l.summary ?? '',
-      timestamp: l.createdAt ?? new Date().toISOString(),
+      timestamp: l.timestamp ?? new Date().toISOString(),
       read: true, // audit entries are admin-only, no per-user read state
       source: 'audit' as const,
     }));

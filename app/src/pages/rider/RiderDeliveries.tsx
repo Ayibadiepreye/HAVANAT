@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRiderDeliveries } from '@/hooks/useRiderMe';
 import StatusBadge from '@/components/admin/StatusBadge';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatTime } from '@/utils/formatters';
 import type { DeliveryStatus } from '@/types/dashboard';

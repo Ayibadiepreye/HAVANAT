@@ -13,10 +13,12 @@ import {
   PackageCheck,
 } from 'lucide-react';
 import { useOrderStore } from '@/stores/useOrderStore';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useUIStore } from '@/stores/useUIStore';
 import { formatNaira } from '@/config';
 import { BRAND } from '@/config/brand';
+import { apiPost } from '@/lib/api';
 import type { OrderStatus } from '@/types/dashboard';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -57,6 +59,39 @@ export default function OrderDetailPage() {
   useEffect(() => {
     if (!orders.find((o) => o.id === id)) void fetchOrders();
   }, [id, orders, fetchOrders]);
+
+  // When user returns from Paystack (callback: ?paid=1&reference=ORD-...),
+  // call /api/payments/verify to flip paidAt + status on the backend.
+  // Runs once per reference to avoid duplicate verifies.
+  const [searchParams] = useSearchParams();
+  const verifiedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const reference = searchParams.get('reference');
+    const paid = searchParams.get('paid');
+    if (paid !== '1' || !reference || verifiedRef.current === reference) return;
+    verifiedRef.current = reference;
+    (async () => {
+      try {
+        const result = await apiPost<{ ok: boolean; status: string }>('/api/payments/verify', { reference }, true);
+        if (result.ok && result.status === 'success') {
+          showToast('Payment confirmed — your order is being processed.', 'success');
+          await fetchOrders();
+        } else {
+          showToast(`Payment status: ${result.status}`, 'info');
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Could not confirm payment. Contact support if you were charged.', 'error');
+      } finally {
+        // Strip ?paid=1&reference=... from the URL so refresh doesn't re-run verify.
+        const next = new URLSearchParams(searchParams);
+        next.delete('paid');
+        next.delete('reference');
+        const q = next.toString();
+        window.history.replaceState({}, '', `/account/orders/${id}${q ? '?' + q : ''}`);
+      }
+    })();
+  }, [searchParams, fetchOrders, id, showToast]);
+
   const order = useOrderStore((s) => s.getById(id));
 
   if (!order) {
