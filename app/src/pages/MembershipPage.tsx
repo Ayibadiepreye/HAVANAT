@@ -39,7 +39,7 @@ export default function MembershipPage() {
             return (
               <div
                 key={tier.tier}
-                className={`relative p-8 border ${
+                className={`relative p-6 sm:p-8 border ${
                   tier.isPopular ? 'border-black' : 'border-gray-200'
                 }`}
               >
@@ -50,7 +50,7 @@ export default function MembershipPage() {
                 )}
                 <div className="mb-6">
                   <Icon size={24} strokeWidth={1.5} className="text-gray-400 mb-4" />
-                  <h3 className="font-serif text-2xl mb-1">{tier.tier}</h3>
+                  <h3 className="font-serif text-xl sm:text-2xl mb-1">{tier.tier}</h3>
                   <p className="text-sm text-gray-500">{tier.description}</p>
                 </div>
                 <div className="flex items-baseline gap-1 mb-8">

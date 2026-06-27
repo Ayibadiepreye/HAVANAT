@@ -73,7 +73,7 @@ export default function CheckoutPage() {
 
   if (items.length === 0 && !showSuccess) {
     return (
-      <main className="min-h-screen pt-24 flex items-center justify-center bg-white">
+      <main className="min-h-screen pt-24 flex items-center justify-center bg-white px-4">
         <div className="text-center">
           <h1 className="font-serif text-2xl mb-4">Your cart is empty</h1>
           <Link to="/shop" className="text-xs tracking-[0.15em] underline">BACK TO SHOP</Link>

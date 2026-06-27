@@ -175,7 +175,7 @@ function BrandStorySection() {
               Italy and the United Kingdom. Our master tailors combine decades of expertise with modern
               techniques to create pieces that command respect in every room.
             </p>
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
               {[
                 { icon: Star, label: 'Premium Fabrics' },
                 { icon: Zap, label: 'Expert Craftsmanship' },

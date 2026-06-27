@@ -143,15 +143,15 @@ export default function AccountPage() {
   };
 
   if (!user) {
-    return (
-      <main className="min-h-screen pt-24 flex items-center justify-center bg-white">
-        <div className="text-center">
-          <h1 className="font-serif text-2xl mb-4">Please Sign In</h1>
-          <Link to="/login" className="text-xs tracking-[0.15em] underline">GO TO LOGIN</Link>
-        </div>
-      </main>
-    );
-  }
+      return (
+        <main className="min-h-screen pt-24 flex items-center justify-center bg-white px-4">
+          <div className="text-center">
+            <h1 className="font-serif text-2xl mb-4">Please Sign In</h1>
+            <Link to="/login" className="text-xs tracking-[0.15em] underline">GO TO LOGIN</Link>
+          </div>
+        </main>
+      );
+    }
 
   const wishlistProducts = products.filter((p) => wishlist.includes(p.id));
 
@@ -401,7 +401,7 @@ export default function AccountPage() {
                     <Link to="/shop" className="text-xs tracking-[0.1em] underline mt-4 inline-block">BROWSE PRODUCTS</Link>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {wishlistProducts.map((product) => (
                       <Link key={product.id} to={`/shop/${product.slug}`} className="group">
                         <div className="aspect-[3/4] overflow-hidden bg-gray-100 img-zoom">
