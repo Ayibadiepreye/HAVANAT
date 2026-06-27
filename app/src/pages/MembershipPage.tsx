@@ -1,9 +1,12 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Check, ChevronDown, Star, Crown, Award } from 'lucide-react';
 import { MEMBERSHIP_TIERS } from '@/config/membership';
 import { formatNaira } from '@/config';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { useNavigate } from 'react-router-dom';
+import { apiPost } from '@/lib/api';
 import { useTierStore } from '@/stores/useTierStore';
 
 const FAQS = [
@@ -25,8 +28,44 @@ export default function MembershipPage() {
     features: t.features.map((f: string) => f.replace(/^[✓·]\s*/, '')),
     isPopular: t.isPopular,
   }));
+
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const showToast = useUIStore((s) => s.showToast);
+  const [subscribing, setSubscribing] = useState<null | 'Deluxe' | 'Elite'>(null);
+
+  async function startPaystackSubscribe(tierName: 'Deluxe' | 'Elite') {
+    if (!user) {
+      showToast('Sign in to subscribe', 'info');
+      navigate(`/login?redirect=/membership`);
+      return;
+    }
+    if (user.emailVerified === false) {
+      showToast('Please verify your email before subscribing', 'info');
+      navigate(`/account?tab=membership&needsVerify=1`);
+      return;
+    }
+    setSubscribing(tierName);
+    try {
+      const res = await apiPost<{ authorizationUrl: string; reference: string }>(
+        '/api/memberships/subscribe',
+        { tier: tierName, billingCycle: 'monthly' },
+        true
+      );
+      window.location.href = res.authorizationUrl;
+    } catch (err: any) {
+      const msg = err?.message || '';
+      if (msg.includes('Paystack not configured')) {
+        showToast('Payments temporarily unavailable. Please try again shortly.', 'error');
+      } else if (msg.includes('already on this tier')) {
+        showToast(`You're already on ${tierName}.`, 'info');
+      } else {
+        showToast(msg || 'Could not start checkout.', 'error');
+      }
+      setSubscribing(null);
+    }
+  }
+
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const allFeatures = Array.from(new Set(MEMBERSHIP_TIERS.flatMap((m) => m.features)));
@@ -85,16 +124,24 @@ export default function MembershipPage() {
                   >
                     CURRENT PLAN
                   </button>
+                ) : tier.price === 0 ? (
+                  <Link
+                    to={user ? '/account' : '/login'}
+                    className="block w-full py-3 text-center border border-black text-black text-xs tracking-[0.15em] font-semibold hover:bg-black hover:text-white transition-colors"
+                  >
+                    GET STARTED
+                  </Link>
                 ) : (
                   <button
-                    onClick={() => showToast(`${tier.tier} subscription coming soon!`, 'info')}
-                    className={`w-full py-3 text-xs tracking-[0.15em] font-semibold transition-colors ${
+                    onClick={() => startPaystackSubscribe(tier.tier as 'Deluxe' | 'Elite')}
+                    disabled={subscribing === tier.tier}
+                    className={`w-full py-3 text-xs tracking-[0.15em] font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                       tier.isPopular
                         ? 'bg-black text-white hover:bg-black/80'
                         : 'border border-black text-black hover:bg-black hover:text-white'
                     }`}
                   >
-                    {tier.price === 0 ? 'GET STARTED' : 'SUBSCRIBE'}
+                    {subscribing === tier.tier ? 'REDIRECTING…' : 'SUBSCRIBE'}
                   </button>
                 )}
               </div>

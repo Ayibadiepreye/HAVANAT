@@ -57,6 +57,46 @@ ridersRouter.get('/me/payouts', requireAuth, requireRole('rider'), async (req, r
   res.json({ items: rows });
 });
 
+// Rider: aggregate earnings stats for their dashboard
+ridersRouter.get('/me/stats', requireAuth, requireRole('rider'), async (req, res) => {
+  try {
+    const riderId = Number(req.user!.sub);
+    const allPayouts = await db.execute<{ status: string; total: string }>(sql`
+      SELECT status, COALESCE(SUM(amount), 0)::text AS total
+      FROM payouts WHERE rider_id = ${riderId} GROUP BY status
+    `);
+    const earningsByStatus = { pending: 0, approved: 0, paid: 0 };
+    for (const row of allPayouts.rows as any[]) {
+      earningsByStatus[row.status as keyof typeof earningsByStatus] = Number(row.total) || 0;
+    }
+    const deliveryCounts = await db.execute<{ status: string; count: string }>(sql`
+      SELECT status, COUNT(*)::text AS count FROM deliveries WHERE rider_id = ${riderId} GROUP BY status
+    `);
+    const counts = { pending: 0, picked_up: 0, in_transit: 0, delivered: 0, failed: 0 };
+    for (const row of deliveryCounts.rows as any[]) {
+      counts[row.status as keyof typeof counts] = Number(row.count) || 0;
+    }
+    const lifetime = await db.execute<{ total: string }>(sql`
+      SELECT COALESCE(SUM(amount), 0)::text AS total FROM payouts WHERE rider_id = ${riderId} AND status = 'paid'
+    `);
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    const todayEarnings = await db.execute<{ total: string }>(sql`
+      SELECT COALESCE(SUM(amount), 0)::text AS total FROM payouts
+      WHERE rider_id = ${riderId} AND status = 'paid' AND "created_at" >= ${today.toISOString()}::timestamptz
+    `);
+    res.json({
+      lifetimeEarnings: Number((lifetime.rows as any[])[0]?.total ?? 0),
+      earningsToday: Number((todayEarnings.rows as any[])[0]?.total ?? 0),
+      earningsByStatus,
+      deliveryCounts: counts,
+      totalDeliveries: Object.values(counts).reduce((s, n) => s + n, 0),
+    });
+  } catch (err: any) {
+    console.error('[riders/me/stats]', err);
+    res.status(500).json({ error: 'Failed to load rider stats' });
+  }
+});
+
 ridersRouter.post('/me/payouts', requireAuth, requireRole('rider'), async (req, res) => {
   const { amount } = req.body as { amount: number };
   const now = new Date();

@@ -139,9 +139,30 @@ export const useMembershipSubscriptionStore = create<MembershipState>()(
         });
       },
 
-      renew: (tier, actor) => {
-        // Same as subscribe but allows re-subscribing after ended
-        get().subscribe(tier, actor);
+      renew: async (tier, actor) => {
+        // Renewals MUST go through Paystack — never mutate local state without
+        // a real charge. This shim redirects to the subscribe flow.
+        // Caller is expected to navigate or trigger the actual API call.
+        try {
+          const { apiPost } = await import('@/lib/api');
+          const res = await apiPost<{ authorizationUrl: string }>(
+            '/api/memberships/subscribe',
+            { tier: tier === 'deluxe' ? 'Deluxe' : 'Elite', billingCycle: 'monthly' },
+            true
+          );
+          window.location.href = res.authorizationUrl;
+        } catch (err: any) {
+          console.error('renew failed', err);
+          logAuditAction({
+            userId: actor.id, userName: actor.name,
+            userRole: actor.role === 'system' ? 'admin' : actor.role,
+            action: 'update', entityType: 'settings',
+            entityId: 'self', entityLabel: `Membership renew failed: ${tier}`,
+            summary: err?.message ?? 'Renew failed',
+            changes: { before: null, after: null },
+          });
+          throw err;
+        }
       },
 
       daysRemaining: () => {

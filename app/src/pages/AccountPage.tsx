@@ -4,6 +4,7 @@ import { Package, Crown, MapPin, Heart, LogOut, Plus, Edit3, Trash2 } from 'luci
 import MobileBottomNav, { type MobileBottomNavItem } from '@/components/MobileBottomNav';
 import { useUIStore } from '@/stores/useUIStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { apiPost } from '@/lib/api';
 import { useProductStore } from '@/stores/useProductStore';
 import { useOrderStore } from '@/stores/useOrderStore';
 import { useAddressStore, type Address as StoreAddress } from '@/stores/useAddressStore';
@@ -35,6 +36,38 @@ export default function AccountPage() {
   const validTabs: Tab[] = ['orders', 'membership', 'addresses', 'wishlist'];
   const initialTab = (searchParams.get('tab') ?? 'orders') as Tab;
   const [activeTab, setActiveTab] = useState<Tab>(validTabs.includes(initialTab) ? initialTab : 'orders');
+
+  // When user returns from Paystack (callback: ?tab=membership&paystack=verify&reference=...),
+  // call /api/memberships/confirm to flip the DB tier. Runs once on mount.
+  const reference = searchParams.get('reference');
+  const showToast = useUIStore((s) => s.showToast);
+  useEffect(() => {
+    if (reference && searchParams.get('paystack') === 'verify') {
+      void (async () => {
+        try {
+          const result = await apiPost<{ ok: boolean; tier: string; alreadyActive?: boolean }>(
+            '/api/memberships/confirm',
+            { reference },
+            true
+          );
+          if (result.alreadyActive) {
+            showToast('Membership is already active.', 'info');
+          } else if (result.tier) {
+            showToast(`Welcome to ${result.tier}! Your membership is active.`, 'success');
+          }
+        } catch (err: any) {
+          showToast(err?.message || 'Could not confirm payment. Contact support if you were charged.', 'error');
+        } finally {
+          // Strip the query params so refreshes don't re-trigger confirm.
+          const clean = new URLSearchParams(searchParams);
+          clean.delete('paystack');
+          clean.delete('reference');
+          navigate({ search: clean.toString() }, { replace: true });
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reference]);
   const addresses = useAddressStore((s) => s.addresses);
   const addAddress = useAddressStore((s) => s.addAddress);
   const updateAddress = useAddressStore((s) => s.updateAddress);
@@ -134,8 +167,6 @@ export default function AccountPage() {
   const orders = useOrderStore((s) => s.orders);
   const fetchOrders = useOrderStore((s) => s.fetchOrders);
   useEffect(() => { if (products.length === 0) fetchProducts(); if (orders.length === 0) fetchOrders(); }, [products.length, orders.length, fetchProducts, fetchOrders]);
-  const showToast = useUIStore((s) => s.showToast);
-
   const handleSignOut = () => {
     logout();
     showToast('Signed out — see you soon', 'success');

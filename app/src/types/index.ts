@@ -48,6 +48,9 @@ export interface User {
   membershipTier: 'standard' | 'deluxe' | 'elite';
   phone?: string;
   avatar?: string;
+  // Whether the user has proven they own this email via the OTP/click flow.
+  // Frontend uses this to gate checkout / membership actions until verified.
+  emailVerified?: boolean;
 }
 
 export interface Order {

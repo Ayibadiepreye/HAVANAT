@@ -20,6 +20,7 @@ import { paymentsRouter } from './routes/payments.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { messagesRouter } from './routes/messages.js';
 import { membershipsRouter } from './routes/memberships.js';
+import { adminRouter } from './routes/admin.js';
 import { googleAuthRouter } from './routes/google-auth.js';
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/auth/google', googleAuthRouter);
 app.use('/api/memberships', membershipsRouter);
+app.use('/api/admin', adminRouter);
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.path }));

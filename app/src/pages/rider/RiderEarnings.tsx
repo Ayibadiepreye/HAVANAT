@@ -1,56 +1,49 @@
 import { useMemo } from 'react';
-import { useRiderStore } from '@/stores/useRiderStore';
-import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import StatsCard from '@/components/admin/StatsCard';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatNaira, formatDate } from '@/utils/formatters';
-import { PAYOUTS } from '@/data/dashboardMockData';
+import { useRiderStats, useRiderPayouts } from '@/hooks/useRiderDashboard';
 import type { Payout } from '@/types/dashboard';
 
 export default function RiderEarnings() {
-  const dashboardUser = useAuthStore((s) => s.dashboardUser);
-  const deliveries = useRiderStore((s) => s.deliveries);
   const showToast = useUIStore((s) => s.showToast);
 
-  const riderId = dashboardUser?.id === 'usr_rider' ? 'rider_01' : (dashboardUser?.id ?? 'rider_01');
-  const myDeliveries = useMemo(
-    () => deliveries.filter((d) => d.riderId === riderId && d.status === 'delivered'),
-    [deliveries, riderId]
-  );
-  const myPayouts = useMemo(() => PAYOUTS.filter((p) => p.riderId === riderId), [riderId]);
+  // Live stats from /api/riders/me/stats — replaces all the hardcoded 2026-06-23
+  // date math that was silently filtering to mock data.
+  const stats = useRiderStats();
+  const payoutsApi = useRiderPayouts();
 
-  const today = useMemo(
-    () => myDeliveries.filter((d) => d.completedAt?.startsWith('2026-06-23')),
-    [myDeliveries]
-  );
-  const todayTotal = useMemo(() => today.reduce((s, d) => s + d.deliveryFee, 0), [today]);
-  const weekTotal = useMemo(
-    () => myDeliveries.filter((d) => d.completedAt && d.completedAt >= '2026-06-17').reduce((s, d) => s + d.deliveryFee, 0),
-    [myDeliveries]
-  );
-  const monthTotal = useMemo(() => myDeliveries.reduce((s, d) => s + d.deliveryFee, 0), [myDeliveries]);
+  const todayTotal = stats.data?.earningsToday ?? 0;
+  const weekTotal = (stats.data?.earningsByStatus.paid ?? 0)
+    + (stats.data?.earningsByStatus.approved ?? 0)
+    + (stats.data?.earningsByStatus.pending ?? 0);  // includes in-flight
+  const monthTotal = stats.data?.earningsByStatus.paid ?? 0;
+  const lifetimeTotal = stats.data?.lifetimeEarnings ?? 0;
 
+  // Bar chart: 7-day breakdown of paid payouts (simple, no date math).
   const chartData = useMemo(() => {
+    const now = new Date();
     const days: { date: string; earnings: number }[] = [];
     for (let i = 6; i >= 0; i--) {
-      const d = new Date('2026-06-23');
+      const d = new Date(now);
       d.setUTCDate(d.getUTCDate() - i);
       const key = d.toISOString().slice(0, 10);
-      const total = myDeliveries.filter((dl) => dl.completedAt?.startsWith(key)).reduce((s, x) => s + x.deliveryFee, 0);
+      const total = payoutsApi.data
+        .filter((p) => p.status === 'paid' && p.createdAt.startsWith(key))
+        .reduce((s, x) => s + Number(x.amount), 0);
       days.push({ date: key, earnings: total });
     }
     return days;
-  }, [myDeliveries]);
+  }, [payoutsApi.data]);
 
   const columns: Column<Payout>[] = [
-    { key: 'id', label: 'Reference', render: (p) => <span className="font-medium text-xs">{p.id}</span> },
-    { key: 'date', label: 'Date', render: (p) => formatDate(p.date) },
-    { key: 'amount', label: 'Amount', render: (p) => formatNaira(p.amount), align: 'right' },
-    { key: 'status', label: 'Status', render: (p) => <StatusBadge status={p.status} type="generic" /> },
-    { key: 'ref', label: 'Reference #', render: (p) => <span className="text-xs text-gray-500">{p.reference ?? '—'}</span> },
+    { key: 'id', label: 'Reference', render: (p: any) => <span className="font-medium text-xs">PO-{String(p.id).padStart(6, '0')}</span> },
+    { key: 'date', label: 'Date', render: (p: any) => formatDate(p.createdAt) },
+    { key: 'amount', label: 'Amount', render: (p: any) => formatNaira(Number(p.amount)), align: 'right' },
+    { key: 'status', label: 'Status', render: (p: any) => <StatusBadge status={p.status} type="generic" /> },
   ];
 
   return (
@@ -61,10 +54,10 @@ export default function RiderEarnings() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <StatsCard label="Today" value={formatNaira(todayTotal)} change={`${today.length} completed`} />
-        <StatsCard label="This Week" value={formatNaira(weekTotal)} change="Last 7 days" />
-        <StatsCard label="This Month" value={formatNaira(monthTotal)} change="All completed" />
-        <StatsCard label="Total" value={formatNaira(monthTotal + 200000)} change="Career total" trend="up" />
+        <StatsCard label="Today" value={formatNaira(todayTotal)} change={`${stats.data?.deliveryCounts.delivered ?? 0} delivered`} />
+        <StatsCard label="This Week" value={formatNaira(weekTotal)} change={`${stats.data?.totalDeliveries ?? 0} total runs`} />
+        <StatsCard label="Paid Out" value={formatNaira(monthTotal)} change="Settled earnings" />
+        <StatsCard label="Lifetime" value={formatNaira(lifetimeTotal)} change="Career total" trend="up" />
       </div>
 
       <div className="bg-white border border-gray-200 p-6">
@@ -90,7 +83,7 @@ export default function RiderEarnings() {
             className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] bg-black text-white hover:bg-gray-900"
           >Request Payout</button>
         </div>
-        <AdminTable<Payout> columns={columns} rows={myPayouts} keyFn={(p) => p.id} emptyMessage="No payouts yet" />
+        <AdminTable<Payout> columns={columns} rows={payoutsApi.data as unknown as Payout[]} keyFn={(p) => p.id} emptyMessage="No payouts yet" />
       </div>
     </div>
   );

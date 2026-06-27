@@ -5,9 +5,9 @@ import { useUIStore } from '@/stores/useUIStore';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import { Plus, X, Trash2, Mail } from 'lucide-react';
 import { useState } from 'react';
+import { useEmailTemplates } from '@/hooks/useEmailTemplates';
 import { CONFIG } from '@/config';
 import { useAdminUserStore } from '@/stores/useAdminUserStore';
-import { EMAIL_TEMPLATES } from '@/data/dashboardMockData';
 import type { DeliveryZone, AdminAccount } from '@/types/dashboard';
 import RoleBadge from '@/components/admin/RoleBadge';
 import { formatDate } from '@/utils/formatters';
@@ -189,21 +189,35 @@ function AddZoneModal({ onClose, onAdd }: { onClose: () => void; onAdd: (z: Omit
 }
 
 function EmailsTab() {
+  // Live email templates from /api/content/email-templates (DB-backed).
+  // The "name" displayed to admins is the template's `key` formatted for humans
+  // since the DB schema only stores key/subject/body — no display name field.
+  const { data, loading, error } = useEmailTemplates();
+  const formatKey = (k: string) =>
+    k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {EMAIL_TEMPLATES.map((t) => (
+      {loading && <p className="text-xs text-gray-500 col-span-full">Loading templates…</p>}
+      {error && <p className="text-xs text-red-600 col-span-full">Error: {error}</p>}
+      {data.map((t) => (
         <div key={t.id} className="bg-white border border-gray-200 p-5">
           <div className="flex items-center gap-2 mb-2">
             <Mail className="h-4 w-4" />
-            <h4 className="font-medium text-sm">{t.name}</h4>
+            <h4 className="font-medium text-sm">{formatKey(t.key)}</h4>
           </div>
           <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1 font-medium">Subject</p>
           <p className="text-sm mb-3">{t.subject}</p>
           <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1 font-medium">Preview</p>
-          <p className="text-xs text-gray-600 leading-relaxed">{t.preview}</p>
-          <button className="mt-4 text-[10px] uppercase tracking-wider underline underline-offset-4 hover:opacity-60">Edit Template</button>
+          <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">
+            {t.body.replace(/<[^>]*>/g, '').slice(0, 160)}…
+          </p>
+          <p className="text-[10px] text-gray-400 mt-3">Last updated {new Date(t.updatedAt).toLocaleDateString()}</p>
         </div>
       ))}
+      {!loading && data.length === 0 && (
+        <p className="text-xs text-gray-500 col-span-full">No email templates configured yet.</p>
+      )}
     </div>
   );
 }

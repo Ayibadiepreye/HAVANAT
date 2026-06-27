@@ -1,5 +1,6 @@
-import { useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { apiPost } from '@/lib/api';
 import { Crown, Calendar, Check, AlertCircle } from 'lucide-react';
 import {
   useMembershipSubscriptionStore,
@@ -43,11 +44,55 @@ export default function MembershipPanel() {
   const state = useMembershipSubscriptionStore((s) => s.state());
   const effectiveTier = useMembershipSubscriptionStore((s) => s.effectiveTier());
 
+  const navigate = useNavigate();
   const actor = useMemo(() => ({
     id: user?.id ?? 'guest',
     name: user?.name ?? 'Customer',
     role: 'system' as const,
   }), [user?.id, user?.name]);
+
+  // Real Paystack subscribe: hits /api/memberships/subscribe -> redirects to
+  // Paystack checkout -> user pays -> redirected back to /account?tab=membership&paystack=verify
+  // -> /api/memberships/confirm flips the DB tier.
+  const [subscribing, setSubscribing] = useState<null | 'Deluxe' | 'Elite'>(null);
+  async function startPaystackSubscribe(tierName: 'Deluxe' | 'Elite') {
+    if (!user) {
+      showToast('Sign in to subscribe', 'info');
+      navigate(`/login?redirect=/account?tab=membership`);
+      return;
+    }
+    if (user.emailVerified === false) {
+      showToast('Please verify your email before subscribing', 'info');
+      navigate(`/account?tab=membership&needsVerify=1`);
+      return;
+    }
+    setSubscribing(tierName);
+    try {
+      const res = await apiPost<{
+        authorizationUrl: string;
+        reference: string;
+        amount: number;
+        tier: string;
+        billingCycle: string;
+      }>('/api/memberships/subscribe', {
+        tier: tierName,
+        billingCycle: 'monthly',
+      }, true);
+      // Hand off to Paystack — the callback is /account?tab=membership&paystack=verify
+      window.location.href = res.authorizationUrl;
+    } catch (err: any) {
+      console.error('subscribe failed', err);
+      const msg = err?.message || '';
+      if (msg.includes('Paystack not configured')) {
+        showToast('Payments temporarily unavailable. Please try again shortly.', 'error');
+      } else if (msg.includes('already on this tier')) {
+        showToast(`You're already on ${tierName}.`, 'info');
+      } else {
+        showToast(msg || 'Could not start checkout. Please try again.', 'error');
+      }
+      setSubscribing(null);
+    }
+  }
 
   // Tick the lifecycle on mount — sends reminders if needed
   useEffect(() => {
@@ -82,20 +127,11 @@ export default function MembershipPanel() {
     });
   }, [actor, broadcast, showToast, user?.id]);
 
+  // Backwards-compat shim — anywhere the panel still calls handleSubscribe,
+  // we route through the real Paystack flow instead of mutating local state.
   function handleSubscribe(tier: Exclude<MembershipTier, 'standard'>) {
-    subscribe(tier, actor);
-    broadcast(
-      {
-        title: `Welcome to ${TIER_PRICING[tier].label}`,
-        body: `Your ${TIER_PRICING[tier].label} subscription is active. Next renewal: ${(current?.endsAt || new Date().toISOString()).slice(0, 10)}.`,
-        category: 'membership',
-        channels: 'both',
-        scope: 'user',
-        targetUserId: user?.id,
-      },
-      actor
-    );
-    showToast(`Subscribed to ${TIER_PRICING[tier].label}`, 'success');
+    const tierName = tier === 'deluxe' ? 'Deluxe' : 'Elite';
+    void startPaystackSubscribe(tierName);
   }
 
   function handleScheduleDowngrade(to: MembershipTier) {
@@ -238,9 +274,12 @@ export default function MembershipPanel() {
                           if (paidTier) handleScheduleDowngrade(tier);
                           else handleSubscribe(tier);
                         }}
-                        className="w-full py-2 bg-black text-white text-[10px] uppercase tracking-[0.15em] font-medium"
+                        disabled={subscribing !== null}
+                        className="w-full py-2 bg-black text-white text-[10px] uppercase tracking-[0.15em] font-medium disabled:opacity-50"
                       >
-                        {paidTier ? 'Schedule upgrade' : 'Subscribe'}
+                        {subscribing
+                          ? 'Redirecting…'
+                          : paidTier ? 'Schedule upgrade' : 'Subscribe'}
                       </button>
                     )}
                     {isPaid && isScheduled && (
