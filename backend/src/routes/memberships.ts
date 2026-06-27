@@ -65,13 +65,50 @@ membershipsRouter.get('/tiers', async (_req, res) => {
   }
 });
 
+
+/**
+ * Self-heal: ensure that a user with tier != 'standard' has rows in both
+ * `members` and `memberships`. Seeded accounts (deluxe@, elite@) set users.tier
+ * but never got membership rows, so the UI shows no expiry. This runs at the
+ * top of /me so the page renders correctly for already-upgraded users.
+ */
+async function ensureMembershipRows(userId: number, userTier: 'standard' | 'deluxe' | 'elite'): Promise<void> {
+  if (userTier === 'standard') return;
+  const tierName = userTier.charAt(0).toUpperCase() + userTier.slice(1); // 'Deluxe' | 'Elite'
+  const [member] = await db.select().from(members).where(eq(members.userId, userId));
+  if (!member) {
+    await db.insert(members).values({
+      userId, tier: userTier, joinedAt: new Date(),
+      notes: 'Backfilled from users.tier (seeded account)',
+    } as any);
+  }
+  const [ms] = await db.select().from(memberships).where(eq(memberships.userId, userId));
+  if (!ms) {
+    const now = new Date();
+    const periodEnd = new Date(now);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    // Look up the tier's monthly price to populate amount_paid.
+    const [tierRow] = await db.select().from(membershipTiers).where(eq(membershipTiers.tier, tierName as any));
+    const amount = tierRow ? String(tierRow.price) : '0';
+    await db.insert(memberships).values({
+      userId, tier: tierName as any, cycle: 'monthly', status: 'active',
+      amountPaid: amount,
+      currentPeriodStart: now, currentPeriodEnd: periodEnd,
+      cancelAtPeriodEnd: false, scheduledDowngradeTo: null,
+    } as any);
+  }
+}
+
 membershipsRouter.get('/me', requireAuth, async (req, res) => {
   try {
     const userId = Number(req.user!.sub);
-    const [member] = await db.select().from(members).where(eq(members.userId, userId));
-    const [membership] = await db.select().from(memberships).where(eq(memberships.userId, userId));
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) return res.status(404).json({ error: 'User not found' });
+    // Self-heal: backfill membership rows for users with tier != 'standard'
+    // but no row in members/memberships (e.g. seeded accounts).
+    await ensureMembershipRows(userId, user.tier as any);
+    const [member] = await db.select().from(members).where(eq(members.userId, userId));
+    const [membership] = await db.select().from(memberships).where(eq(memberships.userId, userId));
     res.json({
       tier: user.tier,
       member: member ?? null,
@@ -153,9 +190,10 @@ membershipsRouter.post('/subscribe', requireAuth, async (req, res, next) => {
     const userId = Number(req.user!.sub);
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) return res.status(404).json({ error: 'User not found' });
-    if (user.tier === tier.toLowerCase()) {
-      return res.status(400).json({ error: 'You are already on this tier' });
-    }
+    // Renewing the same tier mid-cycle is allowed: we'll just extend
+    // the existing period in /confirm instead of resetting it.
+    // (Compare in lowercase because users.tier is the lowercase enum but
+    //  the request body has title-case 'Deluxe'/'Elite'.)
     const [tierRow] = await db.select().from(membershipTiers)
       .where(and(eq(membershipTiers.tier, tier), eq(membershipTiers.active, true)));
     if (!tierRow) return res.status(404).json({ error: 'Tier not available' });
@@ -222,15 +260,25 @@ membershipsRouter.post('/confirm', requireAuth, async (req, res, next) => {
     const tierEnum = tier.toLowerCase() as 'standard' | 'deluxe' | 'elite';
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Look up any existing memberships row so we can EXTEND the period
+    // instead of resetting it. If the user already has an active period
+    // that ends in the future, the new period starts at currentPeriodEnd
+    // (so a renewal on day 20 of a 30-day cycle yields 40 days from now).
+    const [existingMs] = await db.select().from(memberships).where(eq(memberships.userId, userId)).limit(1);
     const now = new Date();
-    const periodEnd = new Date(now);
+    const periodStart = existingMs?.currentPeriodEnd && new Date(existingMs.currentPeriodEnd) > now
+      ? new Date(existingMs.currentPeriodEnd)
+      : now;
+    const periodEnd = new Date(periodStart);
     if (meta.billingCycle === 'yearly') periodEnd.setFullYear(periodEnd.getFullYear() + 1);
     else if (meta.billingCycle === 'quarterly') periodEnd.setMonth(periodEnd.getMonth() + 3);
     else periodEnd.setMonth(periodEnd.getMonth() + 1);
     const existing = await db.select().from(members).where(eq(members.userId, userId)).limit(1);
-    if (existing.length > 0) {
+    const wasRenewal = existing.length > 0;
+    if (wasRenewal) {
       await db.update(members)
-        .set({ tier: tierEnum, joinedAt: now, notes: `Renewed via Paystack ${reference}` })
+        .set({ tier: tierEnum, notes: `Renewed via Paystack ${reference} (now valid until ${periodEnd.toISOString().slice(0, 10)})` })
         .where(eq(members.userId, userId));
     } else {
       await db.insert(members).values({
@@ -246,7 +294,8 @@ membershipsRouter.post('/confirm', requireAuth, async (req, res, next) => {
       await db.update(memberships)
         .set({
           tier: tier as any, cycle: meta.billingCycle as any,
-          status: 'active', currentPeriodStart: now, currentPeriodEnd: periodEnd,
+          status: 'active',
+          currentPeriodStart: periodStart, currentPeriodEnd: periodEnd,
           cancelAtPeriodEnd: false, scheduledDowngradeTo: null, updatedAt: now,
         })
         .where(eq(memberships.userId, userId));
@@ -254,7 +303,7 @@ membershipsRouter.post('/confirm', requireAuth, async (req, res, next) => {
       await db.insert(memberships).values({
         userId, tier: tier as any, cycle: meta.billingCycle as any, status: 'active',
         amountPaid: String(verified.amount / 100),
-        currentPeriodStart: now, currentPeriodEnd: periodEnd,
+        currentPeriodStart: periodStart, currentPeriodEnd: periodEnd,
         cancelAtPeriodEnd: false, scheduledDowngradeTo: null,
       } as any);
     }

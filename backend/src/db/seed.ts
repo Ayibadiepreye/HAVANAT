@@ -9,11 +9,11 @@ import {
   users, addresses, products,
   deliveryZones, returns,
   riderProfiles, notifications, newsletterSubscribers,
-  emailTemplates, memberships,
+  emailTemplates, members, memberships, membershipTiers,
 } from './schema.js';
 import bcrypt from 'bcryptjs';
 const { hash } = bcrypt;
-import { sql } from 'drizzle-orm';
+import { sql, eq } from 'drizzle-orm';
 
 const SEED_PASSWORD = 'password'; // All 6 mock accounts share this for testing.
 
@@ -105,6 +105,32 @@ async function seedEmailTemplates() {
   ]);
 }
 
+
+
+async function seedMembershipsForSeededTiers(u: { standard: any; deluxe: any; elite: any }) {
+  console.log('Seeding memberships for deluxe/elite accounts…');
+  const tiers = [
+    { user: u.deluxe, tier: 'deluxe' },
+    { user: u.elite, tier: 'elite' },
+  ];
+  for (const { user, tier } of tiers) {
+    if (!user) continue;
+    const now = new Date();
+    const periodEnd = new Date(now);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    await db.insert(members).values({
+      userId: user.id, tier, joinedAt: now, notes: 'Seeded with tier',
+    } as any);
+    const tierName = tier.charAt(0).toUpperCase() + tier.slice(1);
+    const [tierRow] = await db.select().from(membershipTiers).where(eq(membershipTiers.tier, tierName as any));
+    await db.insert(memberships).values({
+      userId: user.id, tier: tierName as any, cycle: 'monthly', status: 'active',
+      amountPaid: tierRow ? String(tierRow.price) : '0',
+      currentPeriodStart: now, currentPeriodEnd: periodEnd,
+      cancelAtPeriodEnd: false, scheduledDowngradeTo: null,
+    } as any);
+  }
+}
 async function main() {
   try {
     await clear();
@@ -113,6 +139,7 @@ async function main() {
     await seedDeliveryZones();
     await seedProducts();
     await seedOrdersAndAddresses([u.standard, u.deluxe, u.elite]);
+    await seedMembershipsForSeededTiers(u);
     await seedEmailTemplates();
     console.log('\n✅ Seed complete.\n');
     console.log('Mock accounts (all with password: "password"):');
