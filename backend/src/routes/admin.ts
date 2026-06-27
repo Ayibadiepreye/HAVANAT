@@ -346,3 +346,40 @@ adminRouter.get('/orders', requireAuth, requireRole('admin', 'moderator'), async
     res.status(500).json({ error: 'Failed to load orders' });
   }
 });
+
+
+// Notification system stats + manual prune.
+//
+// Auto-prune runs on a 6h interval and at server boot, but admins can
+// trigger a manual sweep (e.g. after a database restore or migration) and
+// see the current row count + oldest age.
+adminRouter.get('/notifications/stats', requireAuth, requireRole('admin', 'moderator'), async (_req, res) => {
+  try {
+    const { countNotifications, oldestNotificationAge, DEFAULT_RETENTION_HOURS } = await import('../jobs/pruneNotifications.js');
+    const [count, oldest] = await Promise.all([countNotifications(), oldestNotificationAge()]);
+    res.json({
+      ok: true,
+      totalRows: count,
+      retentionHours: DEFAULT_RETENTION_HOURS,
+      oldestNotification: oldest,
+    });
+  } catch (err: any) {
+    console.error('[admin/notifications/stats]', err);
+    res.status(500).json({ error: 'Failed to read notification stats' });
+  }
+});
+
+adminRouter.post('/notifications/prune', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
+  try {
+    const { pruneOldNotifications, DEFAULT_RETENTION_HOURS } = await import('../jobs/pruneNotifications.js');
+    const retentionHours = Number((req.body ?? {}).retentionHours ?? DEFAULT_RETENTION_HOURS);
+    if (!Number.isFinite(retentionHours) || retentionHours <= 0) {
+      return res.status(400).json({ error: 'retentionHours must be a positive number' });
+    }
+    const result = await pruneOldNotifications(retentionHours);
+    res.json({ ok: true, ...result });
+  } catch (err: any) {
+    console.error('[admin/notifications/prune]', err);
+    res.status(500).json({ error: 'Prune failed' });
+  }
+});

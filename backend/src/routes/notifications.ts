@@ -108,3 +108,40 @@ notificationsRouter.get('/unread-count', requireAuth, async (req, res, next) => 
     next(err);
   }
 });
+
+/**
+ * GET /api/notifications/stats — per-user notification summary.
+ * Returns the user's visible notifications and which ones are about to
+ * expire (>36h old). Public, but requireAuth because we surface user-
+ * specific counts.
+ */
+import { sql as _sql } from 'drizzle-orm';
+notificationsRouter.get('/stats', requireAuth, async (req, res, next) => {
+  try {
+    const userId = Number(req.user!.sub);
+    const userTier = req.user!.tier ?? null;
+    const stats = await db.execute(_sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE read_by ? ${String(userId)})::int AS read,
+        COUNT(*) FILTER (WHERE created_at < NOW() - INTERVAL '36 hours')::int AS expiring_soon,
+        MAX(created_at) AS most_recent
+      FROM notifications
+      WHERE (target_user_id = ${userId}
+             OR scope = 'all'
+             OR target_tier = ${userTier ?? ''})
+    `);
+    const s: any = stats.rows?.[0] ?? { total: 0, read: 0, expiring_soon: 0, most_recent: null };
+    res.json({
+      ok: true,
+      total: Number(s.total ?? 0),
+      read: Number(s.read ?? 0),
+      unread: Number(s.total ?? 0) - Number(s.read ?? 0),
+      expiringSoon: Number(s.expiring_soon ?? 0),
+      mostRecent: s.most_recent ?? null,
+      retentionHours: 48,
+    });
+  } catch (err) {
+    next(err);
+  }
+});

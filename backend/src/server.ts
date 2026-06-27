@@ -1,5 +1,10 @@
 import { config } from './config.js';
 import app from './app.js';
+import { startAutoPrune, stopAutoPrune } from './jobs/pruneNotifications.js';
+
+// Auto-prune notifications older than the retention window (default 48h).
+// Runs once at startup, then on a 6h interval. Safe to call before listen().
+startAutoPrune();
 
 const server = app.listen(config.port, () => {
   // eslint-disable-next-line no-console
@@ -9,6 +14,7 @@ const server = app.listen(config.port, () => {
 const shutdown = (signal: string) => {
   // eslint-disable-next-line no-console
   console.log(`\n${signal} received, closing…`);
+  stopAutoPrune();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 10_000).unref();
 };

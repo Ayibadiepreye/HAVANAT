@@ -22,6 +22,16 @@ export default function Navbar() {
   const userId = dashboardUser?.id ?? '';
   const userTier = (dashboardUser?.tier ? (dashboardUser.tier.charAt(0).toUpperCase() + dashboardUser.tier.slice(1)) : undefined) as 'Standard' | 'Deluxe' | 'Elite' | undefined;
   const unread = useNotificationStore((s) => (userId ? s.unreadCount(userId, userTier) : 0));
+  const fetchNotifications = useNotificationStore((s) => s.fetchNotifications);
+  // Poll /api/notifications every 60s so the bell badge stays fresh without
+  // forcing the user to navigate to /notifications. Skipped when the user
+  // isn't authenticated.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void fetchNotifications();
+    const t = setInterval(() => { void fetchNotifications(); }, 60_000);
+    return () => clearInterval(t);
+  }, [isAuthenticated, fetchNotifications]);
   const isCustomer = isAuthenticated && dashboardUser?.role === 'customer';
   const isMobileMenuOpen = useUIStore((s) => s.isMobileMenuOpen);
   const toggleMobileMenu = useUIStore((s) => s.toggleMobileMenu);
