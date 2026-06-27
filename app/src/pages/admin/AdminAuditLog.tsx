@@ -28,7 +28,7 @@ export default function AdminAuditLog() {
   const [page, setPage] = useState(1);
   const [diff, setDiff] = useState<AuditLogEntry | null>(null);
 
-  const todayKey = '2026-06-23';
+  const todayKey = new Date().toISOString().slice(0, 10);
   const stats = useMemo(() => {
     const today = logs.filter((l) => l.timestamp.slice(0, 10) === todayKey);
     const users = new Map<string, number>();

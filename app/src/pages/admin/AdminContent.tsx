@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useContentStore } from '@/stores/useContentStore';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import HomepageEditor from './content-editors/HomepageEditor';
 import LookbookEditor from './content-editors/LookbookEditor';
@@ -8,6 +9,8 @@ import BrandingEditor from './content-editors/BrandingEditor';
 
 export default function AdminContent() {
   const [tab, setTab] = useState('homepage');
+  const fetchContent = useContentStore((s) => s.fetchContent);
+  useEffect(() => { void fetchContent(); }, [fetchContent]);
   return (
     <div className="space-y-6">
       <div>

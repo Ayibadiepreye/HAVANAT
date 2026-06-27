@@ -13,6 +13,7 @@ import {
   PackageCheck,
 } from 'lucide-react';
 import { useOrderStore } from '@/stores/useOrderStore';
+import { useEffect } from 'react';
 import { useUIStore } from '@/stores/useUIStore';
 import { formatNaira } from '@/config';
 import { BRAND } from '@/config/brand';
@@ -50,6 +51,12 @@ export default function OrderDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const showToast = useUIStore((s) => s.showToast);
+  const orders = useOrderStore((s) => s.orders);
+  const fetchOrders = useOrderStore((s) => s.fetchOrders);
+  // Ensure we have the order — fetch if not present locally.
+  useEffect(() => {
+    if (!orders.find((o) => o.id === id)) void fetchOrders();
+  }, [id, orders, fetchOrders]);
   const order = useOrderStore((s) => s.getById(id));
 
   if (!order) {
@@ -82,21 +89,8 @@ export default function OrderDetailPage() {
 
   const handleCancel = () => {
     if (!window.confirm('Cancel this order? This cannot be undone.')) return;
-    // Mock — flip status locally. Real cancel would call the store.
-    useOrderStore.setState((state) => ({
-      orders: state.orders.map((o) =>
-        o.id === order.id
-          ? {
-              ...o,
-              status: 'cancelled',
-              trackingHistory: [
-                ...o.trackingHistory,
-                { status: 'cancelled', timestamp: new Date().toISOString(), note: 'Cancelled by customer' },
-              ],
-            }
-          : o
-      ),
-    }));
+    // Real cancel: PATCH the order status to 'cancelled' on the backend.
+    void useOrderStore.getState().updateStatus(order.id, 'cancelled', { id: order.customerId, name: order.customerName, role: 'admin' });
     showToast('Order cancelled', 'info');
   };
 

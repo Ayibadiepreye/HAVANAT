@@ -4,7 +4,8 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import { Plus, X, Trash2, Mail } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { apiGet, apiPatch } from '@/lib/api';
 import { useEmailTemplates } from '@/hooks/useEmailTemplates';
 import { CONFIG } from '@/config';
 import { useAdminUserStore } from '@/stores/useAdminUserStore';
@@ -68,6 +69,12 @@ function SiteConfigTab() {
   });
   return (
     <div className="bg-white border border-gray-200 p-6 max-w-2xl space-y-4">
+      <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 p-3">
+        These values come from <code className="bg-gray-100 px-1">src/config</code> build-time constants.
+        The backend&apos;s <code className="bg-gray-100 px-1">branding</code> table is a key/value store
+        (logo URL, favicon) — the per-field config above is not yet persisted server-side.
+        Changes here are local to this browser session.
+      </p>
       <Field label="Brand Name" value={form.brandName} onChange={(v) => setForm({ ...form, brandName: v })} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Field label="Contact Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
@@ -80,7 +87,7 @@ function SiteConfigTab() {
         <Field label="Facebook" value={form.facebook} onChange={(v) => setForm({ ...form, facebook: v })} />
       </div>
       <button
-        onClick={() => showToast('Settings saved (mock)', 'success')}
+        onClick={() => showToast('Site config is currently build-time. Edit src/config to change brand/contact.', 'info')}
         className="bg-black text-white px-6 py-3 text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-gray-900"
       >Save Settings</button>
     </div>
@@ -89,7 +96,48 @@ function SiteConfigTab() {
 
 function PaymentTab() {
   const showToast = useUIStore((s) => s.showToast);
-  const [gateways, setGateways] = useState({ paystack: true, flutterwave: true, stripe: false });
+  const [gateways, setGateways] = useState<{ paystack?: boolean; flutterwave?: boolean; stripe?: boolean }>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiGet<{ items: Array<{ provider: string; enabled: boolean }> }>('/api/content/payment-gateways', true);
+        if (cancelled) return;
+        const map: Record<string, boolean> = {};
+        for (const g of res.items ?? []) map[g.provider.toLowerCase()] = !!g.enabled;
+        setGateways(map);
+        setLoading(false);
+      } catch (err: any) {
+        if (cancelled) return;
+        setError(err?.message ?? 'Could not load payment gateways');
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  async function toggle(provider: 'paystack' | 'flutterwave' | 'stripe') {
+    const next = !(gateways[provider] ?? false);
+    setGateways((g) => ({ ...g, [provider]: next }));
+    try {
+      // Backend endpoint is PATCH /api/content/payment-gateways/:id by numeric id,
+      // but here we only know the provider slug. The backend should expose a
+      // provider-keyed endpoint; until then this is a UX-only toggle.
+      await apiPatch(`/api/content/payment-gateways/${provider}`, { enabled: next }, true);
+      showToast(`${provider} ${next ? 'enabled' : 'disabled'}`, 'success');
+    } catch (err: any) {
+      // Revert optimistic toggle on failure.
+      setGateways((g) => ({ ...g, [provider]: !next }));
+      showToast(err?.message || 'Could not save payment gateway', 'error');
+    }
+  }
+  if (loading) {
+    return <div className="bg-white border border-gray-200 p-8 text-center text-sm text-gray-500">Loading payment gateways…</div>;
+  }
+  if (error) {
+    return <div className="bg-white border border-gray-200 p-8 text-center text-sm text-red-600">{error}</div>;
+  }
   return (
     <div className="bg-white border border-gray-200 p-6 max-w-xl space-y-4">
       {([
@@ -103,7 +151,7 @@ function PaymentTab() {
             <p className="text-xs text-gray-500">{g.desc}</p>
           </div>
           <button
-            onClick={() => { setGateways({ ...gateways, [g.key]: !gateways[g.key] }); showToast(`${g.name} ${gateways[g.key] ? 'disabled' : 'enabled'}`, 'success'); }}
+            onClick={() => toggle(g.key)}
             className={`w-12 h-6 rounded-full relative transition-colors ${gateways[g.key] ? 'bg-black' : 'bg-gray-300'}`}
             aria-label={`Toggle ${g.name}`}
           >

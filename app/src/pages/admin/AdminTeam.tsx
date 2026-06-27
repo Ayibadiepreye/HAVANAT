@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAdminUserStore } from '@/stores/useAdminUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -14,6 +14,8 @@ export default function AdminTeam() {
   const addAccount = useAdminUserStore((s) => s.addAccount);
   const removeAccount = useAdminUserStore((s) => s.removeAccount);
   const changeRole = useAdminUserStore((s) => s.changeRole);
+  const fetchUsers = useAdminUserStore((s) => s.fetchUsers);
+  useEffect(() => { void fetchUsers(); }, [fetchUsers]);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
   const [showForm, setShowForm] = useState(false);

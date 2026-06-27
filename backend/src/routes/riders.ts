@@ -114,6 +114,39 @@ ridersRouter.patch('/:id/profile', requireAuth, requireRole('rider', 'admin', 'm
   res.json(updated);
 });
 
+
+// Rider updates their own delivery status. Only the delivery's assigned rider
+// can do this (enforced by riderId = req.user.sub in the WHERE clause).
+ridersRouter.patch('/me/deliveries/:id/status', requireAuth, requireRole('rider'), async (req, res) => {
+  const deliveryId = Number(req.params.id);
+  const riderId = Number(req.user!.sub);
+  const { status } = (req.body ?? {}) as { status?: string };
+  if (!Number.isInteger(deliveryId) || deliveryId <= 0) return res.status(400).json({ error: 'Invalid delivery id' });
+  const allowed = ['pending', 'picked_up', 'in_transit', 'delivered', 'failed'];
+  if (!status || !allowed.includes(status)) return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
+  // Only update if this delivery belongs to the caller.
+  const [before] = await db.select().from(deliveries).where(eq(deliveries.id, deliveryId));
+  if (!before) return res.status(404).json({ error: 'Delivery not found' });
+  if (before.riderId !== riderId) return res.status(403).json({ error: 'Not your delivery' });
+  const [after] = await db.update(deliveries)
+    .set({
+      status: status as typeof deliveries.$inferInsert.status,
+      pickedUpAt: status === 'picked_up' ? new Date() : before.pickedUpAt,
+      completedAt: status === 'delivered' ? new Date() : before.completedAt,
+    })
+    .where(eq(deliveries.id, deliveryId))
+    .returning();
+  if (!after) return res.status(500).json({ error: 'Failed to update' });
+  await logAction({
+    req, user: req.user!,
+    action: 'update', entityType: 'delivery', entityId: String(deliveryId),
+    entityLabel: `Delivery #${deliveryId}`,
+    summary: `Status: ${before.status} → ${status}`,
+    before: { status: before.status }, after: { status },
+  });
+  res.json(after);
+});
+
 ridersRouter.get('/me/stats', requireAuth, requireRole('rider'), async (req, res) => {
   try {
     const riderId = Number(req.user!.sub);

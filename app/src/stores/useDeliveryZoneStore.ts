@@ -1,9 +1,9 @@
 // Delivery zone + email template + branding store
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+
 import type { DeliveryZone } from '@/types/dashboard';
 import { logAuditAction } from '@/utils/auditLogger';
-import { apiConfig, apiGet } from '@/lib/api';
+import { apiConfig, apiDelete, apiGet, apiPost } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 interface DeliveryZoneState {
@@ -15,8 +15,7 @@ interface DeliveryZoneState {
 }
 
 export const useDeliveryZoneStore = create<DeliveryZoneState>()(
-  persist(
-    (set, get) => ({
+  (set, get) => ({
       zones: [],
       fetchZones: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
@@ -27,15 +26,25 @@ export const useDeliveryZoneStore = create<DeliveryZoneState>()(
           console.error('fetchZones failed', err);
         }
       },
-      addZone: (z, actor) => {
-        const id = `zone-${Date.now()}`;
-        set({ zones: [...get().zones, { ...z, id }] });
-        logAuditAction({
-          userId: actor.id, userName: actor.name, userRole: actor.role,
-          action: 'create', entityType: 'settings', entityId: id, entityLabel: `Delivery zone: ${z.state}`,
-          summary: 'Added delivery zone',
-          changes: { before: null, after: z },
-        });
+      addZone: async (z, actor) => {
+        if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) {
+          const id = `zone-${Date.now()}`;
+          set({ zones: [...get().zones, { ...z, id }] });
+          return;
+        }
+        try {
+          const created = await apiPost<{ id: number }>('/api/content/delivery-zones', z, true);
+          // Mirror local + audit
+          set({ zones: [...get().zones, { ...z, id: String(created.id) }] });
+          logAuditAction({
+            userId: actor.id, userName: actor.name, userRole: actor.role,
+            action: 'create', entityType: 'settings', entityId: String(created.id), entityLabel: `Delivery zone: ${z.state}`,
+            summary: 'Added delivery zone',
+            changes: { before: null, after: z },
+          });
+        } catch (err) {
+          console.error('addZone backend POST failed', err);
+        }
       },
       updateZone: (id, z, actor) => {
         const before = get().zones.find((x) => x.id === id);
@@ -48,18 +57,25 @@ export const useDeliveryZoneStore = create<DeliveryZoneState>()(
           changes: { before: z as unknown as Record<string, unknown>, after: { ...z } as unknown as Record<string, unknown> },
         });
       },
-      removeZone: (id, actor) => {
+      removeZone: async (id, actor) => {
         const z = get().zones.find((x) => x.id === id);
         if (!z) return;
-        set({ zones: get().zones.filter((x) => x.id !== id) });
-        logAuditAction({
-          userId: actor.id, userName: actor.name, userRole: actor.role,
-          action: 'delete', entityType: 'settings', entityId: id, entityLabel: `Delivery zone: ${z.state}`,
-          summary: 'Removed delivery zone',
-          changes: { before: z as unknown as Record<string, unknown>, after: null },
-        });
+        if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) {
+          set({ zones: get().zones.filter((x) => x.id !== id) });
+          return;
+        }
+        try {
+          await apiDelete(`/api/content/delivery-zones/${id}`, true);
+          set({ zones: get().zones.filter((x) => x.id !== id) });
+          logAuditAction({
+            userId: actor.id, userName: actor.name, userRole: actor.role,
+            action: 'delete', entityType: 'settings', entityId: id, entityLabel: `Delivery zone: ${z.state}`,
+            summary: 'Removed delivery zone',
+            changes: { before: z as unknown as Record<string, unknown>, after: null },
+          });
+        } catch (err) {
+          console.error('removeZone backend DELETE failed', err);
+        }
       },
     }),
-    { name: 'havanat-zones' }
-  )
 );

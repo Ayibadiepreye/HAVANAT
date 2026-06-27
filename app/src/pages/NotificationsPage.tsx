@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {Bell, Mail, Filter, Check, X} from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -10,6 +10,8 @@ export default function NotificationsPage() {
   const markRead = useNotificationStore((s) => s.markRead);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
   const notifications = useNotificationStore((s) => s.notifications);
+  const fetchNotifications = useNotificationStore((s) => s.fetchNotifications);
+  useEffect(() => { void fetchNotifications(); }, [fetchNotifications]);
 
   const [filter, setFilter] = useState<NotificationCategory | 'all'>('all');
 

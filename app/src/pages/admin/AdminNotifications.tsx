@@ -1,73 +1,117 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CheckCheck, ShoppingCart, RotateCcw, UserPlus, Settings as SettingsIcon, Bell } from 'lucide-react';
-import { relativeTime } from '@/utils/formatters';
+import { relativeTime, formatDateTime } from '@/utils/formatters';
+import { useAuditLogStore } from '@/stores/useAuditLogStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
+import { useAuthStore } from '@/stores/useAuthStore';
+import type { AuditLogEntry } from '@/types/dashboard';
+import type { NotificationCategory } from '@/types/notifications';
 
-type NotificationCategory = 'order' | 'return' | 'member' | 'system';
+type AdminCategory = 'order' | 'return' | 'member' | 'system' | 'audit';
 
-interface Notification {
-  id: string;
-  category: NotificationCategory;
-  title: string;
-  body: string;
-  timestamp: string;
-  read: boolean;
-}
-
-const CATEGORY_META: Record<NotificationCategory, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
+const CATEGORY_META: Record<AdminCategory, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
   order: { label: 'Orders', icon: ShoppingCart },
   return: { label: 'Returns', icon: RotateCcw },
   member: { label: 'Members', icon: UserPlus },
   system: { label: 'System', icon: SettingsIcon },
+  audit: { label: 'Audit', icon: Bell },
 };
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  { id: 'n01', category: 'order', title: 'New order placed', body: 'Tunde Bakare placed order HVN-00255 for ₦485,000.', timestamp: '2026-06-24T11:42:00Z', read: false },
-  { id: 'n02', category: 'order', title: 'Order shipped', body: 'HVN-00241 has been dispatched via Tunde Adewale.', timestamp: '2026-06-24T10:18:00Z', read: false },
-  { id: 'n03', category: 'return', title: 'Return requested', body: 'Folake Adesanya requested a return on HVN-00238.', timestamp: '2026-06-24T09:55:00Z', read: false },
-  { id: 'n04', category: 'member', title: 'New Elite signup', body: 'Rapheal Otele upgraded to the Elite membership tier.', timestamp: '2026-06-24T08:30:00Z', read: true },
-  { id: 'n05', category: 'system', title: 'Daily backup complete', body: 'Automated backup of orders, products, and members finished.', timestamp: '2026-06-24T03:00:00Z', read: true },
-  { id: 'n06', category: 'order', title: 'Payment confirmed', body: 'Paystack confirmed payment of ₦312,500 for HVN-00253.', timestamp: '2026-06-23T20:12:00Z', read: true },
-  { id: 'n07', category: 'return', title: 'Refund processed', body: 'Refund of ₦150,000 issued to Yusuf Bello.', timestamp: '2026-06-23T17:25:00Z', read: true },
-  { id: 'n08', category: 'order', title: 'Order cancelled', body: 'Chinwe Eze cancelled order HVN-00219.', timestamp: '2026-06-23T15:02:00Z', read: false },
-  { id: 'n09', category: 'member', title: 'Membership paused', body: 'Adaeze Nwosu paused their Deluxe subscription.', timestamp: '2026-06-23T13:48:00Z', read: true },
-  { id: 'n10', category: 'system', title: 'Inventory updated', body: '12 products were restocked by the warehouse.', timestamp: '2026-06-23T11:00:00Z', read: true },
-  { id: 'n11', category: 'order', title: 'New order placed', body: 'Adaeze Nwosu placed order HVN-00251 for ₦725,000.', timestamp: '2026-06-22T19:33:00Z', read: true },
-  { id: 'n12', category: 'return', title: 'Return approved', body: 'Return on HVN-00212 was approved; rider assigned.', timestamp: '2026-06-22T16:20:00Z', read: true },
-  { id: 'n13', category: 'member', title: 'New Standard signup', body: 'Aisha Bello signed up for the Standard membership tier.', timestamp: '2026-06-22T14:05:00Z', read: false },
-  { id: 'n14', category: 'system', title: 'Email digest sent', body: 'Weekly summary emails were dispatched to 248 members.', timestamp: '2026-06-22T09:00:00Z', read: true },
-  { id: 'n15', category: 'order', title: 'Delivery delayed', body: 'Rider reported heavy traffic on HVN-00241 route.', timestamp: '2026-06-21T18:42:00Z', read: true },
-  { id: 'n16', category: 'return', title: 'New return requested', body: 'Tunde Bakare requested a return on HVN-00203.', timestamp: '2026-06-21T15:15:00Z', read: false },
-  { id: 'n17', category: 'member', title: 'Membership resumed', body: 'Folake Adesanya resumed their Deluxe subscription.', timestamp: '2026-06-21T10:30:00Z', read: true },
-  { id: 'n18', category: 'system', title: 'Failed login attempt', body: 'Three failed admin login attempts from 102.89.32.11.', timestamp: '2026-06-20T22:10:00Z', read: true },
-  { id: 'n19', category: 'order', title: 'Order delivered', body: 'HVN-00198 successfully delivered to Yusuf Bello.', timestamp: '2026-06-20T16:00:00Z', read: true },
-  { id: 'n20', category: 'member', title: 'Tier upgraded', body: 'Chinedu Okafor upgraded from Standard to Deluxe.', timestamp: '2026-06-20T12:00:00Z', read: true },
-];
-
-const FILTERS: { value: NotificationCategory | 'all'; label: string }[] = [
+const FILTERS: { value: AdminCategory | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'order', label: 'Orders' },
   { value: 'return', label: 'Returns' },
   { value: 'member', label: 'Members' },
   { value: 'system', label: 'System' },
+  { value: 'audit', label: 'Audit' },
 ];
 
+// Map an audit log entity type to one of the visible admin categories.
+function categoryForAudit(entityType: string): AdminCategory {
+  if (entityType === 'order' || entityType === 'payment') return 'order';
+  if (entityType === 'return' || entityType === 'refund') return 'return';
+  if (entityType === 'membership' || entityType === 'member' || entityType === 'user') return 'member';
+  return 'system';
+}
+
+function mapNotificationCategory(c?: string | null): AdminCategory {
+  if (c === 'order' || c === 'payment') return 'order';
+  if (c === 'return') return 'return';
+  if (c === 'membership') return 'member';
+  return 'system';
+}
+
+interface AdminNotification {
+  id: string;
+  category: AdminCategory;
+  title: string;
+  body: string;
+  timestamp: string;
+  read: boolean;
+  source: 'audit' | 'notification';
+}
+
 export default function AdminNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
-  const [filter, setFilter] = useState<NotificationCategory | 'all'>('all');
+  const auditLogs = useAuditLogStore((s) => s.logs);
+  const fetchAuditLogs = useAuditLogStore((s) => s.fetchAuditLogs);
+  const notifications = useNotificationStore((s) => s.notifications);
+  const fetchNotifications = useNotificationStore((s) => s.fetchNotifications);
+  const markRead = useNotificationStore((s) => s.markRead);
+  const markAllRead = useNotificationStore((s) => s.markAllRead);
+  const dashboardUser = useAuthStore((s) => s.dashboardUser);
+  const userId = dashboardUser?.id ?? 'admin';
+
+  const [filter, setFilter] = useState<AdminCategory | 'all'>('all');
+
+  useEffect(() => {
+    void fetchAuditLogs();
+    void fetchNotifications();
+  }, [fetchAuditLogs, fetchNotifications]);
+
+  // Merge both sources into a single timeline.
+  const items = useMemo<AdminNotification[]>(() => {
+    const fromAudit: AdminNotification[] = (auditLogs ?? []).map((l: AuditLogEntry) => ({
+      id: `audit-${l.id}`,
+      category: categoryForAudit(l.entityType),
+      title: l.entityLabel ?? l.entityType,
+      body: l.summary ?? '',
+      timestamp: l.createdAt ?? new Date().toISOString(),
+      read: true, // audit entries are admin-only, no per-user read state
+      source: 'audit' as const,
+    }));
+    const fromNotif: AdminNotification[] = (notifications ?? []).map((n: any) => ({
+      id: `notif-${n.id}`,
+      category: mapNotificationCategory(n.category),
+      title: n.title ?? 'Notification',
+      body: n.body ?? '',
+      timestamp: n.createdAt ?? new Date().toISOString(),
+      read: !!n.read,
+      source: 'notification' as const,
+    }));
+    return [...fromNotif, ...fromAudit].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }, [auditLogs, notifications]);
 
   const filtered = useMemo(() => {
-    if (filter === 'all') return notifications;
-    return notifications.filter((n) => n.category === filter);
-  }, [notifications, filter]);
+    if (filter === 'all') return items;
+    if (filter === 'audit') return items.filter((n) => n.source === 'audit');
+    return items.filter((n) => n.category === filter);
+  }, [items, filter]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = items.filter((n) => !n.read).length;
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  const handleMarkAsRead = (n: AdminNotification) => {
+    if (n.source === 'notification') {
+      // Extract numeric id from 'notif-<id>'.
+      const idStr = n.id.replace(/^notif-/, '');
+      const numId = Number(idStr);
+      if (Number.isInteger(numId) && numId > 0) {
+        void markRead(String(numId), userId);
+      }
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const handleMarkAllRead = () => {
+    void markAllRead(userId);
   };
 
   return (
@@ -76,11 +120,11 @@ export default function AdminNotifications() {
         <div>
           <h2 className="font-serif text-2xl sm:text-3xl font-light">Notifications</h2>
           <p className="text-sm text-gray-500 mt-1">
-            {unreadCount > 0 ? `${unreadCount} unread of ${notifications.length}` : 'All caught up'}
+            {unreadCount > 0 ? `${unreadCount} unread of ${items.length}` : `${items.length} entries`}
           </p>
         </div>
         <button
-          onClick={markAllAsRead}
+          onClick={handleMarkAllRead}
           disabled={unreadCount === 0}
           className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-medium px-4 py-2.5 border border-gray-300 hover:border-black disabled:opacity-40 disabled:hover:border-gray-300 transition-colors"
         >
@@ -112,7 +156,7 @@ export default function AdminNotifications() {
           return (
             <button
               key={n.id}
-              onClick={() => markAsRead(n.id)}
+              onClick={() => handleMarkAsRead(n)}
               className={`w-full text-left p-4 flex items-start gap-4 hover:bg-gray-50 transition-colors ${
                 !n.read ? 'bg-gray-50/50' : ''
               }`}
@@ -128,10 +172,12 @@ export default function AdminNotifications() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className={`text-sm ${!n.read ? 'font-medium' : 'font-normal text-gray-800'}`}>{n.title}</p>
                   <span className="text-[10px] uppercase tracking-wider text-gray-400">{meta.label}</span>
+                  <span className="text-[10px] uppercase tracking-wider text-gray-300">·</span>
+                  <span className="text-[10px] uppercase tracking-wider text-gray-400">{n.source}</span>
                   {!n.read && <span className="h-1.5 w-1.5 bg-black rounded-full" />}
                 </div>
                 <p className="text-xs text-gray-600 mt-1">{n.body}</p>
-                <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-1">{relativeTime(n.timestamp)}</p>
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-1">{formatDateTime(n.timestamp)}</p>
               </div>
             </button>
           );

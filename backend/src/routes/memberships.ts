@@ -26,7 +26,10 @@ const SubscribeSchema = z.object({
 
 const ConfirmSchema = z.object({
   reference: z.string().min(6),
-  tier: lowercaseTier,
+  // Tier is optional — the backend derives it from Paystack metadata
+  // (or from the reference pattern `sub_<userId>_<tier>_*`) so the frontend
+  // only needs to send the reference after Paystack redirects back.
+  tier: lowercaseTier.optional(),
 });
 
 membershipsRouter.get('/tiers', async (_req, res) => {
@@ -191,16 +194,28 @@ membershipsRouter.post('/subscribe', requireAuth, async (req, res, next) => {
 membershipsRouter.post('/confirm', requireAuth, async (req, res, next) => {
   try {
     const parsed = ConfirmSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
-    const { reference, tier } = parsed.data;
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
+    const { reference, tier: clientTier } = parsed.data;
     const userId = Number(req.user!.sub);
     const verified = await verifyTransaction(reference);
     if (verified.status !== 'success') {
       return res.status(402).json({ error: 'Payment not successful', status: verified.status });
     }
     const meta = (verified.metadata ?? {}) as { userId?: string; tier?: string; billingCycle?: string };
-    if (meta.userId !== String(userId) || meta.tier !== tier) {
-      return res.status(400).json({ error: 'Reference mismatch' });
+    if (meta.userId !== String(userId)) {
+      return res.status(400).json({ error: 'Reference belongs to another user' });
+    }
+    // Derive the tier from Paystack metadata first, then from the reference
+    // pattern `sub_<userId>_<tier>_*`, then fall back to whatever the client sent.
+    // The client-provided tier (if any) is only used when both server-side sources
+    // are unavailable (e.g. metadata stripped by an upstream proxy).
+    const tierFromReference = /^sub_\d+_([a-z]+)_/.exec(reference)?.[1] ?? null;
+    const tier = (meta.tier ?? tierFromReference ?? clientTier) as string | undefined;
+    if (!tier) {
+      return res.status(400).json({ error: 'Could not determine tier from reference or metadata' });
+    }
+    if (clientTier && clientTier !== tier) {
+      return res.status(400).json({ error: `Reference is for ${tier}, not ${clientTier}` });
     }
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) return res.status(404).json({ error: 'User not found' });

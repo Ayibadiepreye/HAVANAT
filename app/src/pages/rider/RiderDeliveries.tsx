@@ -1,9 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useRiderStore } from '@/stores/useRiderStore';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useRiderDeliveries } from '@/hooks/useRiderMe';
 import StatusBadge from '@/components/admin/StatusBadge';
-import { MapPin, Phone, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatTime } from '@/utils/formatters';
 import type { DeliveryStatus } from '@/types/dashboard';
@@ -17,22 +16,24 @@ const TABS: { label: string; status: 'all' | DeliveryStatus }[] = [
 ];
 
 export default function RiderDeliveries() {
-  const dashboardUser = useAuthStore((s) => s.dashboardUser);
-  const deliveries = useRiderStore((s) => s.deliveries);
+  const deliveriesState = useRiderDeliveries();
+  const deliveries = (deliveriesState.data?.items ?? []) as any[];
   const navigate = useNavigate();
   const [tab, setTab] = useState<'all' | DeliveryStatus>('all');
 
-  const riderId = dashboardUser?.id === 'usr_rider' ? 'rider_01' : (dashboardUser?.id ?? 'rider_01');
+  // No more hardcoded rider_01 — backend scopes /api/riders/me/deliveries to the JWT.
   const myDeliveries = useMemo(
-    () => deliveries.filter((d) => d.riderId === riderId),
-    [deliveries, riderId]
+    () => [...deliveries].sort((a: any, b: any) => (a.assignedAt ?? '').localeCompare(b.assignedAt ?? '')),
+    [deliveries]
   );
+  // Re-fetch on mount (the hook already does this, but be explicit for clarity).
+  useEffect(() => { void deliveriesState.refresh(); }, []);
   const filtered = useMemo(
     () => tab === 'all' ? myDeliveries : myDeliveries.filter((d) => d.status === tab),
     [myDeliveries, tab]
   );
   const sorted = useMemo(
-    () => [...filtered].sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor)),
+    () => [...filtered].sort((a, b) => (a.assignedAt ?? '').localeCompare(b.assignedAt ?? '')),
     [filtered]
   );
 
@@ -66,16 +67,16 @@ export default function RiderDeliveries() {
             <div key={d.id} className="bg-white border border-gray-200 p-6">
               <div className="flex justify-between items-start mb-4 flex-wrap gap-3">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium">{d.type === 'pickup' ? 'Pickup' : 'Delivery'} · {formatTime(d.scheduledFor)}</p>
-                  <p className="font-serif text-lg mt-1">{d.id}</p>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium">{d.status === 'pending' ? 'Pickup' : 'Delivery'} · {formatTime(d.assignedAt)}</p>
+                  <p className="font-serif text-lg mt-1">Order #{d.orderId}</p>
                 </div>
                 <StatusBadge status={d.status} type="delivery" />
               </div>
               <div className="space-y-1.5 text-sm">
-                <p><strong className="font-medium">Customer:</strong> {d.customerName}</p>
-                <p className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-gray-400" /> {d.address}, {d.city}, {d.state}</p>
-                <p className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-gray-400" /> {d.customerPhone}</p>
-                <p><strong className="font-medium">Items:</strong> {d.itemSummary} ({d.itemCount})</p>
+                <p><strong className="font-medium">Order #:</strong> {d.orderId}</p>
+                <p className="flex items-center gap-1.5 text-gray-500 text-xs">
+                  Delivery #{d.id} · assigned {formatTime(d.assignedAt)}
+                </p>
               </div>
               <div className="flex gap-2 mt-4">
                 <button
