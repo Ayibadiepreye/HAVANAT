@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import { apiConfig, apiGet } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { persist } from 'zustand/middleware';
 import type { AuditLogEntry } from '@/types/dashboard';
 
 interface AuditLogState {
@@ -14,8 +13,7 @@ interface AuditLogState {
 }
 
 export const useAuditLogStore = create<AuditLogState>()(
-  persist(
-    (set, get) => ({
+  (set, get) => ({
       logs: [],
       fetchAuditLogs: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
@@ -60,6 +58,4 @@ export const useAuditLogStore = create<AuditLogState>()(
       },
       clear: () => set({ logs: [] }),
     }),
-    { name: 'havanat-audit-log' }
-  )
 );

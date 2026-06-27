@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useProductStore } from '@/stores/useProductStore';
 import { useAdminProductStore } from '@/stores/useProductStoreAdmin';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -12,6 +12,8 @@ import type { Product } from '@/types';
 
 export default function ModeratorProducts() {
   const products = useProductStore((s) => s.products);
+  const fetchProducts = useProductStore((s) => s.fetchProducts);
+  useEffect(() => { void fetchProducts(); }, [fetchProducts]);
   const { removeProduct, toggleStatus: changeProductStatus } = useAdminProductStore();
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);

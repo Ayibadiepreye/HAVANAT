@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useProductStore } from '@/stores/useProductStore';
-import { useAdminProductStore } from '@/stores/useProductStoreAdmin';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useAdminProductStore } from '@/stores/useProductStoreAdmin';
 import { useUIStore } from '@/stores/useUIStore';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import StatusBadge from '@/components/admin/StatusBadge';
@@ -26,6 +26,9 @@ export default function AdminProducts() {
   const [confirmRemove, setConfirmRemove] = useState<Product | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
+
+  const fetchProducts = useProductStore((s) => s.fetchProducts);
+  useEffect(() => { void fetchProducts(); }, [fetchProducts]);
 
   const PAGE_SIZE = 20;
   const categories: CategoryFilter[] = useMemo(() => {

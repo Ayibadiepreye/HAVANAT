@@ -1,6 +1,5 @@
 // Rider roster + delivery store
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type { Rider, RiderStatus, Delivery, DeliveryStatus } from '@/types/dashboard';
 import type { ProofOfDelivery } from '@/types/dashboard';
 import { logAuditAction } from '@/utils/auditLogger';
@@ -23,14 +22,17 @@ interface RiderState {
 }
 
 export const useRiderStore = create<RiderState>()(
-  persist(
-    (set, get) => ({
+  (set, get) => ({
       riders: [],
       deliveries: [],
       fetchRiders: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {
-          const res = await apiGet<{ items: any[] }>('/api/riders', true);
+          // Admin/moderator view: use /api/admin/riders which joins users + rider_profiles.
+          // Rider self-view: use /api/riders which is scoped to the current user.
+          const isStaff = useAuthStore.getState().dashboardUser?.role !== 'rider';
+          const url = isStaff ? '/api/admin/riders' : '/api/riders';
+          const res = await apiGet<{ items: any[] }>(url, true);
           set({ riders: res.items.map((r) => ({ id: String(r.id), name: r.name, phone: r.phone ?? '', vehicleType: r.vehicleType ?? 'bike', status: r.status ?? 'active', zone: r.zone ?? '', rating: Number(r.rating ?? 5), totalDeliveries: Number(r.totalDeliveries ?? 0), totalEarnings: Number(r.totalEarnings ?? 0), joinedAt: r.joinedAt ?? new Date().toISOString() })) as any });
         } catch (err) {
           console.error('fetchRiders failed', err);
@@ -111,6 +113,4 @@ export const useRiderStore = create<RiderState>()(
       getDeliveriesByRider: (riderId) => get().deliveries.filter((d) => d.riderId === riderId),
       getDeliveryById: (id) => get().deliveries.find((d) => d.id === id),
     }),
-    { name: 'havanat-riders' }
-  )
 );

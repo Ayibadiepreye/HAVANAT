@@ -58,6 +58,62 @@ ridersRouter.get('/me/payouts', requireAuth, requireRole('rider'), async (req, r
 });
 
 // Rider: aggregate earnings stats for their dashboard
+
+// Rider: own profile (user + rider_profile row).
+// Used by the rider self-view pages (Dashboard, Profile) so they can read
+// their own data without depending on the admin roster.
+ridersRouter.get('/me/profile', requireAuth, requireRole('rider'), async (req, res) => {
+  const userId = Number(req.user!.sub);
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user) return res.status(404).json({ error: 'Rider not found' });
+  const [profile] = await db.select().from(riderProfiles).where(eq(riderProfiles.userId, userId));
+  res.json({
+    id: String(user.id),
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    tier: user.tier,
+    createdAt: user.createdAt,
+    profile: profile ?? null,
+  });
+});
+
+
+// Rider self-update or admin update of rider profile fields (address, plate, bank).
+// Riders can only update their own profile; admins can update any.
+ridersRouter.patch('/:id/profile', requireAuth, requireRole('rider', 'admin', 'moderator'), async (req, res) => {
+  const targetId = Number(req.params.id);
+  const callerId = Number(req.user!.sub);
+  const callerRole = req.user!.role;
+  if (callerRole === 'rider' && targetId !== callerId) {
+    return res.status(403).json({ error: 'Riders can only update their own profile' });
+  }
+  const body = (req.body ?? {}) as {
+    address?: string; plateNumber?: string;
+    bankName?: string; accountNumber?: string; accountName?: string;
+  };
+  const updates: Record<string, unknown> = {};
+  if (typeof body.address === 'string') updates.address = body.address.trim() || null;
+  if (typeof body.plateNumber === 'string') updates.plateNumber = body.plateNumber.trim();
+  if (typeof body.bankName === 'string') updates.bankName = body.bankName.trim() || null;
+  if (typeof body.accountNumber === 'string') updates.accountNumber = body.accountNumber.trim() || null;
+  if (typeof body.accountName === 'string') updates.accountName = body.accountName.trim() || null;
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+  updates.updatedAt = new Date();
+  const [updated] = await db.update(riderProfiles).set(updates).where(eq(riderProfiles.userId, targetId)).returning();
+  if (!updated) return res.status(404).json({ error: 'Rider profile not found' });
+  await logAction({
+    req, user: req.user!,
+    action: 'update', entityType: 'rider', entityId: String(targetId),
+    entityLabel: `Rider profile: ${targetId}`,
+    summary: 'Updated rider profile',
+    before: null, after: updates,
+  });
+  res.json(updated);
+});
+
 ridersRouter.get('/me/stats', requireAuth, requireRole('rider'), async (req, res) => {
   try {
     const riderId = Number(req.user!.sub);

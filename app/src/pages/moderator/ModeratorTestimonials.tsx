@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useContentStore } from '@/stores/useContentStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -7,6 +7,8 @@ import { formatDate } from '@/utils/formatters';
 
 export default function ModeratorTestimonials() {
   const testimonials = useContentStore((s) => s.testimonials);
+  const fetchContent = useContentStore((s) => s.fetchContent);
+  useEffect(() => { void fetchContent(); }, [fetchContent]);
   const approveTestimonial = useContentStore((s) => s.approveTestimonial);
   const removeTestimonial = useContentStore((s) => s.removeTestimonial);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);

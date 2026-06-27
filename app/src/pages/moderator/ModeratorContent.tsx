@@ -1,5 +1,6 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useContentStore } from '@/stores/useContentStore';
 import HomepageEditor from '@/pages/admin/content-editors/HomepageEditor';
 import LookbookEditor from '@/pages/admin/content-editors/LookbookEditor';
 import TestimonialsEditor from '@/pages/admin/content-editors/TestimonialsEditor';
@@ -8,6 +9,8 @@ import BrandingEditor from '@/pages/admin/content-editors/BrandingEditor';
 
 export default function ModeratorContent() {
   const [tab, setTab] = useState('homepage');
+  const fetchContent = useContentStore((s) => s.fetchContent);
+  useEffect(() => { void fetchContent(); }, [fetchContent]);
   return (
     <div className="space-y-6">
       <div>

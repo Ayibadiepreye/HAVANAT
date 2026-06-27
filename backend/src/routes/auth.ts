@@ -8,6 +8,7 @@ import { LoginSchema, RegisterSchema } from '../lib/validators.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
 import { requireAuth } from '../middleware/auth.js';
 import { sendEmailSafe, welcomeEmail } from '../lib/email.js';
+import { logAction } from '../audit/logger.js';
 
 export const authRouter = Router();
 
@@ -84,6 +85,31 @@ authRouter.post('/logout', async (req, res) => {
 authRouter.get('/me', requireAuth, async (req, res) => {
   const [user] = await db.select().from(users).where(eq(users.id, Number(req.user!.sub)));
   if (!user) return res.status(404).json({ error: 'User not found' });
+  return res.json({ user: toUserResponse(user) });
+});
+
+// PATCH /api/auth/me — update the caller's own profile fields.
+// Currently supports: name, phone. Email and tier are intentionally
+// read-only here (those flows have their own dedicated endpoints).
+authRouter.patch('/me', requireAuth, async (req, res) => {
+  const id = Number(req.user!.sub);
+  const body = (req.body ?? {}) as { name?: string; phone?: string };
+  const updates: Record<string, unknown> = {};
+  if (typeof body.name === 'string' && body.name.trim()) updates.name = body.name.trim();
+  if (typeof body.phone === 'string') updates.phone = body.phone.trim() || null;
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+  updates.updatedAt = new Date();
+  const [user] = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  await logAction({
+    req, user: req.user!,
+    action: 'update', entityType: 'user', entityId: String(id),
+    entityLabel: `User: ${user.name}`,
+    summary: 'Profile updated',
+    before: null, after: { name: user.name, phone: user.phone },
+  });
   return res.json({ user: toUserResponse(user) });
 });
 

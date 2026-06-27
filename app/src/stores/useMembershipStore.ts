@@ -1,6 +1,5 @@
 // Memberships store - admin edits tier pricing/features, audit logged
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type { Member } from '@/types/dashboard';
 import type { MembershipTier } from '@/types';
 import { MEMBERSHIP_TIERS as SEED_TIERS } from '@/config/membership';
@@ -11,6 +10,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 interface MembershipState {
   tiers: MembershipTier[];
   fetchTiers: () => Promise<void>;
+  fetchMembers: () => Promise<void>;
   members: Member[];
   saveTier: (tier: 'Standard' | 'Deluxe' | 'Elite', next: MembershipTier, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
   setMemberStatus: (memberId: string, status: Member['status'], actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
@@ -18,10 +18,32 @@ interface MembershipState {
 }
 
 export const useMembershipStore = create<MembershipState>()(
-  persist(
-    (set, get) => ({
+  (set, get) => ({
       tiers: SEED_TIERS,
       members: [],
+      fetchMembers: async () => {
+        if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
+        try {
+          const res = await apiGet<{ items: any[] }>('/api/admin/members', true);
+          set({ members: (res.items || []).map((m) => ({
+            id: String(m.id),
+            name: m.name,
+            email: m.email,
+            phone: m.phone ?? '',
+            tier: m.tier,
+            status: m.status ?? 'active',
+            billingCycle: m.billingCycle ?? 'monthly',
+            startDate: m.joinedAt ?? new Date().toISOString(),
+            nextBillingDate: m.nextBillingDate ?? new Date().toISOString(),
+            totalSpent: Number(m.totalSpent) || 0,
+            joinedAt: m.joinedAt ?? new Date().toISOString(),
+            cancelAtPeriodEnd: !!m.cancelAtPeriodEnd,
+            scheduledDowngradeTo: m.scheduledDowngradeTo ?? null,
+          })) });
+        } catch (err) {
+          console.error('fetchMembers failed', err);
+        }
+      },
       fetchTiers: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {
@@ -92,6 +114,4 @@ export const useMembershipStore = create<MembershipState>()(
         });
       },
     }),
-    { name: 'havanat-memberships' }
-  )
 );

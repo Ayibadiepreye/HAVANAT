@@ -1,6 +1,5 @@
 // Content management store (homepage, lookbook, testimonials, banners, branding, membership tiers)
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type {
   ContentHomepage,
   LookbookImage,
@@ -9,7 +8,8 @@ import type {
   Branding,
 } from '@/types/dashboard';
 import { logAuditAction } from '@/utils/auditLogger';
-import { apiConfig, apiGet } from '@/lib/api';
+import { apiConfig, apiDelete, apiGet, apiPatch } from '@/lib/api';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface ContentActor {
   id: string;
@@ -39,8 +39,7 @@ interface ContentState {
 }
 
 export const useContentStore = create<ContentState>()(
-  persist(
-    (set, get) => ({
+  (set, get) => ({
       homepage: {
         heroImage: '',
         headline: 'Where Style Meets Elegance',
@@ -144,7 +143,7 @@ export const useContentStore = create<ContentState>()(
           changes: { before: { ...before }, after: { ...before, ...t } },
         });
       },
-      approveTestimonial: (id, approved, actor) => {
+      approveTestimonial: async (id, approved, actor) => {
         const before = get().testimonials.find((x) => x.id === id);
         if (!before) return;
         set({ testimonials: get().testimonials.map((x) => (x.id === id ? { ...x, approved } : x)) });
@@ -154,8 +153,16 @@ export const useContentStore = create<ContentState>()(
           summary: approved ? 'Approved testimonial' : 'Un-approved testimonial',
           changes: { before: { approved: before.approved }, after: { approved } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPatch(`/api/content/testimonials/${id}`, { approved }, true);
+            await get().fetchContent();
+          } catch (err) {
+            console.error('approveTestimonial backend PATCH failed', err);
+          }
+        }
       },
-      removeTestimonial: (id, actor) => {
+      removeTestimonial: async (id, actor) => {
         const t = get().testimonials.find((x) => x.id === id);
         if (!t) return;
         set({ testimonials: get().testimonials.filter((x) => x.id !== id) });
@@ -165,6 +172,14 @@ export const useContentStore = create<ContentState>()(
           summary: 'Removed testimonial',
           changes: { before: { name: t.name }, after: null },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiDelete(`/api/content/testimonials/${id}`, true);
+            await get().fetchContent();
+          } catch (err) {
+            console.error('removeTestimonial backend DELETE failed', err);
+          }
+        }
       },
       addBanner: (b, actor) => {
         const id = `bnr-${Date.now()}`;
@@ -209,6 +224,4 @@ export const useContentStore = create<ContentState>()(
         });
       },
     }),
-    { name: 'havanat-content' }
-  )
 );

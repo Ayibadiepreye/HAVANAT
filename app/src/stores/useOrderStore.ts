@@ -1,9 +1,8 @@
 // Orders store - holds all dashboard orders
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type { DashboardOrder, OrderItem, OrderStatus, TrackingEvent } from '@/types/dashboard';
 import { logAuditAction } from '@/utils/auditLogger';
-import { apiConfig, apiGet, apiPost } from '@/lib/api';
+import { apiConfig, apiGet, apiPatch, apiPost } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 interface Actor {
@@ -125,13 +124,16 @@ function newOtp(): string {
 }
 
 export const useOrderStore = create<OrderState>()(
-  persist(
-    (set, get) => ({
+  (set, get) => ({
       orders: [],
       fetchOrders: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {
-          const res = await apiGet<{ items: any[] }>('/api/orders/mine', true);
+          // Staff (admin/moderator) view uses /api/admin/orders which returns
+          // every order in the system. Customer/rider view uses /api/orders/mine.
+          const role = useAuthStore.getState().dashboardUser?.role;
+          const url = (role === 'admin' || role === 'moderator') ? '/api/admin/orders' : '/api/orders/mine';
+          const res = await apiGet<{ items: any[] }>(url, true);
           set({ orders: res.items.map((o) => mapBackendOrder(o)) });
         } catch (err) {
           console.error('fetchOrders failed', err);
@@ -169,10 +171,11 @@ export const useOrderStore = create<OrderState>()(
           console.info(`[mock-email] To: ${order.customerEmail} — Your Havanat delivery OTP is ${deliveryOtp}. Show this to the rider on arrival.`);
         }
       },
-      assignRider: (id, riderId, riderName, actor) => {
+      assignRider: async (id, riderId, riderName, actor) => {
         const order = get().orders.find((o) => o.id === id);
         if (!order) return;
         const before = { riderId: order.riderId ?? null };
+        // Optimistic local update.
         set({ orders: get().orders.map((o) => (o.id === id ? { ...o, riderId } : o)) });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
@@ -180,6 +183,14 @@ export const useOrderStore = create<OrderState>()(
           summary: `Assigned rider ${riderName}`,
           changes: { before, after: { riderId } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPatch(`/api/orders/${id}/assign-rider`, { riderId: Number(riderId) }, true);
+            await get().fetchOrders();
+          } catch (err: any) {
+            console.error('assignRider backend PATCH failed', err);
+          }
+        }
       },
       cancelOrder: (id, actor, note) => {
         get().updateStatus(id, 'cancelled', actor, note ?? 'Cancelled by admin');
@@ -257,6 +268,4 @@ export const useOrderStore = create<OrderState>()(
       getByCustomer: (customerEmail) =>
         get().orders.filter((o) => o.customerEmail.toLowerCase() === customerEmail.toLowerCase()),
     }),
-    { name: 'havanat-orders' }
-  )
 );

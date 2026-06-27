@@ -24,7 +24,10 @@ export const useReturnStore = create<ReturnState>()(
       fetchReturns: async () => {
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {
-          const res = await apiGet<{ items: any[] }>('/api/returns/mine', true);
+          // Staff view: /api/admin/returns (all returns). Customer view: /api/returns/mine.
+          const role = useAuthStore.getState().dashboardUser?.role;
+          const url = (role === 'admin' || role === 'moderator') ? '/api/admin/returns' : '/api/returns/mine';
+          const res = await apiGet<{ items: any[] }>(url, true);
           set({ returns: res.items.map((r) => ({
             id: String(r.id),
             orderId: String(r.orderId),
