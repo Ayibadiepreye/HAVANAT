@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useMembershipStore } from '@/stores/useMembershipStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -12,6 +12,8 @@ import type { Member } from '@/types/dashboard';
 export default function AdminMembers() {
   const members = useMembershipStore((s) => s.members);
   const setStatus = useMembershipStore((s) => s.setMemberStatus);
+  const fetchMembers = useMembershipStore((s) => s.fetchMembers);
+  useEffect(() => { void fetchMembers(); }, [fetchMembers]);
   const changeTier = useMembershipStore((s) => s.changeMemberTier);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRiderStore } from '@/stores/useRiderStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -11,6 +11,8 @@ import type { Rider } from '@/types/dashboard';
 export default function AdminRiders() {
   const riders = useRiderStore((s) => s.riders);
   const setStatus = useRiderStore((s) => s.setStatus);
+  const fetchRiders = useRiderStore((s) => s.fetchRiders);
+  useEffect(() => { void fetchRiders(); }, [fetchRiders]);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
   const [details, setDetails] = useState<Rider | null>(null);

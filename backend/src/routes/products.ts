@@ -56,6 +56,7 @@ productsRouter.post('/', requireAuth, requireRole('admin', 'moderator'), async (
 
 productsRouter.patch('/:id', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid product id' });
   const parsed = UpdateProductSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
   const [before] = await db.select().from(products).where(eq(products.id, id));
@@ -72,6 +73,7 @@ productsRouter.patch('/:id', requireAuth, requireRole('admin', 'moderator'), asy
 
 productsRouter.delete('/:id', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid product id' });
   const [before] = await db.select().from(products).where(eq(products.id, id));
   if (!before) return res.status(404).json({ error: 'Product not found' });
   await db.delete(products).where(eq(products.id, id));

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useReturnStore } from '@/stores/useReturnStore';
 import { useRiderStore } from '@/stores/useRiderStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -23,6 +23,8 @@ export default function AdminReturns() {
   const approve = useReturnStore((s) => s.approve);
   const reject = useReturnStore((s) => s.reject);
   const assignRider = useReturnStore((s) => s.assignRider);
+  const fetchReturns = useReturnStore((s) => s.fetchReturns);
+  useEffect(() => { void fetchReturns(); }, [fetchReturns]);
   const processRefund = useReturnStore((s) => s.processRefund);
   const riders = useRiderStore((s) => s.riders);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);

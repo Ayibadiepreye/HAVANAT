@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuditLogStore } from '@/stores/useAuditLogStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -15,6 +15,8 @@ const PAGE_SIZE = 50;
 export default function AdminAuditLog() {
   const logs = useAuditLogStore((s) => s.logs);
   const revertLog = useAuditLogStore((s) => s.revertLog);
+  const fetchAuditLogs = useAuditLogStore((s) => s.fetchAuditLogs);
+  useEffect(() => { void fetchAuditLogs(); }, [fetchAuditLogs]);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
   const [search, setSearch] = useState('');
