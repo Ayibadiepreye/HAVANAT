@@ -217,6 +217,9 @@ membershipsRouter.post('/confirm', requireAuth, async (req, res, next) => {
     if (clientTier && clientTier !== tier) {
       return res.status(400).json({ error: `Reference is for ${tier}, not ${clientTier}` });
     }
+    // The customer_tier PG enum only accepts lowercase. tier arrived as title-case
+    // (Deluxe/Elite/Standard) from Paystack metadata; normalize once.
+    const tierEnum = tier.toLowerCase() as 'standard' | 'deluxe' | 'elite';
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) return res.status(404).json({ error: 'User not found' });
     const now = new Date();
@@ -227,11 +230,11 @@ membershipsRouter.post('/confirm', requireAuth, async (req, res, next) => {
     const existing = await db.select().from(members).where(eq(members.userId, userId)).limit(1);
     if (existing.length > 0) {
       await db.update(members)
-        .set({ tier: tier as any, joinedAt: now, notes: `Renewed via Paystack ${reference}` })
+        .set({ tier: tierEnum, joinedAt: now, notes: `Renewed via Paystack ${reference}` })
         .where(eq(members.userId, userId));
     } else {
       await db.insert(members).values({
-        userId, tier: tier as any, joinedAt: now,
+        userId, tier: tierEnum, joinedAt: now,
         notes: `Subscribed via Paystack ${reference}`,
       } as any);
     }
@@ -256,7 +259,7 @@ membershipsRouter.post('/confirm', requireAuth, async (req, res, next) => {
       } as any);
     }
     await db.update(users)
-      .set({ tier: tier.toLowerCase() as 'standard' | 'deluxe' | 'elite', updatedAt: now })
+      .set({ tier: tierEnum, updatedAt: now })
       .where(eq(users.id, userId));
     const [tierRow] = await db.select().from(membershipTiers).where(eq(membershipTiers.tier, tier as any));
     const tierLabel = tierRow?.displayName ?? tier;
