@@ -7,6 +7,7 @@ import { useCartStore } from '@/stores/useCartStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useProductStore } from '@/stores/useProductStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useMembershipStatus } from '@/hooks/useMembershipStatus';
 
 const CATEGORIES = ['All', 'Suits', 'Blazers', 'Trousers', 'Vests', 'Formal', 'Outerwear'];
 const FITS = ['All', 'Oversized', 'Tailored', 'Classic', 'Slim'];
@@ -33,16 +34,31 @@ export default function ShopPage() {
   const showToast = useUIStore((s) => s.showToast);
   const fetchProducts = useProductStore((s) => s.fetchProducts);
   const products = useProductStore((s) => s.products);
-  const tier = useAuthStore((s) => s.dashboardUser?.tier ?? null);
+  // Use the live membership status (fetches /api/memberships/me every time
+  // the user lands on this page) instead of the local Zustand mirror, so the
+  // Sneak Peeks filter chip only appears for users who are actually deluxe
+  // or elite per the backend. Also rotate the JWT on first mount so the next
+  // /api/products?sneakPeek=true call uses a token with the current tier.
+  const refreshToken = useAuthStore((s) => s.refreshToken);
+  const membership = useMembershipStatus();
+  const tier = membership.effectiveTier;
   const isEligible = tier === 'deluxe' || tier === 'elite';
+  // Rotate the JWT on mount so the access token in localStorage reflects
+  // the latest DB tier. Without this, a user whose token was issued before
+  // a membership upgrade would get 403s on tier-gated endpoints.
+  useEffect(() => { void refreshToken(); }, [refreshToken]);
 
   useEffect(() => {
+    // The refreshToken call above is fire-and-forget. We additionally
+    // gate the sneak-peek fetch on the membership status being loaded
+    // AND eligible, so the request is never made with a stale token.
+    if (membership.loading) return;
     if (sneakOnly && isEligible) {
-      void fetchProducts({ sneakPeek: true });
+      void refreshToken().then(() => fetchProducts({ sneakPeek: true }));
     } else {
       void fetchProducts();
     }
-  }, [sneakOnly, isEligible, fetchProducts]);
+  }, [sneakOnly, isEligible, fetchProducts, refreshToken, membership.loading]);
 
   const ITEMS_PER_PAGE = 8;
 
