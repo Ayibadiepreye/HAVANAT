@@ -10,6 +10,7 @@ import { useAddressStore, type Address as StoreAddress } from '@/stores/useAddre
 import { NIGERIAN_STATES } from '@/pages/CheckoutPage';
 import { formatNaira } from '@/config';
 import MembershipPanel from '@/components/MembershipPanel';
+import EmailVerificationBanner from '@/components/EmailVerificationBanner';
 
 type Tab = 'orders' | 'membership' | 'addresses' | 'wishlist';
 
@@ -153,6 +154,7 @@ export default function AccountPage() {
 
   return (
     <>
+    <EmailVerificationBanner />
     <main className="min-h-screen pt-20 lg:pt-24 pb-24 lg:pb-12 bg-white">
         <div className="lg:hidden h-0" />
       <div className="px-4 sm:px-6 lg:px-12 py-8 lg:py-12">

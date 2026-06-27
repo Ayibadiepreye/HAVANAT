@@ -6,6 +6,8 @@ import { useUIStore } from '@/stores/useUIStore';
 import { useTwoFactorStore, twoFactorActions } from '@/stores/useTwoFactorStore';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { Smartphone } from 'lucide-react';
+import MobileBottomNav, { type MobileBottomNavItem } from '@/components/MobileBottomNav';
+import EmailVerificationBanner from '@/components/EmailVerificationBanner';
 import { BRAND } from '@/config/brand';
 
 type TabKey = 'personal' | 'security';
@@ -51,6 +53,11 @@ export default function ProfilePage() {
   const showToast = useUIStore((s) => s.showToast);
 
   const [activeTab, setActiveTab] = useState<TabKey>('personal');
+
+  const navItems: MobileBottomNavItem[] = [
+    { key: 'personal', label: 'Personal', icon: UserIcon, onClick: () => setActiveTab('personal') },
+    { key: 'security', label: 'Security', icon: Shield, onClick: () => setActiveTab('security') },
+  ];
 
   // Personal
   const [personalForm, setPersonalForm] = useState({
@@ -212,6 +219,8 @@ export default function ProfilePage() {
 
   // ───── Render ─────
   return (
+    <>
+    <EmailVerificationBanner />
     <main className="min-h-screen pt-20 lg:pt-24 bg-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
         {/* Header */}
@@ -291,6 +300,8 @@ export default function ProfilePage() {
       </div>
 
     </main>
+    <MobileBottomNav activeKey={activeTab} items={navItems} />
+    </>
   );
 }
 

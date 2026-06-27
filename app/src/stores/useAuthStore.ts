@@ -30,6 +30,7 @@ interface BackendLoginResponse {
     provider?: 'google' | 'email';
     hasPassword?: boolean;
     googleId?: string | null;
+    emailVerified?: boolean;
   };
   accessToken: string;
   refreshToken: string;
@@ -51,6 +52,7 @@ function toDashboardUser(u: BackendLoginResponse['user']): DashboardUser {
     provider: u.provider,
     hasPassword: u.hasPassword,
     googleId: u.googleId ?? null,
+    emailVerified: u.emailVerified ?? false,
   };
 }
 

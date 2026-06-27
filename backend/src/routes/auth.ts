@@ -130,5 +130,10 @@ function toUserResponse(user: typeof users.$inferSelect) {
     // a real password. Tracked via passwordSetAt column.
     hasPassword: !!user.passwordSetAt,
     googleId: user.googleId,
+    // Whether the user has proven they own this email address via the
+    // /verify-email OTP flow. Always false for new signups (even via Google)
+    // until the user enters the OTP we send. Frontend uses this to show a
+    // banner prompting them to verify before using their account.
+    emailVerified: user.emailVerified,
   };
 }

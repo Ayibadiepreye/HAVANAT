@@ -19,6 +19,10 @@ export interface DashboardUser {
   hasPassword?: boolean;
   // Google's stable user ID, if linked.
   googleId?: string | null;
+  // Whether the user has proven they own this email via the OTP/click flow.
+  // False for new signups (even via Google) until they verify. Frontend
+  // uses this to show a banner prompting them to verify before using the account.
+  emailVerified?: boolean;
 }
 
 // Order lifecycle:

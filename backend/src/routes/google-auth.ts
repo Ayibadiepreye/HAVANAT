@@ -263,7 +263,12 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
           avatarUrl,
           role: 'customer',
           tier: 'standard',
-          emailVerified: emailVerified,
+          // Always require verification for NEW signups, even via Google.
+          // Google's `email_verified: true` only means Google itself trusts
+          // the email — it doesn't prove the user actually controls this
+          // Havanat account. We send our own verification OTP so the user
+          // proves they own this email address on OUR platform.
+          emailVerified: false,
         }).returning();
         if (!user) return res.status(500).send('Failed to create user');
         // Welcome email (non-blocking)
@@ -377,7 +382,8 @@ googleAuthRouter.post('/verify', async (req, res, next) => {
         [user] = await db.insert(users).values({
           name, email, passwordHash, googleId, avatarUrl,
           role: 'customer', tier: 'standard',
-          emailVerified,
+          // Same as /callback — never auto-verify new signups.
+          emailVerified: false,
         }).returning();
         if (!user) return res.status(500).json({ error: 'Failed to create user' });
         sendEmailSafe({
