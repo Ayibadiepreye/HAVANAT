@@ -8,6 +8,7 @@ import {
   type MembershipTier,
 } from '@/stores/useMembershipSubscriptionStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useTierStore } from '@/stores/useTierStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 
@@ -18,7 +19,18 @@ function daysLabel(n: number): string {
 }
 
 export default function MembershipPanel() {
-  const user = useAuthStore((s) => s.user);
+
+  // Live tier data from /api/memberships/tiers — replaces hardcoded TIER_PRICING.
+  const liveTiers = useTierStore((s) => s.tiers);
+  const tierPriceFor = (tier: 'standard' | 'deluxe' | 'elite') => {
+    const live = liveTiers.find((t) => t.tier.toLowerCase() === tier);
+    if (live) return { monthly: live.price, label: live.displayName };
+    // Fallback: TIER_PRICING only has 'deluxe' and 'elite'; 'standard' is free.
+    if (tier === 'standard') return { monthly: 0, label: 'Standard' };
+    const fallback = TIER_PRICING[tier];
+    return { monthly: fallback.monthly, label: fallback.label };
+  };
+ const user = useAuthStore((s) => s.user);
   const showToast = useUIStore((s) => s.showToast);
   const broadcast = useNotificationStore((s) => s.broadcast);
 
@@ -200,7 +212,7 @@ export default function MembershipPanel() {
                 </div>
                 {isPaid ? (
                   <p className="text-sm font-medium mb-2">
-                    ₦{(TIER_PRICING[tier].monthly).toLocaleString()}/mo
+                    ₦{tierPriceFor(tier).monthly.toLocaleString()}/mo
                   </p>
                 ) : (
                   <p className="text-sm font-medium mb-2">Free</p>
@@ -254,7 +266,7 @@ export default function MembershipPanel() {
           })}
         </div>
         <p className="text-[10px] text-gray-400 mt-3">
-          Subscription: ₦10,000/mo Deluxe · ₦25,000/mo Elite. Downgrades take effect at the end of the current period. Auto-revert to Standard if you don&apos;t renew.
+          Subscription prices come from your account&apos;s membership tier settings and are managed by your admin. Downgrades take effect at the end of the current period. Auto-revert to Standard if you don&apos;t renew.
         </p>
       </div>
 

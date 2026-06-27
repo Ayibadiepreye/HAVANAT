@@ -4,6 +4,7 @@ import { MEMBERSHIP_TIERS } from '@/config/membership';
 import { formatNaira } from '@/config';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { useTierStore } from '@/stores/useTierStore';
 
 const FAQS = [
   { q: 'Can I change or cancel my membership?', a: 'Yes, you can upgrade, downgrade, or cancel your membership at any time from your account dashboard. Changes take effect at the start of your next billing cycle.' },
@@ -14,6 +15,16 @@ const FAQS = [
 ];
 
 export default function MembershipPage() {
+  const liveTiers = useTierStore((s) => s.tiers);
+  const tiers = (liveTiers.length > 0 ? liveTiers : MEMBERSHIP_TIERS).map((t) => ({
+    tier: t.tier,
+    displayName: t.displayName,
+    description: t.description,
+    price: t.price,
+    billing: t.billing,
+    features: t.features.map((f: string) => f.replace(/^[✓·]\s*/, '')),
+    isPopular: t.isPopular,
+  }));
   const user = useAuthStore((s) => s.user);
   const showToast = useUIStore((s) => s.showToast);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -34,7 +45,7 @@ export default function MembershipPage() {
       {/* Tier Cards */}
       <section className="px-4 sm:px-6 lg:px-12 py-16 lg:py-24">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 max-w-6xl mx-auto">
-          {MEMBERSHIP_TIERS.map((tier, idx) => {
+          {tiers.map((tier, idx) => {
             const Icon = idx === 0 ? Award : idx === 1 ? Star : Crown;
             return (
               <div
@@ -50,7 +61,7 @@ export default function MembershipPage() {
                 )}
                 <div className="mb-6">
                   <Icon size={24} strokeWidth={1.5} className="text-gray-400 mb-4" />
-                  <h3 className="font-serif text-xl sm:text-2xl mb-1">{tier.tier}</h3>
+                  <h3 className="font-serif text-xl sm:text-2xl mb-1">{tier.displayName}</h3>
                   <p className="text-sm text-gray-500">{tier.description}</p>
                 </div>
                 <div className="flex items-baseline gap-1 mb-8">
@@ -125,7 +136,7 @@ export default function MembershipPage() {
                 ))}
                 <tr>
                   <td className="py-4 pr-6 font-medium">Monthly Price</td>
-                  {MEMBERSHIP_TIERS.map((tier) => (
+                  {tiers.map((tier) => (
                     <td key={tier.tier} className="text-center py-4 px-4 font-semibold">
                       {tier.price === 0 ? 'Free' : formatNaira(tier.price)}
                     </td>

@@ -5,7 +5,7 @@ import type { Member } from '@/types/dashboard';
 import type { MembershipTier } from '@/types';
 import { MEMBERSHIP_TIERS as SEED_TIERS } from '@/config/membership';
 import { logAuditAction } from '@/utils/auditLogger';
-import { apiConfig, apiGet } from '@/lib/api';
+import { apiConfig, apiGet, apiPut } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 interface MembershipState {
@@ -33,9 +33,10 @@ export const useMembershipStore = create<MembershipState>()(
           console.error('fetchTiers failed', err);
         }
       },
-      saveTier: (tierName, next, actor) => {
+      saveTier: async (tierName, next, actor) => {
         const before = get().tiers.find((t) => t.tier === tierName);
         if (!before) return;
+        // Optimistic local update so the UI reflects immediately.
         set({ tiers: get().tiers.map((t) => (t.tier === tierName ? next : t)) });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
@@ -44,6 +45,29 @@ export const useMembershipStore = create<MembershipState>()(
           summary: `Updated ${tierName} tier configuration`,
           changes: { before: { ...before }, after: { ...next } },
         });
+        // Persist to backend so every page picks up the new price.
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPut(`/api/content/memberships/${encodeURIComponent(tierName)}`, {
+              displayName: next.tier,
+              description: next.description,
+              price: Number(next.price) || 0,
+              billingCycles: ['monthly'],
+              features: next.features.map((f) => {
+                // Strip leading check/dot if present so we store the canonical shape.
+                const stripped = f.replace(/^[✓·]\s*/, '');
+                return { label: stripped, included: f.trimStart().startsWith('✓') };
+              }),
+            }, true);
+            // Force-refresh the public cache so every consumer sees the new price.
+            try {
+              const { useTierStore } = await import('@/stores/useTierStore');
+              await useTierStore.getState().fetch(true);
+            } catch {}
+          } catch (err) {
+            console.error('saveTier failed:', err);
+          }
+        }
       },
       setMemberStatus: (memberId, status, actor) => {
         const before = get().members.find((m) => m.id === memberId);

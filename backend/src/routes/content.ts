@@ -151,16 +151,36 @@ contentRouter.delete('/delivery-zones/:id', requireAuth, requireRole('admin'), a
 // Memberships (tier settings — per-tier price/features, not per-user subscriptions)
 contentRouter.get('/memberships', async (_req, res) => {
   const rows = await db.select().from(membershipTiers).orderBy(membershipTiers.sortOrder);
-  res.json({ items: rows });
+  const items = rows.map((r) => ({
+    id: r.id,
+    tier: r.tier,
+    displayName: r.displayName,
+    description: r.description,
+    price: Number(r.price),
+    priceLabel: Number(r.price) === 0 ? 'Free' : `₦${Number(r.price).toLocaleString()}`,
+    billingCycles: r.billingCycles,
+    billing: Number(r.price) === 0 ? 'Free Forever' : 'per month',
+    features: r.features,
+    isPopular: r.tier === 'Deluxe',
+    sortOrder: r.sortOrder,
+    active: r.active,
+  }));
+  res.json({ items });
 });
 contentRouter.put('/memberships/:tier', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const parsed = UpdateMembershipTierSchema.safeParse({ ...req.body, tier: req.params.tier });
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
   const [before] = await db.select().from(membershipTiers).where(eq(membershipTiers.tier, parsed.data.tier));
   if (!before) return res.status(404).json({ error: 'Tier not found' });
-  const [after] = await db.update(membershipTiers).set({
-    price: String(parsed.data.price), billingCycles: parsed.data.billingCycles, features: parsed.data.features.map((f: any) => `${f.included ? '✓' : '·'} ${f.label}`), updatedAt: new Date(),
-  }).where(eq(membershipTiers.tier, parsed.data.tier)).returning();
+  const updatePayload: any = {
+    price: String(parsed.data.price),
+    billingCycles: parsed.data.billingCycles,
+    features: parsed.data.features.map((f: any) => `${f.included ? '✓' : '·'} ${f.label}`),
+    updatedAt: new Date(),
+  };
+  if (parsed.data.displayName !== undefined) updatePayload.displayName = parsed.data.displayName;
+  if (parsed.data.description !== undefined) updatePayload.description = parsed.data.description;
+  const [after] = await db.update(membershipTiers).set(updatePayload).where(eq(membershipTiers.tier, parsed.data.tier)).returning();
   await logAction({ req, user: req.user!, action: 'update', entityType: 'membership', entityId: parsed.data.tier, entityLabel: `Tier: ${parsed.data.tier}`, summary: 'Updated tier', before, after });
   res.json(after);
 });

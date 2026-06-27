@@ -5,6 +5,7 @@
 
 export interface MembershipTier {
   tier: 'Standard' | 'Deluxe' | 'Elite';
+  displayName?: string;
   price: number;
   billing: string;
   description: string;

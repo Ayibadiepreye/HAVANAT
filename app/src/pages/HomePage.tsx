@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useProductStore } from '@/stores/useProductStore';
 import { MEMBERSHIP_TIERS } from '@/config/membership';
+import { useTierStore } from '@/stores/useTierStore';
 import { useContentStore } from '@/stores/useContentStore';
 import { ArrowRight, ChevronDown, Star, Zap, Shield, Truck, RotateCcw, Award, Sparkles } from 'lucide-react';
 import { formatNaira } from '@/config';
@@ -236,6 +237,17 @@ function CategoriesSection() {
 
 /* ──────────────────── MEMBERSHIP TEASER ──────────────────── */
 function MembershipTeaser() {
+  // Pull live tier data from /api/memberships/tiers so admin edits propagate
+  // here without code changes. Falls back to the static config while loading.
+  const liveTiers = useTierStore((s) => s.tiers);
+  const tiers = (liveTiers.length > 0 ? liveTiers : MEMBERSHIP_TIERS).map((t) => ({
+    tier: t.tier,
+    displayName: t.displayName,
+    price: t.price,
+    billing: t.billing,
+    features: t.features.map((f: string) => f.replace(/^[✓·]\s*/, '')),
+    isPopular: t.isPopular,
+  }));
   return (
     <section className="w-full py-20 lg:py-28 bg-black text-white">
       <div className="px-4 sm:px-6 lg:px-12">
@@ -248,14 +260,14 @@ function MembershipTeaser() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 max-w-5xl mx-auto">
-          {MEMBERSHIP_TIERS.map((tier) => (
+          {tiers.map((tier) => (
             <div key={tier.tier} className={`relative p-8 border ${tier.isPopular ? 'border-white' : 'border-white/10'}`}>
               {tier.isPopular && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-white text-black text-[9px] tracking-[0.15em] font-semibold">
                   MOST POPULAR
                 </span>
               )}
-              <h3 className="font-serif text-2xl mb-2">{tier.tier}</h3>
+              <h3 className="font-serif text-2xl mb-2">{tier.displayName}</h3>
               <div className="flex items-baseline gap-1 mb-6">
                 <span className="text-2xl font-semibold">
                   {tier.price === 0 ? 'Free' : `₦${tier.price.toLocaleString()}`}

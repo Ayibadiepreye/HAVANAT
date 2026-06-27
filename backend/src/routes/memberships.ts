@@ -34,9 +34,29 @@ membershipsRouter.get('/tiers', async (_req, res) => {
     const rows = await db
       .select()
       .from(membershipTiers)
-      .where(and(eq(membershipTiers.active, true)))
+      .where(eq(membershipTiers.active, true))
       .orderBy(membershipTiers.sortOrder);
-    res.json({ items: rows });
+    // Normalize into a single shape that's safe to consume in the frontend.
+    // price comes from DB as decimal string; we surface as number for display.
+    // features come as ["✓ Free shipping", "· Priority support"]; we keep
+    // the leading symbol so the UI can render an icon next to each line.
+    const items = rows.map((r) => ({
+      id: r.id,
+      tier: r.tier,
+      displayName: r.displayName,
+      description: r.description,
+      // Decimal-as-number: backend stores 10000.00, we want 10000 for math.
+      price: Number(r.price),
+      priceLabel: Number(r.price) === 0 ? 'Free' : `₦${Number(r.price).toLocaleString()}`,
+      billingCycles: r.billingCycles,
+      // Default label matches the cycle; the seed/admin can override per tier.
+      billing: Number(r.price) === 0 ? 'Free Forever' : 'per month',
+      features: r.features,
+      isPopular: r.tier === 'Deluxe',
+      sortOrder: r.sortOrder,
+      active: r.active,
+    }));
+    res.json({ items });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load tiers' });
   }

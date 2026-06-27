@@ -87,6 +87,8 @@ export const UpdateHomepageSchema = z.object({
 
 export const UpdateMembershipTierSchema = z.object({
   tier: z.enum(['Standard', 'Deluxe', 'Elite']),
+  displayName: z.string().min(1).max(100).optional(),
+  description: z.string().max(1000).optional(),
   price: z.number().min(0),
   billingCycles: z.array(z.enum(['monthly', 'quarterly', 'yearly'])),
   features: z.array(z.object({ label: z.string(), included: z.boolean() })),
