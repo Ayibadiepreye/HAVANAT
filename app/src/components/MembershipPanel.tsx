@@ -1,17 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiPost } from '@/lib/api';
 import { Crown, Calendar, Check, AlertCircle } from 'lucide-react';
-import {
-  useMembershipSubscriptionStore,
-  tickMembershipLifecycle,
-  TIER_PRICING,
-  type MembershipTier,
-} from '@/stores/useMembershipSubscriptionStore';
+import { useMembershipSubscriptionStore, TIER_PRICING } from '@/stores/useMembershipSubscriptionStore';
+import { useMembershipStatus } from '@/hooks/useMembershipStatus';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useTierStore } from '@/stores/useTierStore';
 import { useUIStore } from '@/stores/useUIStore';
-import { useNotificationStore } from '@/stores/useNotificationStore';
 
 function daysLabel(n: number): string {
   if (n <= 0) return 'expired';
@@ -33,24 +28,20 @@ export default function MembershipPanel() {
   };
  const user = useAuthStore((s) => s.user);
   const showToast = useUIStore((s) => s.showToast);
-  const broadcast = useNotificationStore((s) => s.broadcast);
 
-  const current = useMembershipSubscriptionStore((s) => s.current);
+  // Authoritative membership state from the DB — never trust local mirror.
+  // After Paystack confirms, the parent re-mounts and this hook re-fetches.
+  const status = useMembershipStatus();
   const renew = useMembershipSubscriptionStore((s) => s.renew);
-  const scheduleDowngrade = useMembershipSubscriptionStore((s) => s.scheduleDowngrade);
-  const cancelScheduledDowngrade = useMembershipSubscriptionStore((s) => s.cancelScheduledDowngrade);
-  const cancelSubscription = useMembershipSubscriptionStore((s) => s.cancelSubscription);
-  const daysRemaining = useMembershipSubscriptionStore((s) => s.daysRemaining());
-  const state = useMembershipSubscriptionStore((s) => s.state());
-  const effectiveTier = useMembershipSubscriptionStore((s) => s.effectiveTier());
+  const effectiveTier = status.effectiveTier;
+  const daysRemaining = status.daysRemaining;
+  const state = status.status;
+  const scheduledTo = status.scheduledTo;
+  const currentPeriodEnd = status.currentPeriodEnd;
+  const cancelAtPeriodEnd = status.cancelAtPeriodEnd;
+
 
   const navigate = useNavigate();
-  const actor = useMemo(() => ({
-    id: user?.id ?? 'guest',
-    name: user?.name ?? 'Customer',
-    role: 'system' as const,
-  }), [user?.id, user?.name]);
-
   // Real Paystack subscribe: hits /api/memberships/subscribe -> redirects to
   // Paystack checkout -> user pays -> redirected back to /account?tab=membership&paystack=verify
   // -> /api/memberships/confirm flips the DB tier.
@@ -94,92 +85,60 @@ export default function MembershipPanel() {
     }
   }
 
-  // Tick the lifecycle on mount — sends reminders if needed
-  useEffect(() => {
-    tickMembershipLifecycle(({ tier, daysLeft, ended }) => {
-      if (ended) {
-        showToast(`Your ${tier} subscription ended. You've been moved to Standard.`, 'info');
-        broadcast(
-          {
-            title: `Your ${TIER_PRICING[tier].label} subscription has ended`,
-            body: `Your paid membership expired and you&apos;ve been moved to Standard. You can resubscribe anytime from your account.`,
-            category: 'membership',
-            channels: 'both',
-            scope: 'user',
-            targetUserId: user?.id,
-          },
-          actor
-        );
-      } else {
-        showToast(`Your ${tier} subscription expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`, 'info');
-        broadcast(
-          {
-            title: `${TIER_PRICING[tier].label} expires in ${daysLabel(daysLeft)}`,
-            body: `Renew now to keep your perks. Your subscription will auto-revert to Standard at the end of the current period if you don&apos;t resubscribe.`,
-            category: 'membership',
-            channels: 'both',
-            scope: 'user',
-            targetUserId: user?.id,
-          },
-          actor
-        );
-      }
-    });
-  }, [actor, broadcast, showToast, user?.id]);
-
-  // Backwards-compat shim — anywhere the panel still calls handleSubscribe,
-  // we route through the real Paystack flow instead of mutating local state.
-  function handleSubscribe(tier: Exclude<MembershipTier, 'standard'>) {
-    const tierName = tier === 'deluxe' ? 'Deluxe' : 'Elite';
-    void startPaystackSubscribe(tierName);
-  }
-
-  async function handleScheduleDowngrade(to: MembershipTier) {
-    // Downgrades are scheduled for end-of-period — no charge today. They MUST
-    // hit the backend so the server's memberships.scheduledDowngradeTo column
-    // is the source of truth (used by /api/memberships/tick to auto-revert).
+  async function handleScheduleDowngrade(to: 'standard' | 'Standard' | 'Deluxe' | 'Elite') {
+    // Schedule downgrade — backend is the source of truth (memberships.scheduledDowngradeTo).
+    // /api/memberships/tick uses this to auto-revert at period end.
     try {
-      await apiPost('/api/memberships/schedule-downgrade', { to }, true);
-      scheduleDowngrade(to, actor);
+      const apiTier = to.charAt(0).toUpperCase() + to.slice(1);
+      await apiPost('/api/memberships/schedule-downgrade', { to: apiTier }, true);
+      await status.refresh();
       showToast(`Downgrade to ${to} scheduled. Takes effect at end of current period.`, 'info');
     } catch (err: any) {
       showToast(err?.message || 'Could not schedule downgrade.', 'error');
     }
   }
 
-  async function handleUpgrade(tier: 'deluxe' | 'elite') {
+  async function handleUpgrade(tier: 'standard' | 'deluxe' | 'elite') {
+    if (tier === 'standard') return; // covered by handleScheduleDowngrade
     // Upgrades require immediate payment — go through Paystack just like new subs.
     const tierName = tier === 'deluxe' ? 'Deluxe' : 'Elite';
     await startPaystackSubscribe(tierName);
   }
 
-  function handleCancelDowngrade() {
-    cancelScheduledDowngrade(actor);
-    apiPost('/api/memberships/schedule-downgrade/cancel', {}, true).catch(() => {});
-    showToast('Scheduled downgrade cancelled', 'success');
+  async function handleCancelDowngrade() {
+    try {
+      await apiPost('/api/memberships/schedule-downgrade/cancel', {}, true);
+      await status.refresh();
+      showToast('Scheduled downgrade cancelled', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Could not cancel scheduled downgrade.', 'error');
+    }
   }
 
-  function handleCancelSubscription() {
-    cancelSubscription(actor);
-    apiPost('/api/memberships/cancel', {}, true).catch(() => {});
-    showToast('Auto-renew turned off. You keep access until the period ends.', 'info');
+  async function handleCancelSubscription() {
+    try {
+      await apiPost('/api/memberships/cancel', {}, true);
+      await status.refresh();
+      showToast('Auto-renew turned off. You keep access until the period ends.', 'info');
+    } catch (err: any) {
+      showToast(err?.message || 'Could not cancel subscription.', 'error');
+    }
   }
 
-  async function handleRenew(tier: Exclude<MembershipTier, 'standard'>) {
+  async function handleRenew(tier: 'deluxe' | 'elite') {
     // After a subscription ends the user must re-subscribe — that means a new
     // Paystack charge. The renew() store action redirects to checkout.
     try {
-      await renew(tier, actor);
+      await renew(tier, { id: user?.id ?? 'guest', name: user?.name ?? 'Customer', role: 'system' });
     } catch (err: any) {
       showToast(err?.message || 'Could not start checkout.', 'error');
     }
   }
 
-  const paidTier = current && effectiveTier !== 'standard' ? effectiveTier : null;
+  const paidTier = status.isPaid ? effectiveTier : null;
   const inGrace = state === 'grace';
   const expiring = state === 'expiring' || state === 'grace';
   const ended = state === 'ended';
-  const scheduledTo = current?.scheduledDowngradeTo ?? null;
 
   return (
     <div className="space-y-6">
@@ -192,10 +151,12 @@ export default function MembershipPanel() {
               <Crown size={18} className={paidTier ? 'text-black' : 'text-gray-400'} />
               <span className="font-serif text-2xl capitalize">{effectiveTier}</span>
             </div>
-            {paidTier && current && (
+            {paidTier && currentPeriodEnd && (
               <p className="text-xs text-gray-500 mt-1">
                 <Calendar size={11} className="inline mr-1" />
-                Renews on {current.endsAt.slice(0, 10)} · {daysLabel(daysRemaining)}
+                {cancelAtPeriodEnd
+                  ? `Access until ${currentPeriodEnd.slice(0, 10)} · ${daysLabel(daysRemaining)}`
+                  : `Renews on ${currentPeriodEnd.slice(0, 10)} · ${daysLabel(daysRemaining)}`}
               </p>
             )}
             {ended && (
@@ -212,7 +173,7 @@ export default function MembershipPanel() {
               <p className="text-xs text-amber-700 mt-1">Your subscription is nearing its renewal date.</p>
             )}
           </div>
-          {paidTier && (
+          {paidTier && !cancelAtPeriodEnd && (
             <button
               onClick={handleCancelSubscription}
               className="text-[10px] uppercase tracking-[0.15em] text-gray-500 hover:text-red-600 underline"
@@ -220,12 +181,20 @@ export default function MembershipPanel() {
               Turn off auto-renew
             </button>
           )}
+          {paidTier && cancelAtPeriodEnd && (
+            <button
+              onClick={() => effectiveTier !== 'standard' && handleRenew(effectiveTier)}
+              className="text-[10px] uppercase tracking-[0.15em] text-black underline"
+            >
+              Resubscribe now
+            </button>
+          )}
         </div>
 
-        {scheduledTo && (
+        {scheduledTo && currentPeriodEnd && (
           <div className="bg-amber-50 border border-amber-200 p-3 text-sm mb-4">
             <p className="text-amber-800">
-              You have a scheduled downgrade to <strong className="capitalize">{scheduledTo}</strong> on {current?.endsAt.slice(0, 10)}.
+              You have a scheduled downgrade to <strong className="capitalize">{scheduledTo}</strong> on {currentPeriodEnd.slice(0, 10)}.
             </p>
             <button onClick={handleCancelDowngrade} className="mt-2 text-[10px] uppercase tracking-[0.15em] text-amber-800 underline hover:text-black">
               Keep my {paidTier ?? effectiveTier} plan instead
@@ -292,25 +261,15 @@ export default function MembershipPanel() {
                     {isPaid && !isScheduled && (
                       <button
                         onClick={() => {
-                          // From Standard: new subscription -> Paystack.
-                          // From Deluxe/Elite switching to a different tier:
-                          //   - downgrading -> schedule (no charge, takes effect at end)
-                          //   - upgrading   -> Paystack immediately (charges prorated)
-                          if (!paidTier) {
-                            handleSubscribe(tier);
-                          } else if (tier === paidTier) {
+                          // Rule: any switch involving a paid tier — except the
+                          // sole 'downgrade to free (Standard)' case — requires
+                          // an immediate Paystack charge. The only deferred case
+                          // is 'paid -> Standard' which schedules a free revert
+                          // at end of period (no refund, no charge).
+                          if (tier === paidTier) {
                             showToast(`You're already on ${tier}.`, 'info');
                           } else {
-                            const tierRank = { standard: 0, deluxe: 1, elite: 2 } as const;
-                            const targetRank = tierRank[tier];
-                            const currentRank = tierRank[paidTier as 'standard' | 'deluxe' | 'elite'];
-                            if (targetRank > currentRank) {
-                              // Upgrade — requires payment.
-                              handleUpgrade(tier as 'deluxe' | 'elite');
-                            } else {
-                              // Downgrade — schedule at end of period.
-                              handleScheduleDowngrade(tier);
-                            }
+                            handleUpgrade(tier);
                           }
                         }}
                         disabled={subscribing !== null}
@@ -318,9 +277,9 @@ export default function MembershipPanel() {
                       >
                         {subscribing
                           ? 'Redirecting…'
-                          : paidTier
-                            ? `Switch to ${TIER_PRICING[tier].label}`
-                            : 'Subscribe'}
+                          : tier === paidTier
+                            ? 'Current plan'
+                            : `Pay & switch to ${TIER_PRICING[tier].label}`}
                       </button>
                     )}
                     {isPaid && isScheduled && (
