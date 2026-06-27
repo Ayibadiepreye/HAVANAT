@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useAuthStore } from './useAuthStore';
 import { persist } from 'zustand/middleware';
 import type { Product } from '@/types';
 import { apiConfig, apiGet } from '@/lib/api';
@@ -26,7 +27,12 @@ export const useProductStore = create<ProductState>()(
         set({ isLoading: true });
         try {
           if (apiConfig.useBackend) {
-            const qs = opts?.sneakPeek ? '?sneakPeek=true' : '';
+            // Defensive: don't request sneak peeks for standard users.
+            // The backend 403s them, but we can short-circuit silently to
+            // avoid noisy console errors and unnecessary network round-trips.
+            const callerTier = useAuthStore.getState().dashboardUser?.tier;
+            const eligible = callerTier === 'deluxe' || callerTier === 'elite';
+            const qs = opts?.sneakPeek && eligible ? '?sneakPeek=true' : '';
             const res = await apiGet<{ items: any[]; total: number }>('/api/products' + qs);
             // Map backend Product → frontend Product shape
             const mapped: Product[] = res.items.map((p) => ({
