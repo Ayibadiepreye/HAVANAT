@@ -5,7 +5,7 @@ import { desc, eq, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { AssignRiderSchema, UpdateOrderStatusSchema } from '../lib/validators.js';
 import { logAction } from '../audit/logger.js';
-import { sendEmailSafe, orderConfirmationEmail, orderStatusEmail } from '../lib/email.js';
+import { sendEmailSafe, orderConfirmationEmail, orderStatusEmail, orderShippedEmail } from '../lib/email.js';
 
 export const ordersRouter = Router();
 

@@ -471,3 +471,122 @@ export function welcomeEmail(customerName: string): string {
     `,
   });
 }
+
+
+export function subscriptionWelcomeEmail(opts: {
+  customerName: string;
+  tier: 'deluxe' | 'elite';
+  tierLabel: string;
+  amount: number;
+  currency?: string;
+  periodEnd: string;
+  manageUrl: string;
+}): string {
+  const formatted = `${opts.currency ?? 'N'}${opts.amount.toLocaleString()}`;
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#fafafa;font-family:Helvetica,Arial,sans-serif;color:#111">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#fafafa;padding:32px 16px">
+  <tr><td align="center">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;max-width:560px;width:100%">
+      <tr><td style="padding:40px 32px 16px 32px;text-align:center">
+        <h1 style="margin:0;font-size:28px;letter-spacing:0.06em;font-weight:300;text-transform:uppercase">Welcome to ${opts.tierLabel}</h1>
+      </td></tr>
+      <tr><td style="padding:16px 32px 32px 32px;font-size:15px;line-height:1.6;color:#333">
+        <p>Hi ${opts.customerName},</p>
+        <p>Your <strong>${opts.tierLabel}</strong> membership is now active. You'll be charged <strong>${formatted}</strong> monthly and your perks take effect immediately.</p>
+        <p>Next renewal date: <strong>${opts.periodEnd.slice(0, 10)}</strong>.</p>
+        <p style="margin:32px 0;text-align:center">
+          <a href="${opts.manageUrl}" style="display:inline-block;padding:14px 32px;background:#000;color:#fff;text-decoration:none;text-transform:uppercase;font-size:11px;letter-spacing:0.15em">Manage Subscription</a>
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}
+
+export function subscriptionCancelledEmail(opts: {
+  customerName: string;
+  tierLabel: string;
+  periodEnd: string;
+  resubscribeUrl: string;
+}): string {
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#fafafa;font-family:Helvetica,Arial,sans-serif;color:#111">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#fafafa;padding:32px 16px">
+  <tr><td align="center">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;max-width:560px;width:100%">
+      <tr><td style="padding:40px 32px 16px 32px;text-align:center">
+        <h1 style="margin:0;font-size:28px;letter-spacing:0.06em;font-weight:300;text-transform:uppercase">Subscription Cancelled</h1>
+      </td></tr>
+      <tr><td style="padding:16px 32px 32px 32px;font-size:15px;line-height:1.6;color:#333">
+        <p>Hi ${opts.customerName},</p>
+        <p>Your <strong>${opts.tierLabel}</strong> membership has been cancelled. You'll continue to enjoy your perks until <strong>${opts.periodEnd.slice(0, 10)}</strong>.</p>
+        <p style="margin:32px 0;text-align:center">
+          <a href="${opts.resubscribeUrl}" style="display:inline-block;padding:14px 32px;background:#000;color:#fff;text-decoration:none;text-transform:uppercase;font-size:11px;letter-spacing:0.15em">Resubscribe</a>
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}
+
+export function subscriptionExpiredEmail(opts: {
+  customerName: string;
+  tierLabel: string;
+  resubscribeUrl: string;
+}): string {
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#fafafa;font-family:Helvetica,Arial,sans-serif;color:#111">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#fafafa;padding:32px 16px">
+  <tr><td align="center">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;max-width:560px;width:100%">
+      <tr><td style="padding:40px 32px 16px 32px;text-align:center">
+        <h1 style="margin:0;font-size:28px;letter-spacing:0.06em;font-weight:300;text-transform:uppercase">Membership Ended</h1>
+      </td></tr>
+      <tr><td style="padding:16px 32px 32px 32px;font-size:15px;line-height:1.6;color:#333">
+        <p>Hi ${opts.customerName},</p>
+        <p>Your <strong>${opts.tierLabel}</strong> subscription has ended and your account has been moved to Standard.</p>
+        <p style="margin:32px 0;text-align:center">
+          <a href="${opts.resubscribeUrl}" style="display:inline-block;padding:14px 32px;background:#000;color:#fff;text-decoration:none;text-transform:uppercase;font-size:11px;letter-spacing:0.15em">Resubscribe</a>
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}
+
+export function orderShippedEmail(order: {
+  id: number | string;
+  customerName: string;
+  trackingNumber?: string | null;
+  courier?: string | null;
+  estimatedDelivery?: string | null;
+  trackingUrl?: string | null;
+  items: Array<{ name: string; quantity: number; price: number | string }>;
+  total: number | string;
+}): string {
+  const itemRows = order.items.map((i) =>
+    `<tr><td style="padding:8px 0;border-bottom:1px solid #eee">${i.name}</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #eee">x${i.quantity}</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #eee">N${(Number(i.price) * Number(i.quantity)).toLocaleString()}</td></tr>`
+  ).join('');
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#fafafa;font-family:Helvetica,Arial,sans-serif;color:#111">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#fafafa;padding:32px 16px">
+  <tr><td align="center">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;max-width:560px;width:100%">
+      <tr><td style="padding:40px 32px 16px 32px;text-align:center">
+        <h1 style="margin:0;font-size:28px;letter-spacing:0.06em;font-weight:300;text-transform:uppercase">Your order is on its way</h1>
+      </td></tr>
+      <tr><td style="padding:16px 32px 32px 32px;font-size:15px;line-height:1.6;color:#333">
+        <p>Hi ${order.customerName},</p>
+        <p>Order <strong>#${order.id}</strong> has shipped.</p>
+        ${order.trackingNumber ? `<p>Tracking: <strong>${order.courier ?? ''} ${order.trackingNumber}</strong></p>` : ''}
+        <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.15em;color:#666;margin-top:32px">Items</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:8px;font-size:14px">
+          ${itemRows}
+          <tr><td colspan="2" style="padding:16px 0 4px 0;text-align:right;font-weight:bold">Total</td><td style="padding:16px 0 4px 0;text-align:right;font-weight:bold">N${Number(order.total).toLocaleString()}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}
