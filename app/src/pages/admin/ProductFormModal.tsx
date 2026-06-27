@@ -276,6 +276,37 @@ export default function ProductFormModal({ product, onClose }: Props) {
           </div>
         </div>
 
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 p-4 m-6 mt-0 space-y-3">
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="isSneakPeek"
+              checked={!!form.isSneakPeek}
+              onChange={(e) => {
+                const isOn = e.target.checked;
+                setForm((f) => ({
+                  ...f,
+                  isSneakPeek: isOn,
+                  sneakPeekReleasedAt: isOn && !f.sneakPeekReleasedAt ? new Date().toISOString() : f.sneakPeekReleasedAt,
+                }));
+              }}
+              className="mt-1 h-4 w-4"
+            />
+            <label htmlFor="isSneakPeek" className="flex-1 cursor-pointer">
+              <div className="font-medium text-sm text-purple-900">Sneak Peek</div>
+              <div className="text-xs text-purple-700 mt-1">
+                When enabled, this product is visible only to Deluxe and Elite members.
+                They will be notified by email and in-app banner. Use for limited drops.
+              </div>
+            </label>
+          </div>
+          {form.isSneakPeek && (
+            <div className="text-xs text-purple-700 bg-white p-2 border border-purple-200">
+              Released at: {form.sneakPeekReleasedAt ? new Date(form.sneakPeekReleasedAt).toLocaleString() : '—'}
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 sticky bottom-0 bg-white">
           <button onClick={onClose} className="px-5 py-2.5 text-[10px] uppercase tracking-[0.2em] border border-gray-300 hover:border-black transition-colors">Cancel</button>
           {!product && (

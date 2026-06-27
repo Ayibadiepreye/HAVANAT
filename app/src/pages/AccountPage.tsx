@@ -4,7 +4,7 @@ import { Package, Crown, MapPin, Heart, LogOut, Plus, Edit3, Trash2 } from 'luci
 import MobileBottomNav, { type MobileBottomNavItem } from '@/components/MobileBottomNav';
 import { useUIStore } from '@/stores/useUIStore';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { apiPost } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
 import { useProductStore } from '@/stores/useProductStore';
 import { useOrderStore } from '@/stores/useOrderStore';
 import { useAddressStore, type Address as StoreAddress } from '@/stores/useAddressStore';
@@ -54,6 +54,16 @@ export default function AccountPage() {
             showToast('Membership is already active.', 'info');
           } else if (result.tier) {
             showToast(`Welcome to ${result.tier}! Your membership is active.`, 'success');
+            // IMMEDIATE REFLECT: pull the fresh user from /api/auth/me so
+            // dashboardUser.tier (and user.membershipTier) flips from
+            // 'standard' to the new tier. Cart, checkout, sneak peek
+            // filters, tier-gated UI — all read from this.
+            try {
+              const fresh = await apiGet<{ tier: string }>('/api/auth/me', true);
+              if (fresh?.tier) useAuthStore.getState().upgradeTier(fresh.tier as any);
+            } catch (e) {
+              console.warn('refresh user tier failed', e);
+            }
           }
         } catch (err: any) {
           showToast(err?.message || 'Could not confirm payment. Contact support if you were charged.', 'error');

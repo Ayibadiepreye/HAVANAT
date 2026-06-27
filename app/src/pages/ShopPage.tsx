@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 // useSearchParams is used via searchParams read
-import { SlidersHorizontal, X, ChevronDown } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronDown, Sparkles } from 'lucide-react';
 import { formatNaira } from '@/config';
 import { useCartStore } from '@/stores/useCartStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useProductStore } from '@/stores/useProductStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 const CATEGORIES = ['All', 'Suits', 'Blazers', 'Trousers', 'Vests', 'Formal', 'Outerwear'];
 const FITS = ['All', 'Oversized', 'Tailored', 'Classic', 'Slim'];
@@ -25,21 +26,32 @@ export default function ShopPage() {
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500000]);
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
+  const [sneakOnly, setSneakOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
   const addItem = useCartStore((s) => s.addItem);
   const showToast = useUIStore((s) => s.showToast);
   const fetchProducts = useProductStore((s) => s.fetchProducts);
   const products = useProductStore((s) => s.products);
+  const tier = useAuthStore((s) => s.dashboardUser?.tier ?? null);
+  const isEligible = tier === 'deluxe' || tier === 'elite';
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    if (sneakOnly && isEligible) {
+      void fetchProducts({ sneakPeek: true });
+    } else {
+      void fetchProducts();
+    }
+  }, [sneakOnly, isEligible, fetchProducts]);
 
   const ITEMS_PER_PAGE = 8;
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
+
+    if (sneakOnly) {
+      result = result.filter((p) => p.isSneakPeek);
+    }
 
     if (category !== 'All') {
       result = result.filter((p) => p.category === category);
@@ -69,7 +81,7 @@ export default function ShopPage() {
     }
 
     return result;
-  }, [category, fit, selectedSizes, priceRange, sortBy]);
+  }, [category, fit, selectedSizes, priceRange, sortBy, sneakOnly]);
 
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const paginatedProducts = filteredProducts.slice(
@@ -230,7 +242,21 @@ export default function ShopPage() {
             {/* Desktop sort bar */}
             <div className="hidden lg:flex items-center justify-between mb-8">
               <p className="text-sm text-gray-400">
-                {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {isEligible && (
+                    <button
+                      onClick={() => setSneakOnly((v) => !v)}
+                      className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-medium px-3 py-1.5 transition-colors ${
+                        sneakOnly
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-white border border-purple-300 text-purple-700 hover:bg-purple-50'
+                      }`}
+                    >
+                      <Sparkles className="h-3 w-3" /> Sneak Peeks {sneakOnly ? 'on' : 'off'}
+                    </button>
+                  )}
+                  <span>{filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}</span>
+                </div>
               </p>
               <div className="relative">
                 <select
@@ -265,6 +291,11 @@ export default function ShopPage() {
                         />
                         {product.isNew && (
                           <span className="absolute top-3 left-3 px-2 py-1 bg-black text-white text-[9px] tracking-[0.15em]">NEW</span>
+                        )}
+                        {product.isSneakPeek && (
+                          <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-1 bg-purple-600 text-white text-[9px] tracking-[0.15em] font-semibold">
+                            <Sparkles className="h-3 w-3" /> SNEAK PEEK
+                          </span>
                         )}
                         {/* Quick Add */}
                         <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">

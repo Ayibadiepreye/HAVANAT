@@ -27,6 +27,10 @@ export interface Product {
   stock: number;
   /** Threshold below which the product is flagged "Low stock" and a notification is dispatched. Default 5. */
   lowStockThreshold?: number;
+  /** When true, the product is a Sneak Peek and is only visible to Deluxe and Elite members. */
+  isSneakPeek?: boolean;
+  /** When the Sneak Peek was first released. */
+  sneakPeekReleasedAt?: string;
   details?: {
     material: string;
     care: string;

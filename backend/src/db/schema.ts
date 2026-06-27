@@ -102,6 +102,11 @@ export const products = pgTable('products', {
   eliteDiscount: decimal('elite_discount', { precision: 5, scale: 4 }).notNull().default('0.10'),
   inStock: boolean('in_stock').notNull().default(true),
   published: boolean('published').notNull().default(true),
+  // When true, this product is only visible to deluxe/elite customers.
+  // Standard-tier users get a 403 from /api/products and the product is
+  // hidden from the shop grid and search.
+  isSneakPeek: boolean('is_sneak_peek').notNull().default(false),
+  sneakPeekReleasedAt: timestamp('sneak_peek_released_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({

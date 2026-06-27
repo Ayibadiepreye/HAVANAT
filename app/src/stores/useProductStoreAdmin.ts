@@ -65,6 +65,8 @@ function toBackendPayload(p: Partial<Product>, isCreate: boolean) {
     colors: (p as any).colors ?? [],
     fit: ((p as any).fit ?? 'Tailored').toLowerCase(),
     inStock: p.inStock !== false,
+    isSneakPeek: !!p.isSneakPeek,
+    sneakPeekReleasedAt: p.sneakPeekReleasedAt ?? null,
     tags: [],
     details: '',
     care: '',

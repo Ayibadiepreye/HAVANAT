@@ -590,3 +590,36 @@ export function orderShippedEmail(order: {
 </table>
 </body></html>`;
 }
+
+export function sneakPeekEmail(p: {
+  customerName: string;
+  productName: string;
+  productImage: string | null;
+  productSlug: string;
+  releaseNote: string;
+  shopUrl: string;
+}): string {
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#fafafa;font-family:Helvetica,Arial,sans-serif;color:#111">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#fafafa;padding:32px 16px">
+  <tr><td align="center">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;max-width:560px;width:100%">
+      <tr><td style="padding:32px 32px 8px 32px;text-align:center">
+        <p style="margin:0;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#888">Sneak Peek</p>
+        <h1 style="margin:8px 0 0 0;font-size:28px;letter-spacing:0.04em;font-weight:300">${p.productName}</h1>
+      </td></tr>
+      ${p.productImage ? `<tr><td style="padding:24px 32px;text-align:center">
+        <img src="${p.productImage}" alt="${p.productName}" style="max-width:100%;height:auto;display:block;margin:0 auto" />
+      </td></tr>` : ''}
+      <tr><td style="padding:16px 32px 24px 32px;font-size:15px;line-height:1.6;color:#333">
+        <p>Hi ${p.customerName},</p>
+        <p>${p.releaseNote}</p>
+        <p style="margin:24px 0;text-align:center">
+          <a href="${p.shopUrl}" style="display:inline-block;background:#000;color:#fff;padding:14px 32px;text-decoration:none;font-size:11px;letter-spacing:0.2em;text-transform:uppercase">View Sneak Peeks</a>
+        </p>
+        <p style="font-size:12px;color:#888;margin-top:32px">This exclusive drop is only available to Deluxe and Elite members. Not for you? You can upgrade your membership at any time from your account page.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}

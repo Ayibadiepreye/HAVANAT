@@ -5,7 +5,8 @@ import { useAdminProductStore } from '@/stores/useProductStoreAdmin';
 import { useUIStore } from '@/stores/useUIStore';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import StatusBadge from '@/components/admin/StatusBadge';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Sparkles } from 'lucide-react';
+import { apiPost } from '@/lib/api';
 import type { Product } from '@/types';
 import { formatNaira } from '@/utils/formatters';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
@@ -25,9 +26,20 @@ export default function AdminProducts() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmRemove, setConfirmRemove] = useState<Product | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
+  const fetchProducts = useProductStore((s) => s.fetchProducts);
+  async function toggleSneakPeek(p: Product) {
+    try {
+      const next = !p.isSneakPeek;
+      const releaseNote = next ? prompt(`Release note for Deluxe/Elite members (optional):`) ?? undefined : undefined;
+      await apiPost(`/api/products/${p.id}/sneak-peek`, { enabled: next, releaseNote }, true);
+      showToast(next ? 'Released as Sneak Peek — Deluxe/Elite members notified.' : 'Removed from Sneak Peek.', 'success');
+      await fetchProducts();
+    } catch (err: any) {
+      showToast(err?.message || 'Could not toggle Sneak Peek', 'error');
+    }
+  }
   const [showForm, setShowForm] = useState(false);
 
-  const fetchProducts = useProductStore((s) => s.fetchProducts);
   useEffect(() => { void fetchProducts(); }, [fetchProducts]);
 
   const PAGE_SIZE = 20;
@@ -67,6 +79,11 @@ export default function AdminProducts() {
         <div>
           <p className="font-medium text-sm">{p.name}</p>
           <p className="text-xs text-gray-500">{p.slug}</p>
+          {p.isSneakPeek && (
+            <span className="inline-flex items-center gap-1 mt-1 text-[10px] uppercase tracking-[0.15em] text-purple-700 font-medium">
+              <Sparkles className="h-3 w-3" /> Sneak Peek
+            </span>
+          )}
         </div>
       ),
     },
@@ -83,9 +100,17 @@ export default function AdminProducts() {
       key: 'actions',
       label: '',
       align: 'right',
-      width: '110px',
+      width: '150px',
       render: (p) => (
         <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => toggleSneakPeek(p)}
+            className={`p-1.5 hover:bg-gray-100 transition-colors ${p.isSneakPeek ? 'text-purple-600' : 'text-gray-400'}`}
+            aria-label={p.isSneakPeek ? 'Remove from Sneak Peek' : 'Release as Sneak Peek'}
+            title={p.isSneakPeek ? 'Sneak Peek is ON (click to turn off)' : 'Make this a Sneak Peek'}
+          >
+            <Sparkles className="h-4 w-4" />
+          </button>
           <button
             onClick={() => { setEditing(p); setShowForm(true); }}
             className="p-1.5 hover:bg-gray-100 transition-colors"

@@ -8,7 +8,7 @@ interface ProductState {
   wishlist: number[];
   selectedProduct: Product | null;
   isLoading: boolean;
-  fetchProducts: () => Promise<void>;
+  fetchProducts: (opts?: { sneakPeek?: boolean }) => Promise<void>;
   selectProduct: (slug: string) => void;
   toggleWishlist: (productId: number) => void;
   isInWishlist: (productId: number) => boolean;
@@ -22,11 +22,12 @@ export const useProductStore = create<ProductState>()(
       selectedProduct: null,
       isLoading: false,
 
-      fetchProducts: async () => {
+      fetchProducts: async (opts) => {
         set({ isLoading: true });
         try {
           if (apiConfig.useBackend) {
-            const res = await apiGet<{ items: any[]; total: number }>('/api/products');
+            const qs = opts?.sneakPeek ? '?sneakPeek=true' : '';
+            const res = await apiGet<{ items: any[]; total: number }>('/api/products' + qs);
             // Map backend Product → frontend Product shape
             const mapped: Product[] = res.items.map((p) => ({
               id: p.id as any,
@@ -40,7 +41,7 @@ export const useProductStore = create<ProductState>()(
               category: p.category,
               sizes: p.sizes || [],
               colors: p.colors || [],
-              fit: p.fit || 'Tailored',
+              fit: p.fit ? (p.fit.charAt(0).toUpperCase() + p.fit.slice(1)) as Product['fit'] : 'Tailored',
               occasion: p.occasion || undefined,
               stock: p.stock ?? 0,
               lowStockThreshold: p.lowStockThreshold ?? 5,
@@ -49,6 +50,8 @@ export const useProductStore = create<ProductState>()(
               eliteDiscount: p.eliteDiscount ? Number(p.eliteDiscount) : undefined,
               inStock: p.inStock,
               published: p.published,
+              isSneakPeek: !!p.isSneakPeek,
+              sneakPeekReleasedAt: p.sneakPeekReleasedAt ?? undefined,
               createdAt: p.createdAt,
               updatedAt: p.updatedAt,
             }));

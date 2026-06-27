@@ -13,6 +13,7 @@ import ProductDetailPage from '@/pages/ProductDetailPage';
 import CartPage from '@/pages/CartPage';
 import CheckoutPage from '@/pages/CheckoutPage';
 import MembershipPage from '@/pages/MembershipPage';
+import SneakPeeksPage from '@/pages/SneakPeeksPage';
 import CustomSuitPage from '@/pages/CustomSuitPage';
 import AccountPage from '@/pages/AccountPage';
 import LoginPage from '@/pages/LoginPage';
@@ -130,6 +131,7 @@ function PublicSite() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/membership" element={<MembershipPage />} />
+        <Route path="/sneak-peeks" element={<Protected><SneakPeeksPage /></Protected>} />
         <Route path="/custom-request" element={<CustomSuitPage />} />
 
         <Route path="/login" element={<LoginPage />} />
