@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+.env
+.env.local
+.env.*.local
+.env.backup.*
+*.log
+.DS_Store
+backend/.env
+backend/.env.backup.*
