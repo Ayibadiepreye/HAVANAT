@@ -23,7 +23,20 @@ export default function SneakPeeksPage() {
   const fetchProducts = useProductStore((s) => s.fetchProducts);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
-  const tier = dashboardUser?.tier ?? null;
+  // Authoritative tier from the JWT (not the Zustand mirror, which can
+  // lag behind an upgrade done mid-session). If the JWT disagrees with
+  // dashboardUser.tier, show a "please sign in again" prompt so the user
+  // gets a fresh token.
+  const jwtTier = (() => {
+    try {
+      const tok = JSON.parse(localStorage.getItem('havanat-auth') || '{}')?.state?.accessToken;
+      if (!tok || typeof tok !== 'string') return null;
+      const payload = JSON.parse(atob(tok.split('.')[1]));
+      return (payload?.tier ?? null) as string | null;
+    } catch { return null; }
+  })();
+  const tier = jwtTier ?? dashboardUser?.tier ?? null;
+  const staleJwt = !!dashboardUser && jwtTier !== null && jwtTier !== dashboardUser.tier;
   const isEligible = tier === 'deluxe' || tier === 'elite';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +64,30 @@ export default function SneakPeeksPage() {
           <Link to="/login" className="inline-block px-8 py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium">
             Sign In
           </Link>
+        </div>
+      </main>
+    );
+  }
+
+  // If the user's local tier says deluxe/elite but the JWT still says
+  // standard, the localStorage has a stale token from before their
+  // upgrade. Show a banner prompting them to sign out and back in.
+  if (staleJwt) {
+    return (
+      <main className="min-h-screen pt-24 flex items-center justify-center bg-white px-4">
+        <div className="text-center max-w-lg">
+          <Sparkles className="mx-auto h-12 w-12 text-purple-500 mb-4" />
+          <h1 className="font-serif text-3xl mb-3">Refresh your session</h1>
+          <p className="text-gray-500 mb-6">
+            Your membership was upgraded but your session token still shows
+            your old tier. Sign out and sign back in to see your Sneak Peeks.
+          </p>
+          <button
+            onClick={() => { localStorage.removeItem('havanat-auth'); window.location.href = '/login'; }}
+            className="px-8 py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium"
+          >
+            Sign in again
+          </button>
         </div>
       </main>
     );

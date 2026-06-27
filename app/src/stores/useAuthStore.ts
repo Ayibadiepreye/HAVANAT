@@ -11,7 +11,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<DashboardUser | null>;
   signup: (data: { name: string; email: string; password: string; phone?: string }) => Promise<DashboardUser | null>;
   logout: () => void;
-  upgradeTier: (tier: CustomerTier) => void;
+  upgradeTier: (tier: CustomerTier) => Promise<void>;
+  refreshToken: () => Promise<void>;
   hasRole: (role: UserRole) => boolean;
   hasTier: (tier: CustomerTier) => boolean;
   isAtLeastTier: (tier: CustomerTier) => boolean;
@@ -124,11 +125,45 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, dashboardUser: null, isAuthenticated: false });
       },
 
-      upgradeTier: (tier) =>
+      upgradeTier: async (tier) => {
         set((s) => ({
           user: s.user ? { ...s.user, membershipTier: tier } : null,
           dashboardUser: s.dashboardUser ? { ...s.dashboardUser, tier } : null,
-        })),
+        }));
+        // Rotate the JWT so the new tier claim propagates to API calls.
+        await get().refreshToken();
+      },
+
+      // Exchange the current refresh token for fresh access + refresh tokens.
+      // Used after any operation that changes the user's tier (e.g. Paystack
+      // membership upgrade) so the JWT claim reflects the new tier. Without
+      // this, the user keeps a stale access token until the refresh window
+      // expires or they sign out and back in.
+      refreshToken: async () => {
+        try {
+          const stored = JSON.parse(localStorage.getItem('havanat-auth') || '{}');
+          const refreshToken = stored?.state?.refreshToken;
+          if (!refreshToken) return;
+          const res = await fetch('http://127.0.0.1:4000/api/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          // Update localStorage with new tokens
+          stored.state = stored.state ?? {};
+          stored.state.accessToken = data.accessToken;
+          stored.state.refreshToken = data.refreshToken;
+          localStorage.setItem('havanat-auth', JSON.stringify(stored));
+          // Also update the legacy key (some callers use it as a fallback)
+          localStorage.setItem('havanat-access-token', data.accessToken);
+        } catch (err) {
+          // Silent: the next API call will simply use the old token. If the
+          // user really needs a fresh tier claim, they can sign out/in.
+          console.warn('[auth] refreshToken failed', err);
+        }
+      },
 
       hasRole: (role) => get().dashboardUser?.role === role,
       hasTier: (tier) => get().dashboardUser?.tier === tier,
@@ -142,6 +177,15 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'havanat-auth',
       partialize: (state) => ({ dashboardUser: state.dashboardUser, user: state.user, isAuthenticated: state.isAuthenticated }),
+      // On hydration, immediately rotate the token so any tier upgrade
+      // done in a previous session is reflected in the current session.
+      onRehydrateStorage: () => (state) => {
+        if (state?.isAuthenticated) {
+          // Fire-and-forget; the next API call will use the fresh token
+          // once it lands in localStorage.
+          void state.refreshToken();
+        }
+      },
     }
   )
 );

@@ -27,11 +27,23 @@ export const useProductStore = create<ProductState>()(
         set({ isLoading: true });
         try {
           if (apiConfig.useBackend) {
-            // Defensive: don't request sneak peeks for standard users.
+            // Defensive: don't request sneak peeks for non-eligible callers.
             // The backend 403s them, but we can short-circuit silently to
             // avoid noisy console errors and unnecessary network round-trips.
-            const callerTier = useAuthStore.getState().dashboardUser?.tier;
-            const eligible = callerTier === 'deluxe' || callerTier === 'elite';
+            // IMPORTANT: check the JWT claim, not the Zustand mirror, because
+            // a stale localStorage JWT (from before the user upgraded) will
+            // cause the backend to 403 even though the local tier says deluxe.
+            const jwtTier = (() => {
+              try {
+                const tok = JSON.parse(localStorage.getItem('havanat-auth') || '{}')?.state?.accessToken;
+                if (!tok || typeof tok !== 'string') return null;
+                const payload = JSON.parse(atob(tok.split('.')[1]));
+                return (payload?.tier ?? null) as string | null;
+              } catch { return null; }
+            })();
+            const stateTier = useAuthStore.getState().dashboardUser?.tier;
+            const tier = jwtTier || stateTier;  // prefer authoritative JWT
+            const eligible = tier === 'deluxe' || tier === 'elite';
             const qs = opts?.sneakPeek && eligible ? '?sneakPeek=true' : '';
             const res = await apiGet<{ items: any[]; total: number }>('/api/products' + qs);
             // Map backend Product → frontend Product shape

@@ -67,9 +67,21 @@ authRouter.post('/refresh', async (req, res) => {
   if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
     return res.status(401).json({ error: 'Refresh token revoked or expired' });
   }
+  // Re-read the user's current state from the DB so the new access token
+  // reflects the LATEST tier (membership upgrades invalidate the old claim).
+  // Without this, an upgraded user would still see `tier: 'standard'` in
+  // their access token until they sign out and back in.
+  const [fresh] = await db.select().from(users).where(eq(users.id, Number(payload.sub)));
+  if (!fresh) return res.status(401).json({ error: 'User not found' });
+  const freshPayload = {
+    sub: String(fresh.id),
+    email: fresh.email,
+    role: fresh.role as 'customer' | 'admin' | 'moderator' | 'rider',
+    tier: (fresh.tier ?? 'standard') as 'standard' | 'deluxe' | 'elite',
+  };
   // Rotate
   await db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.id, stored.id));
-  const tokens = await issueTokens(payload);
+  const tokens = await issueTokens(freshPayload);
   return res.json(tokens);
 });
 
