@@ -1,22 +1,49 @@
-import { Phone, Mail, MapPin, Clock, Send } from 'lucide-react';
+import { Phone, Mail, MapPin, Clock, Send, Upload, X } from 'lucide-react';
 import { CONFIG } from '@/config';
 import { useUIStore } from '@/stores/useUIStore';
+import { useState } from 'react';
+import { uploadToCloudinary } from '@/lib/api';
 
 export default function ContactPage() {
   const showToast = useUIStore((s) => s.showToast);
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: ''
+  });
+  const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
+    setUploading(true);
+    try {
+      const urls = await Promise.all(files.map(file => uploadToCloudinary(file)));
+      setImages(prev => [...prev, ...urls]);
+      showToast('Images uploaded', 'success');
+    } catch (err) {
+      showToast('Image upload failed', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     showToast('Message sent successfully!', 'success');
-    e.currentTarget.reset();
+    setForm({ name: '', email: '', subject: '', message: '' });
+    setImages([]);
   };
 
   const inputClass = "w-full px-4 py-3.5 border text-sm focus:outline-none focus:border-black transition-colors bg-white";
 
   return (
-    <main className="min-h-screen pt-20 lg:pt-24 bg-white">
+    <main className="min-h-screen pt-20 lg:pt-24 bg-white relative z-0">
       {/* Hero */}
-      <section className="bg-[#f0f3f5] py-16 lg:py-24 text-center px-4">
+      <section className="bg-[#f0f3f5] py-16 lg:py-24 text-center px-4 relative z-0">
         <p className="text-[10px] tracking-[0.25em] text-gray-400 uppercase mb-4">Get in Touch</p>
         <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl mb-4">Contact Us</h1>
         <p className="text-gray-500 max-w-lg mx-auto text-sm">
@@ -24,8 +51,8 @@ export default function ContactPage() {
         </p>
       </section>
 
-      <div className="px-4 sm:px-6 lg:px-12 py-16 lg:py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 max-w-6xl mx-auto">
+      <div className="px-4 sm:px-6 lg:px-12 py-16 lg:py-24 relative z-0">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 max-w-6xl mx-auto relative z-0">
           {/* Form */}
           <div>
             <h2 className="font-serif text-2xl mb-8">Send a Message</h2>
@@ -33,16 +60,35 @@ export default function ContactPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-2 uppercase">Name</label>
-                  <input type="text" required className={inputClass} placeholder="Your name" />
+                  <input 
+                    type="text" 
+                    required 
+                    className={inputClass} 
+                    placeholder="Your name"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-2 uppercase">Email</label>
-                  <input type="email" required className={inputClass} placeholder="your@email.com" />
+                  <input 
+                    type="email" 
+                    required 
+                    className={inputClass} 
+                    placeholder="your@email.com"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-2 uppercase">Subject</label>
-                <select required className={inputClass}>
+                <select 
+                  required 
+                  className={inputClass}
+                  value={form.subject}
+                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                >
                   <option value="">Select a subject</option>
                   <option value="order">Order Inquiry</option>
                   <option value="product">Product Question</option>
@@ -53,11 +99,58 @@ export default function ContactPage() {
               </div>
               <div>
                 <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-2 uppercase">Message</label>
-                <textarea required className={`${inputClass} h-32 resize-none`} placeholder="How can we help you?" />
+                <textarea 
+                  required 
+                  className={`${inputClass} h-32 resize-none`} 
+                  placeholder="How can we help you?"
+                  value={form.message}
+                  onChange={(e) => setForm({ ...form, message: e.target.value })}
+                />
               </div>
+              
+              {/* Image Upload */}
+              <div>
+                <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-2 uppercase">Attachments (Optional)</label>
+                <div className="border border-dashed border-gray-300 p-4">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="contact-images"
+                    disabled={uploading}
+                  />
+                  <label
+                    htmlFor="contact-images"
+                    className="flex items-center justify-center gap-2 cursor-pointer text-sm text-gray-600 hover:text-black transition-colors"
+                  >
+                    <Upload size={16} />
+                    {uploading ? 'Uploading...' : 'Upload Images'}
+                  </label>
+                  {images.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mt-3">
+                      {images.map((url, i) => (
+                        <div key={i} className="relative group">
+                          <img src={url} alt="" className="w-full h-20 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setImages(images.filter((_, idx) => idx !== i))}
+                            className="absolute top-1 right-1 p-1 bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <button
                 type="submit"
-                className="px-8 py-3.5 bg-black text-white text-xs tracking-[0.15em] font-semibold hover:bg-black/80 transition-colors inline-flex items-center gap-2"
+                disabled={uploading}
+                className="px-8 py-3.5 bg-black text-white text-xs tracking-[0.15em] font-semibold hover:bg-black/80 transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send size={14} />
                 SEND MESSAGE

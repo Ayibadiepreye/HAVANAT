@@ -185,7 +185,7 @@ export const useOrderStore = create<OrderState>()(
         });
         if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
           try {
-            await apiPatch(`/api/orders/${id}/assign-rider`, { riderId: Number(riderId) }, true);
+            await apiPatch(`/api/orders/${id}/assign-rider`, { riderId, riderName }, true);
             await get().fetchOrders();
           } catch (err: any) {
             console.error('assignRider backend PATCH failed', err);

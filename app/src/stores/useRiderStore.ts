@@ -33,7 +33,26 @@ export const useRiderStore = create<RiderState>()(
           const isStaff = useAuthStore.getState().dashboardUser?.role !== 'rider';
           const url = isStaff ? '/api/admin/riders' : '/api/riders';
           const res = await apiGet<{ items: any[] }>(url, true);
-          set({ riders: res.items.map((r) => ({ id: String(r.id), name: r.name, phone: r.phone ?? '', vehicleType: r.vehicleType ?? 'bike', status: r.status ?? 'active', zone: r.zone ?? '', rating: Number(r.rating ?? 5), totalDeliveries: Number(r.totalDeliveries ?? 0), totalEarnings: Number(r.totalEarnings ?? 0), joinedAt: r.joinedAt ?? new Date().toISOString() })) as any });
+          set({ riders: res.items.map((r) => ({ 
+            id: String(r.id), 
+            name: r.name, 
+            email: r.email ?? '',
+            phone: r.phone ?? '', 
+            address: r.address ?? '',
+            vehicleType: r.vehicleType ?? 'bike',
+            plateNumber: r.plateNumber ?? '',
+            status: r.status ?? 'active', 
+            zone: r.zone ?? '', 
+            rating: Number(r.rating ?? 5), 
+            totalDeliveries: Number(r.totalDeliveries ?? 0), 
+            totalEarnings: Number(r.totalEarnings ?? 0), 
+            joinedAt: r.joinedAt ?? new Date().toISOString(),
+            bank: {
+              bankName: r.bankName ?? '',
+              accountNumber: r.accountNumber ?? '',
+              accountName: r.accountName ?? ''
+            }
+          })) as any });
         } catch (err) {
           console.error('fetchRiders failed', err);
         }
