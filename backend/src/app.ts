@@ -14,7 +14,6 @@ import { addressesRouter } from './routes/addresses.js';
 import { staffRouter } from './routes/staff.js';
 import { discountsRouter } from './routes/discounts.js';
 import { bespokeRouter } from './routes/bespoke.js';
-import { contactRouter } from './routes/contact.js';
 import { authExtendedRouter } from './routes/auth-extended.js';
 import { paymentsRouter } from './routes/payments.js';
 import { notificationsRouter } from './routes/notifications.js';
