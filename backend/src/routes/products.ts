@@ -17,35 +17,57 @@ export const productsRouter = Router();
 // Helper: extract caller's tier from JWT (if any). Sneak peeks are visible
 // only to deluxe and elite customers; everyone else gets the catalog without
 // the sneak peeks hidden from the list and individual fetches returning 403.
-function callerTier(req: any): 'standard' | 'deluxe' | 'elite' | null {
+async function callerTier(req: any): Promise<'standard' | 'deluxe' | 'elite' | null> {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
+  let payload: { sub?: string; tier?: string } | null = null;
   try {
-    const payload = verifyAccessToken(auth.slice(7)) as { tier?: string };
-    if (payload && (payload.tier === 'deluxe' || payload.tier === 'elite')) return payload.tier;
-    return 'standard';
+    payload = verifyAccessToken(auth.slice(7)) as any;
   } catch {
     return null;
   }
+  if (!payload) return null;
+  // Trust the JWT if it claims deluxe/elite.
+  if (payload.tier === 'deluxe' || payload.tier === 'elite') return payload.tier;
+  // JWT says 'standard' (or has no tier). The token may have been issued
+  // BEFORE a membership upgrade — in which case the DB row is now deluxe/elite
+  // but the JWT claim is stale. Cross-check the DB to be safe. This is a
+  // small extra SELECT but only fires when the JWT looks ineligible — it
+  // never runs for genuinely standard users.
+  if (payload.sub) {
+    try {
+      const id = Number(payload.sub);
+      if (Number.isFinite(id)) {
+        const [u] = await db.select({ tier: users.tier }).from(users).where(eq(users.id, id));
+        if (u && (u.tier === 'deluxe' || u.tier === 'elite')) return u.tier;
+      }
+    } catch { /* noop — fall through to standard */ }
+  }
+  return 'standard';
 }
 
 productsRouter.get('/', async (req, res) => {
   const { category, fit, size, color, q, inStock, sort = 'newest', limit = '50', offset = '0', sneakPeek } = req.query as Record<string, string>;
-  const tier = callerTier(req);
+  const tier = await callerTier(req);
   const filters = [] as any[];
   if (category) filters.push(eq(products.category, category));
   if (fit) filters.push(eq(products.fit, fit));
   if (inStock === 'true') filters.push(eq(products.inStock, true));
   if (q) filters.push(ilike(products.name, `%${q}%`));
   // Sneak peek visibility:
-  //   - ?sneakPeek=true  -> only return sneak peeks (deluxe/elite only)
-  //   - default          -> hide sneak peeks from non-eligible callers
+  //   - ?sneakPeek=true  -> only return sneak peeks (button ON - sneak peeks only)
+  //   - default          -> for deluxe/elite: show ALL (regular + sneak peeks mixed)
+  //                      -> for standard: hide sneak peeks
   const isDeluxeOrElite = tier === 'deluxe' || tier === 'elite';
   if (sneakPeek === 'true') {
-    if (!isDeluxeOrElite) return res.status(403).json({ error: 'Sneak peek is exclusive to Deluxe and Elite members' });
+    // Button is ON - show ONLY sneak peek products
     filters.push(eq(products.isSneakPeek, true));
   } else {
-    if (!isDeluxeOrElite) filters.push(eq(products.isSneakPeek, false));
+    // Button is OFF - deluxe/elite see everything, standard users see no sneak peeks
+    if (!isDeluxeOrElite) {
+      filters.push(eq(products.isSneakPeek, false));
+    }
+    // else: no filter added, deluxe/elite users get ALL products (regular + sneak peeks)
   }
   const where = filters.length > 0 ? and(...filters) : undefined;
   const sortFn = sort === 'price_asc' ? asc(products.price) : sort === 'price_desc' ? desc(products.price) : desc(products.createdAt);
@@ -63,7 +85,7 @@ productsRouter.get('/:slug', async (req, res) => {
   const [product] = await db.select().from(products).where(eq(products.slug, req.params.slug!));
   if (!product) return res.status(404).json({ error: 'Product not found' });
   if (product.isSneakPeek) {
-    const tier = callerTier(req);
+    const tier = await callerTier(req);
     if (tier !== 'deluxe' && tier !== 'elite') {
       return res.status(403).json({ error: 'This is a Sneak Peek — exclusive to Deluxe and Elite members.' });
     }
@@ -75,7 +97,7 @@ productsRouter.get('/id/:id', async (req, res) => {
   const [product] = await db.select().from(products).where(eq(products.id, Number(req.params.id)));
   if (!product) return res.status(404).json({ error: 'Product not found' });
   if (product.isSneakPeek) {
-    const tier = callerTier(req);
+    const tier = await callerTier(req);
     if (tier !== 'deluxe' && tier !== 'elite') {
       return res.status(403).json({ error: 'This is a Sneak Peek — exclusive to Deluxe and Elite members.' });
     }

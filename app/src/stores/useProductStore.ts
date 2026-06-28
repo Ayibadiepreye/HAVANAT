@@ -39,7 +39,7 @@ export const useProductStore = create<ProductState>()(
             // ?sneakPeek=true for an upgraded user with a stale token,
             // and the caller's filter would mysteriously return 0 results.
             const qs = opts?.sneakPeek ? '?sneakPeek=true' : '';
-            const res = await apiGet<{ items: any[]; total: number }>('/api/products' + qs);
+            const res = await apiGet<{ items: any[]; total: number }>('/api/products' + qs, true);
             // Map backend Product → frontend Product shape
             const mapped: Product[] = res.items.map((p) => ({
               id: p.id as any,

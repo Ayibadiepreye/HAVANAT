@@ -207,7 +207,7 @@ export default function AccountPage() {
           <div className="w-14 h-14 bg-black text-white flex items-center justify-center font-serif text-xl">
             {user.name.charAt(0)}
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="font-serif text-2xl">{user.name}</h1>
             <p className="text-sm text-gray-400">{user.email}</p>
             <div className="flex items-center gap-1 mt-1">
@@ -218,6 +218,14 @@ export default function AccountPage() {
               Profile settings →
             </Link>
           </div>
+          {/* Mobile-only Sign Out icon */}
+          <button
+            onClick={handleSignOut}
+            aria-label="Sign out"
+            className="lg:hidden ml-auto p-2 text-red-500 hover:bg-red-50 transition-colors"
+          >
+            <LogOut size={20} strokeWidth={1.5} />
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -247,31 +255,6 @@ export default function AccountPage() {
           </aside>
 
           {/* Content */}
-          {/* Mobile tabs + sign out — visible only below lg */}
-          <div className="lg:hidden mb-6">
-            <div className="flex flex-wrap gap-2 mb-3">
-              {TABS.map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs uppercase tracking-[0.1em] border ${
-                    activeTab === key
-                      ? 'bg-black text-white border-black'
-                      : 'bg-white text-gray-600 border-gray-200'
-                  }`}
-                >
-                  <Icon size={12} strokeWidth={1.5} /> {label}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs uppercase tracking-[0.1em] border border-red-200 text-red-500 hover:bg-red-50"
-            >
-              <LogOut size={12} strokeWidth={1.5} /> Sign Out
-            </button>
-          </div>
-
           <div className="lg:col-span-3">
             {/* Orders Tab */}
             {activeTab === 'orders' && (

@@ -107,7 +107,7 @@ export default function ShopPage() {
     }
 
     return result;
-  }, [category, fit, selectedSizes, priceRange, sortBy, sneakOnly]);
+  }, [products, category, fit, selectedSizes, priceRange, sortBy, sneakOnly]);
 
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const paginatedProducts = filteredProducts.slice(
@@ -282,7 +282,7 @@ export default function ShopPage() {
           <div className="flex-1">
             {/* Desktop sort bar */}
             <div className="hidden lg:flex items-center justify-between mb-8">
-              <p className="text-sm text-gray-400">
+              <div className="text-sm text-gray-400">
                 <div className="flex items-center gap-3 flex-wrap">
                   {isEligible && (
                     <button
@@ -298,7 +298,7 @@ export default function ShopPage() {
                   )}
                   <span>{filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}</span>
                 </div>
-              </p>
+              </div>
               <div className="relative">
                 <select
                   value={sortBy}
