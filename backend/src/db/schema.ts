@@ -387,6 +387,47 @@ export const paymentGateways = pgTable('payment_gateways', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ─────────────────────────── Reviews ───────────────────────────
+
+export const reviews = pgTable('reviews', {
+  id: serial('id').primaryKey(),
+  productId: integer('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  orderId: integer('order_id').references(() => orders.id, { onDelete: 'set null' }),
+  rating: integer('rating').notNull(), // 1-5
+  reviewText: text('review_text').notNull(),
+  // Capture user's tier at time of review (immutable snapshot)
+  userTier: customerTier('user_tier').notNull().default('standard'),
+  userName: varchar('user_name', { length: 200 }).notNull(),
+  userAvatar: text('user_avatar'),
+  // Optional photos with review
+  photos: jsonb('photos').$type<string[]>().notNull().default([]),
+  // Moderation
+  approved: boolean('approved').notNull().default(false),
+  approvedBy: integer('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  // Admin/Moderator reply
+  replyText: text('reply_text'),
+  replyBy: integer('reply_by').references(() => users.id, { onDelete: 'set null' }),
+  replyByName: varchar('reply_by_name', { length: 200 }),
+  replyByRole: varchar('reply_by_role', { length: 30 }),
+  replyAt: timestamp('reply_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  productIdx: index('reviews_product_idx').on(t.productId),
+  userIdx: index('reviews_user_idx').on(t.userId),
+  approvedIdx: index('reviews_approved_idx').on(t.approved),
+  // Enforce one review per user per product
+  userProductUnique: uniqueIndex('reviews_user_product_unique').on(t.userId, t.productId),
+}));
+
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  product: one(products, { fields: [reviews.productId], references: [products.id] }),
+  user: one(users, { fields: [reviews.userId], references: [users.id] }),
+  order: one(orders, { fields: [reviews.orderId], references: [orders.id] }),
+}));
+
 // ─────────────────────────── Audit Log ───────────────────────────
 
 export const auditLog = pgTable('audit_log', {
@@ -415,12 +456,14 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   orders: many(orders),
   addresses: many(addresses),
   refreshTokens: many(refreshTokens),
+  reviews: many(reviews),
   riderProfile: one(riderProfiles, { fields: [users.id], references: [riderProfiles.userId] }),
   membership: one(memberships, { fields: [users.id], references: [memberships.userId] }),
 }));
 
 export const productsRelations = relations(products, ({ many }) => ({
   orderItems: many(orderItems),
+  reviews: many(reviews),
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
@@ -564,6 +607,8 @@ export const twoFactorOtps = pgTable('two_factor_otps', {
 
 export type TierDiscount = typeof tierDiscounts.$inferSelect;
 export type EventDiscount = typeof eventDiscounts.$inferSelect;
+export type Review = typeof reviews.$inferSelect;
+export type NewReview = typeof reviews.$inferInsert;
 export type BespokeRequest = typeof bespokeRequests.$inferSelect;
 export type NewBespokeRequest = typeof bespokeRequests.$inferInsert;
 export type Notification = typeof notifications.$inferSelect;

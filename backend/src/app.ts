@@ -22,6 +22,7 @@ import { messagesRouter } from './routes/messages.js';
 import { membershipsRouter } from './routes/memberships.js';
 import { adminRouter } from './routes/admin.js';
 import { googleAuthRouter } from './routes/google-auth.js';
+import { reviewsRouter } from './routes/reviews.js';
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/messages', messagesRouter);
 app.use('/api/auth/google', googleAuthRouter);
 app.use('/api/memberships', membershipsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api', reviewsRouter); // Handles /api/products/:id/reviews and /api/reviews
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.path }));

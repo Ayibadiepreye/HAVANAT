@@ -1,13 +1,14 @@
 import { useAuthStore } from '@/stores/useAuthStore';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import type { SidebarItem } from '@/components/dashboard/DashboardSidebar';
-import { LayoutDashboard, Package, ShoppingCart, Users, RotateCcw, Bike, Crown, FileText, ShieldCheck, Settings, Eye, Users as UsersIcon } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Users, RotateCcw, Bike, Crown, FileText, ShieldCheck, Settings, Eye, Users as UsersIcon, Star } from 'lucide-react';
 
 export const ADMIN_NAV_ITEMS: SidebarItem[] = [
   { label: 'Overview', href: '/admin', icon: LayoutDashboard },
   { label: 'Products', href: '/admin/products', icon: Package },
   { label: 'Orders', href: '/admin/orders', icon: ShoppingCart },
   { label: 'Members', href: '/admin/members', icon: Users },
+  { label: 'Reviews', href: '/admin/reviews', icon: Star },
   { label: 'Returns', href: '/admin/returns', icon: RotateCcw },
   { label: 'Riders', href: '/admin/riders', icon: Bike },
   { label: 'Memberships', href: '/admin/memberships', icon: Crown },
@@ -44,6 +45,7 @@ export function ModeratorLayout({ children }: { children: React.ReactNode }) {
     { label: 'Content', href: '/moderator', icon: FileText },
     { label: 'Products', href: '/moderator/products', icon: Eye },
     { label: 'Orders', href: '/moderator/orders', icon: Eye },
+    { label: 'Reviews', href: '/moderator/reviews', icon: Star },
   ];
 
   if (dashboardUser?.role !== 'moderator') return null;

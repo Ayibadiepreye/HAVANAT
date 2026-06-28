@@ -204,8 +204,12 @@ export default function AccountPage() {
       <div className="px-4 sm:px-6 lg:px-12 py-8 lg:py-12">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8 lg:mb-12">
-          <div className="w-14 h-14 bg-black text-white flex items-center justify-center font-serif text-xl">
-            {user.name.charAt(0)}
+          <div className="w-14 h-14 bg-black text-white flex items-center justify-center font-serif text-xl overflow-hidden">
+            {user.avatar ? (
+              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              <span>{user.name.charAt(0)}</span>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="font-serif text-2xl">{user.name}</h1>

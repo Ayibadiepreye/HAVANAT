@@ -125,6 +125,34 @@ authRouter.patch('/me', requireAuth, async (req, res) => {
   return res.json({ user: toUserResponse(user) });
 });
 
+// PATCH /api/auth/me/avatar — update the caller's avatar
+authRouter.patch('/me/avatar', requireAuth, async (req, res) => {
+  const id = Number(req.user!.sub);
+  const { avatarUrl } = req.body ?? {};
+  
+  if (typeof avatarUrl !== 'string' && avatarUrl !== null) {
+    return res.status(400).json({ error: 'avatarUrl must be a string or null' });
+  }
+
+  const [user] = await db
+    .update(users)
+    .set({ avatarUrl: avatarUrl || null, updatedAt: new Date() })
+    .where(eq(users.id, id))
+    .returning();
+
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  await logAction({
+    req, user: req.user!,
+    action: 'update', entityType: 'user', entityId: String(id),
+    entityLabel: `User: ${user.name}`,
+    summary: avatarUrl ? 'Avatar updated' : 'Avatar removed',
+    before: null, after: { avatarUrl: user.avatarUrl },
+  });
+
+  return res.json({ user: toUserResponse(user) });
+});
+
 async function issueTokens(payload: { sub: string; email: string; role: string; tier?: string }, meta?: { userAgent?: string; ip?: string }) {
   const accessToken = signAccessToken(payload as Parameters<typeof signAccessToken>[0]);
   const refreshToken = signRefreshToken(payload as Parameters<typeof signRefreshToken>[0]);

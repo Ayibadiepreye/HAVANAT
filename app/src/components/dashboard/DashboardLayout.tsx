@@ -86,8 +86,12 @@ export default function DashboardLayout({ title, subtitle, items, children, back
                 onClick={() => setMenuOpen((v) => !v)}
                 className="flex items-center gap-2 text-sm hover:opacity-70 transition-opacity"
               >
-                <div className="h-8 w-8 bg-black text-white flex items-center justify-center text-xs font-semibold rounded-full flex-shrink-0">
-                  {dashboardUser?.name?.[0] ?? '?'}
+                <div className="h-8 w-8 bg-black text-white flex items-center justify-center text-xs font-semibold rounded-full flex-shrink-0 overflow-hidden">
+                  {dashboardUser?.avatar ? (
+                    <img src={dashboardUser.avatar} alt={dashboardUser.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{dashboardUser?.name?.[0] ?? '?'}</span>
+                  )}
                 </div>
                 <div className="hidden md:block text-left min-w-0">
                   <p className="text-xs font-medium leading-tight truncate max-w-[140px]">{dashboardUser?.name}</p>

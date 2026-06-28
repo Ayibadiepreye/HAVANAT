@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Heart, Truck, RotateCcw, Ruler, Check } from 'lucide-react';
+import { Heart, Truck, RotateCcw, Ruler, Check, Star } from 'lucide-react';
 import { useProductStore } from '@/stores/useProductStore';
 import { formatNaira } from '@/config';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
+import ReviewList from '@/components/ReviewList';
+import ReviewForm from '@/components/ReviewForm';
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
-  const [activeTab, setActiveTab] = useState<'description' | 'size-guide' | 'shipping' | 'care'>('description');
+  const [activeTab, setActiveTab] = useState<'description' | 'size-guide' | 'shipping' | 'care' | 'reviews'>('description');
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   const addItem = useCartStore((s) => s.addItem);
   const products = useProductStore((s) => s.products);
@@ -66,6 +69,7 @@ export default function ProductDetailPage() {
     { key: 'size-guide' as const, label: 'Size Guide' },
     { key: 'shipping' as const, label: 'Shipping & Returns' },
     { key: 'care' as const, label: 'Care' },
+    { key: 'reviews' as const, label: 'Reviews' },
   ];
 
   return (
@@ -299,6 +303,21 @@ export default function ProductDetailPage() {
                 <p>{product.details?.care}</p>
               </div>
             )}
+            {activeTab === 'reviews' && (
+              <div>
+                {user && (
+                  <div className="mb-8 pb-8 border-b">
+                    <button
+                      onClick={() => setShowReviewForm(true)}
+                      className="px-6 py-3 bg-black text-white text-[10px] uppercase tracking-[0.15em] font-medium hover:bg-gray-900 transition-colors"
+                    >
+                      Write a Review
+                    </button>
+                  </div>
+                )}
+                <ReviewList productId={product.id as number} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -322,6 +341,18 @@ export default function ProductDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Review Form Modal */}
+      {showReviewForm && (
+        <ReviewForm
+          productId={product.id as number}
+          productName={product.name}
+          onClose={() => setShowReviewForm(false)}
+          onSuccess={() => {
+            setActiveTab('reviews');
+          }}
+        />
+      )}
     </main>
   );
 }

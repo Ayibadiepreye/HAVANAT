@@ -51,9 +51,11 @@ import AdminTeam from '@/pages/admin/AdminTeam';
 import AdminMessages from '@/pages/admin/AdminMessages';
 import AdminNotifications from '@/pages/admin/AdminNotifications';
 import AdminBroadcast from '@/pages/admin/AdminBroadcast';
+import AdminReviews from '@/pages/admin/AdminReviews';
 import ModeratorContent from '@/pages/moderator/ModeratorContent';
 import ModeratorProducts from '@/pages/moderator/ModeratorProducts';
 import ModeratorOrders from '@/pages/moderator/ModeratorOrders';
+import ModeratorReviews from '@/pages/moderator/ModeratorReviews';
 
 import RiderLayout from '@/pages/rider/RiderLayout';
 import RiderDashboard from '@/pages/rider/RiderDashboard';
@@ -94,12 +96,14 @@ export default function App() {
         <Route path="/admin/messages" element={<RoleGuard roles={['admin']}><AdminLayout><AdminMessages /></AdminLayout></RoleGuard>} />
         <Route path="/admin/notifications" element={<RoleGuard roles={['admin']}><AdminLayout><AdminNotifications /></AdminLayout></RoleGuard>} />
         <Route path="/admin/broadcast" element={<RoleGuard roles={['admin', 'moderator']}><AdminLayout><AdminBroadcast /></AdminLayout></RoleGuard>} />
+        <Route path="/admin/reviews" element={<RoleGuard roles={['admin']}><AdminLayout><AdminReviews /></AdminLayout></RoleGuard>} />
         <Route path="/admin/settings" element={<RoleGuard roles={['admin']}><AdminLayout><AdminSettings /></AdminLayout></RoleGuard>} />
 
         {/* Moderator */}
         <Route path="/moderator" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorContent /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/products" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorProducts /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/orders" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorOrders /></ModeratorLayout></RoleGuard>} />
+        <Route path="/moderator/reviews" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReviews /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/broadcast" element={<RoleGuard roles={['moderator']}><AdminLayout><AdminBroadcast /></AdminLayout></RoleGuard>} />
 
         {/* Rider */}

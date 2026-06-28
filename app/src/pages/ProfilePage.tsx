@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '@/lib/api';
+import { api, apiPatch } from '@/lib/api';
 import { User as UserIcon, Shield, Eye, EyeOff, Package, Crown, MapPin, Heart } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -9,6 +9,7 @@ import { useSessionStore } from '@/stores/useSessionStore';
 import { Smartphone } from 'lucide-react';
 import MobileBottomNav, { type MobileBottomNavItem } from '@/components/MobileBottomNav';
 import EmailVerificationBanner from '@/components/EmailVerificationBanner';
+import ImageUpload from '@/components/ImageUpload';
 import { BRAND } from '@/config/brand';
 
 type TabKey = 'personal' | 'security';
@@ -94,6 +95,43 @@ export default function ProfilePage() {
     useAuthStore.setState({ user: nextUser });
     writeJSON(PROFILE_KEY, extras);
     showToast('Profile updated', 'success');
+  };
+
+  // ───── Avatar upload ─────
+  const handleAvatarUpload = async (url: string) => {
+    try {
+      await apiPatch('/api/auth/me/avatar', { avatarUrl: url }, true);
+      const state = useAuthStore.getState();
+      if (state.user) {
+        useAuthStore.setState({ user: { ...state.user, avatar: url } });
+      }
+      if (state.dashboardUser) {
+        useAuthStore.setState({ dashboardUser: { ...state.dashboardUser, avatar: url } });
+      }
+      setExtras({ ...extras, avatarUrl: url });
+      writeJSON(PROFILE_KEY, { ...extras, avatarUrl: url });
+      showToast('Avatar updated', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to update avatar', 'error');
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    try {
+      await apiPatch('/api/auth/me/avatar', { avatarUrl: null }, true);
+      const state = useAuthStore.getState();
+      if (state.user) {
+        useAuthStore.setState({ user: { ...state.user, avatar: undefined } });
+      }
+      if (state.dashboardUser) {
+        useAuthStore.setState({ dashboardUser: { ...state.dashboardUser, avatar: undefined } });
+      }
+      setExtras({ ...extras, avatarUrl: '' });
+      writeJSON(PROFILE_KEY, { ...extras, avatarUrl: '' });
+      showToast('Avatar removed', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to remove avatar', 'error');
+    }
   };
 
 
@@ -399,15 +437,13 @@ function PersonalTab({
             </select>
           </div>
           <div className="sm:col-span-2">
-            <label className="block text-[10px] uppercase tracking-[0.25em] text-gray-400 mb-2">
-              Profile Photo URL
-            </label>
-            <input
-              type="url"
-              value={extras.avatarUrl}
-              onChange={(e) => onExtrasChange({ ...extras, avatarUrl: e.target.value })}
-              className={inputClass}
-              placeholder="https://..."
+            <ImageUpload
+              currentUrl={extras.avatarUrl || user?.avatar}
+              onUploadComplete={handleAvatarUpload}
+              onRemove={handleAvatarRemove}
+              maxSizeMB={5}
+              aspectRatio="1/1"
+              label="Profile Photo"
             />
           </div>
           <div className="sm:col-span-2">
