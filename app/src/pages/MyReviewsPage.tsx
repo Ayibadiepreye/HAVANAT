@@ -201,10 +201,10 @@ export default function MyReviewsPage() {
                   Photos (Optional)
                 </label>
                 <ImageUpload
+                  currentUrl={editForm.photos[0]}
                   onUploadComplete={(url) => {
                     setEditForm({ ...editForm, photos: [...editForm.photos, url] });
                   }}
-                  existingUrl={editForm.photos[0]}
                   onRemove={() => setEditForm({ ...editForm, photos: [] })}
                 />
                 {editForm.photos.length > 1 && (

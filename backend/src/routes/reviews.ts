@@ -76,17 +76,14 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
     .returning();
 
   await logAction({
-    userId,
-    userName: user.name,
-    userRole: user.role,
+    req,
+    user: { sub: String(userId), email: user.email, role: user.role } as any,
     action: 'create',
     entityType: 'review',
     entityId: String(review.id),
     entityLabel: `Review for product ${productId}`,
     summary: `Submitted review with ${rating} stars`,
-    changes: { after: review },
-    ip: req.ip,
-    userAgent: req.headers['user-agent'],
+    after: review,
   });
 
   res.status(201).json({ review });
@@ -149,17 +146,15 @@ reviewsRouter.patch('/reviews/:id', requireAuth, async (req, res) => {
 
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   await logAction({
-    userId,
-    userName: user?.name,
-    userRole: user?.role,
+    req,
+    user: { sub: String(userId), email: user?.email || '', role: user?.role || 'customer' } as any,
     action: 'update',
     entityType: 'review',
     entityId: String(id),
     entityLabel: `Review ${id}`,
     summary: 'Updated own review',
-    changes: { before: review, after: updated },
-    ip: req.ip,
-    userAgent: req.headers['user-agent'],
+    before: review,
+    after: updated,
   });
 
   res.json({ review: updated });
@@ -190,17 +185,14 @@ reviewsRouter.delete('/reviews/my-reviews/:id', requireAuth, async (req, res) =>
 
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   await logAction({
-    userId,
-    userName: user?.name,
-    userRole: user?.role,
+    req,
+    user: { sub: String(userId), email: user?.email || '', role: user?.role || 'customer' } as any,
     action: 'delete',
     entityType: 'review',
     entityId: String(id),
     entityLabel: `Review ${id}`,
     summary: 'Deleted own review',
-    changes: { before: review },
-    ip: req.ip,
-    userAgent: req.headers['user-agent'],
+    before: review,
   });
 
   res.json({ ok: true });
@@ -209,7 +201,7 @@ reviewsRouter.delete('/reviews/my-reviews/:id', requireAuth, async (req, res) =>
 // ─────────────────────────── Admin/Moderator Endpoints ───────────────────────────
 
 // GET /api/reviews — Admin/Mod: get all reviews with filters
-reviewsRouter.get('/', requireRole(['admin', 'moderator']), async (req, res) => {
+reviewsRouter.get('/', requireRole('admin', 'moderator'), async (req, res) => {
   const { approved, productId } = req.query as Record<string, string>;
 
   const filters: any[] = [];
@@ -224,7 +216,7 @@ reviewsRouter.get('/', requireRole(['admin', 'moderator']), async (req, res) => 
 });
 
 // PATCH /api/reviews/:id/approve — Admin/Mod: approve or reject a review
-reviewsRouter.patch('/:id/approve', requireRole(['admin', 'moderator']), async (req, res) => {
+reviewsRouter.patch('/:id/approve', requireRole('admin', 'moderator'), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
 
@@ -249,24 +241,22 @@ reviewsRouter.patch('/:id/approve', requireRole(['admin', 'moderator']), async (
     .returning();
 
   await logAction({
-    userId,
-    userName: user?.name,
-    userRole: user?.role,
+    req,
+    user: req.user!,
     action: 'update',
     entityType: 'review',
     entityId: String(id),
     entityLabel: `Review ${id}`,
     summary: approved ? 'Approved review' : 'Rejected review',
-    changes: { before, after },
-    ip: req.ip,
-    userAgent: req.headers['user-agent'],
+    before,
+    after,
   });
 
   res.json({ review: after });
 });
 
 // PATCH /api/reviews/:id/reply — Admin/Mod: add a reply to a review
-reviewsRouter.patch('/:id/reply', requireRole(['admin', 'moderator']), async (req, res) => {
+reviewsRouter.patch('/:id/reply', requireRole('admin', 'moderator'), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
 
@@ -293,24 +283,22 @@ reviewsRouter.patch('/:id/reply', requireRole(['admin', 'moderator']), async (re
     .returning();
 
   await logAction({
-    userId,
-    userName: user?.name,
-    userRole: user?.role,
+    req,
+    user: req.user!,
     action: 'update',
     entityType: 'review',
     entityId: String(id),
     entityLabel: `Review ${id}`,
     summary: 'Added reply to review',
-    changes: { before, after },
-    ip: req.ip,
-    userAgent: req.headers['user-agent'],
+    before,
+    after,
   });
 
   res.json({ review: after });
 });
 
 // DELETE /api/reviews/:id — Admin only: delete a review
-reviewsRouter.delete('/:id', requireRole(['admin']), async (req, res) => {
+reviewsRouter.delete('/:id', requireRole('admin'), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
 
@@ -323,17 +311,14 @@ reviewsRouter.delete('/:id', requireRole(['admin']), async (req, res) => {
   const [user] = await db.select().from(users).where(eq(users.id, userId));
 
   await logAction({
-    userId,
-    userName: user?.name,
-    userRole: user?.role,
+    req,
+    user: req.user!,
     action: 'delete',
     entityType: 'review',
     entityId: String(id),
     entityLabel: `Review ${id}`,
     summary: `Deleted review for product ${review.productId}`,
-    changes: { before: review },
-    ip: req.ip,
-    userAgent: req.headers['user-agent'],
+    before: review,
   });
 
   res.json({ ok: true });

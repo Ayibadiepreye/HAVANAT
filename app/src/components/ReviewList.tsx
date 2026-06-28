@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { useReviewStore } from '@/stores/useReviewStore';
-import type { ReviewStats } from '@/stores/useReviewStore';
 import ReviewItem from './ReviewItem';
 
 interface ReviewListProps {

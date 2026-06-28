@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Heart, Truck, RotateCcw, Ruler, Check, Star } from 'lucide-react';
+import { Heart, Truck, RotateCcw, Ruler, Check } from 'lucide-react';
 import { useProductStore } from '@/stores/useProductStore';
 import { formatNaira } from '@/config';
 import { useCartStore } from '@/stores/useCartStore';

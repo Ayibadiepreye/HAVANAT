@@ -320,6 +320,9 @@ export default function ProfilePage() {
             onPhoneChange={(v) => setPersonalForm({ ...personalForm, phone: v })}
             onExtrasChange={setExtras}
             onSave={handlePersonalSave}
+            userAvatar={user?.avatar}
+            onAvatarUpload={handleAvatarUpload}
+            onAvatarRemove={handleAvatarRemove}
           />
         )}
 
@@ -361,6 +364,9 @@ interface PersonalTabProps {
   onPhoneChange: (v: string) => void;
   onExtrasChange: (e: ProfileExtras) => void;
   onSave: () => void;
+  userAvatar?: string;
+  onAvatarUpload: (url: string) => Promise<void>;
+  onAvatarRemove: () => Promise<void>;
 }
 
 function PersonalTab({
@@ -372,6 +378,9 @@ function PersonalTab({
   onPhoneChange,
   onExtrasChange,
   onSave,
+  userAvatar,
+  onAvatarUpload,
+  onAvatarRemove,
 }: PersonalTabProps) {
   const inputClass =
     'w-full px-4 py-3.5 border text-sm focus:outline-none focus:border-black transition-colors bg-white';
@@ -438,9 +447,9 @@ function PersonalTab({
           </div>
           <div className="sm:col-span-2">
             <ImageUpload
-              currentUrl={extras.avatarUrl || user?.avatar}
-              onUploadComplete={handleAvatarUpload}
-              onRemove={handleAvatarRemove}
+              currentUrl={extras.avatarUrl || userAvatar}
+              onUploadComplete={onAvatarUpload}
+              onRemove={onAvatarRemove}
               maxSizeMB={5}
               aspectRatio="1/1"
               label="Profile Photo"
