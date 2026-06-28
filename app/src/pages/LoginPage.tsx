@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { ROLE_HOME } from '@/utils/permissions';
+import { apiGet } from '@/lib/api';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -78,8 +79,7 @@ export default function LoginPage() {
                 try {
                   showToast('Starting Google sign-in', 'info');
                   setIsLoading(true);
-                  const r = await fetch('/api/auth/google/url?redirect=/account');
-                  const d = await r.json();
+                  const d = await apiGet<{ url: string }>('/api/auth/google/url?redirect=/account');
                   if (d.url) window.location.href = d.url;
                 } catch (e) {
                   showToast('Could not start Google sign-in', 'error');
