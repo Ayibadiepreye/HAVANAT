@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useContentStore } from '@/stores/useContentStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import { Upload, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
+import ImageUploader from '@/components/admin/ImageUploader';
 
 export default function HomepageEditor() {
   const homepage = useContentStore((s) => s.homepage);
@@ -13,15 +14,14 @@ export default function HomepageEditor() {
 
   return (
     <div className="bg-white border border-gray-200 p-6 max-w-3xl space-y-5">
-      <div>
-        <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2 font-medium">Hero Image</label>
-        <div className="relative">
-          <img src={form.heroImage} className="h-48 w-full object-cover bg-gray-100" alt="" />
-          <button className="absolute inset-0 bg-black/50 text-white opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-xs uppercase tracking-wider">
-            <Upload className="h-4 w-4" /> Replace
-          </button>
-        </div>
-      </div>
+      <ImageUploader
+        value={form.heroImage}
+        onChange={(url) => setForm({ ...form, heroImage: url })}
+        folder="havanat/homepage"
+        label="Hero Image"
+        aspect="wide"
+        hint="Recommended: 1920×1080 (main hero background)"
+      />
 
       <div>
         <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Headline</label>
