@@ -155,26 +155,41 @@ export default function ShopPage() {
       <div className="px-4 sm:px-6 lg:px-12 py-8 lg:py-12">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Mobile Filter Toggle */}
-          <div className="lg:hidden flex items-center justify-between mb-4">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 border text-xs tracking-[0.1em]"
-            >
-              <SlidersHorizontal size={14} />
-              FILTERS {activeFilterCount > 0 && `(${activeFilterCount})`}
-            </button>
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none px-4 py-2 pr-8 border text-xs tracking-[0.1em] bg-white focus:outline-none"
+          <div className="lg:hidden mb-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-2 px-4 py-2 border text-xs tracking-[0.1em]"
               >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <SlidersHorizontal size={14} />
+                FILTERS {activeFilterCount > 0 && `(${activeFilterCount})`}
+              </button>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none px-4 py-2 pr-8 border text-xs tracking-[0.1em] bg-white focus:outline-none"
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
+            {/* Sneak Peeks chip on mobile — only for deluxe/elite */}
+            {isEligible && (
+              <button
+                onClick={() => setSneakOnly((v) => !v)}
+                className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-medium px-3 py-1.5 transition-colors ${
+                  sneakOnly
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white border border-purple-300 text-purple-700 hover:bg-purple-50'
+                }`}
+              >
+                <Sparkles className="h-3 w-3" /> Sneak Peeks {sneakOnly ? 'on' : 'off'}
+              </button>
+            )}
           </div>
 
           {/* Filters Sidebar */}

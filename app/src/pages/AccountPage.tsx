@@ -247,6 +247,31 @@ export default function AccountPage() {
           </aside>
 
           {/* Content */}
+          {/* Mobile tabs + sign out — visible only below lg */}
+          <div className="lg:hidden mb-6">
+            <div className="flex flex-wrap gap-2 mb-3">
+              {TABS.map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs uppercase tracking-[0.1em] border ${
+                    activeTab === key
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white text-gray-600 border-gray-200'
+                  }`}
+                >
+                  <Icon size={12} strokeWidth={1.5} /> {label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs uppercase tracking-[0.1em] border border-red-200 text-red-500 hover:bg-red-50"
+            >
+              <LogOut size={12} strokeWidth={1.5} /> Sign Out
+            </button>
+          </div>
+
           <div className="lg:col-span-3">
             {/* Orders Tab */}
             {activeTab === 'orders' && (

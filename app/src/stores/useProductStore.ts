@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { useAuthStore } from './useAuthStore';
 import { persist } from 'zustand/middleware';
 import type { Product } from '@/types';
 import { apiConfig, apiGet } from '@/lib/api';
@@ -27,24 +26,19 @@ export const useProductStore = create<ProductState>()(
         set({ isLoading: true });
         try {
           if (apiConfig.useBackend) {
-            // Defensive: don't request sneak peeks for non-eligible callers.
-            // The backend 403s them, but we can short-circuit silently to
-            // avoid noisy console errors and unnecessary network round-trips.
-            // IMPORTANT: check the JWT claim, not the Zustand mirror, because
-            // a stale localStorage JWT (from before the user upgraded) will
-            // cause the backend to 403 even though the local tier says deluxe.
-            const jwtTier = (() => {
-              try {
-                const tok = JSON.parse(localStorage.getItem('havanat-auth') || '{}')?.state?.accessToken;
-                if (!tok || typeof tok !== 'string') return null;
-                const payload = JSON.parse(atob(tok.split('.')[1]));
-                return (payload?.tier ?? null) as string | null;
-              } catch { return null; }
-            })();
-            const stateTier = useAuthStore.getState().dashboardUser?.tier;
-            const tier = jwtTier || stateTier;  // prefer authoritative JWT
-            const eligible = tier === 'deluxe' || tier === 'elite';
-            const qs = opts?.sneakPeek && eligible ? '?sneakPeek=true' : '';
+            // The store trusts the caller's intent. If the caller passed
+            // sneakPeek: true, they have already verified the user is
+            // eligible (e.g. via useMembershipStatus which fetches
+            // /api/memberships/me). The backend is the authoritative
+            // gate — it returns 403 if the JWT is truly ineligible.
+            //
+            // We deliberately do NOT add a second JWT-based check here,
+            // because the JWT can be stale (signed before a tier upgrade)
+            // and the DB-backed useMembershipStatus is the source of truth.
+            // If we double-checked against the JWT, we'd silently strip
+            // ?sneakPeek=true for an upgraded user with a stale token,
+            // and the caller's filter would mysteriously return 0 results.
+            const qs = opts?.sneakPeek ? '?sneakPeek=true' : '';
             const res = await apiGet<{ items: any[]; total: number }>('/api/products' + qs);
             // Map backend Product → frontend Product shape
             const mapped: Product[] = res.items.map((p) => ({
