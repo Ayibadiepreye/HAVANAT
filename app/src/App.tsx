@@ -35,6 +35,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import OrderDetailPage from '@/pages/OrderDetailPage';
 import WishlistPage from '@/pages/WishlistPage';
 import NotificationsPage from '@/pages/NotificationsPage';
+import MyReviewsPage from '@/pages/MyReviewsPage';
 
 import AdminLayout, { ModeratorLayout } from '@/pages/admin/AdminLayout';
 import AdminOverview from '@/pages/admin/AdminOverview';
@@ -120,7 +121,7 @@ export default function App() {
 
 function PublicSite() {
   const location = useLocation();
-  const hideFooter = location.pathname.startsWith('/account') || location.pathname.startsWith('/profile');
+  const hideFooter = location.pathname.startsWith('/account') || location.pathname.startsWith('/profile') || location.pathname.startsWith('/my-reviews');
   return (
     <>
       <Navbar />
@@ -147,6 +148,7 @@ function PublicSite() {
         <Route path="/account" element={<Protected><AccountPage /></Protected>} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
+        <Route path="/my-reviews" element={<Protected><MyReviewsPage /></Protected>} />
         <Route path="/account/orders/:id" element={<Protected><OrderDetailPage /></Protected>} />
         <Route path="/wishlist" element={<Protected><WishlistPage /></Protected>} />
         <Route path="/notifications" element={<NotificationsPage />} />

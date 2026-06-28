@@ -1,5 +1,5 @@
 import { Star, Crown, Shield } from 'lucide-react';
-import { Review } from '@/stores/useReviewStore';
+import type { Review } from '@/stores/useReviewStore';
 
 interface ReviewItemProps {
   review: Review;

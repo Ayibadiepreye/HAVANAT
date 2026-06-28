@@ -221,6 +221,9 @@ export default function AccountPage() {
             <Link to="/profile" className="inline-block mt-2 text-[10px] tracking-[0.15em] uppercase text-gray-500 hover:text-black underline">
               Profile settings →
             </Link>
+            <Link to="/my-reviews" className="inline-block mt-1 text-[10px] tracking-[0.15em] uppercase text-gray-500 hover:text-black underline">
+              My Reviews →
+            </Link>
           </div>
           {/* Mobile-only Sign Out icon */}
           <button

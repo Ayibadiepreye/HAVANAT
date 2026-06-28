@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Star, Check, X, MessageSquare, Trash2 } from 'lucide-react';
-import { useReviewStore, Review } from '@/stores/useReviewStore';
+import { useReviewStore } from '@/stores/useReviewStore';
+import type { Review } from '@/stores/useReviewStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 const TIER_COLORS = {

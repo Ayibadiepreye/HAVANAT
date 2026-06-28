@@ -92,6 +92,120 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
   res.status(201).json({ review });
 });
 
+// GET /api/reviews/my-reviews — Customer: get all their own reviews
+reviewsRouter.get('/reviews/my-reviews', requireAuth, async (req, res) => {
+  const userId = (req as any).user.id;
+  
+  const rows = await db
+    .select()
+    .from(reviews)
+    .where(eq(reviews.userId, userId))
+    .orderBy(desc(reviews.createdAt));
+
+  res.json({ reviews: rows });
+});
+
+// PATCH /api/reviews/:id — Customer: update their own pending review
+reviewsRouter.patch('/reviews/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
+
+  const userId = (req as any).user.id;
+  const { rating, reviewText, photos } = req.body;
+
+  // Get the review
+  const [review] = await db.select().from(reviews).where(eq(reviews.id, id));
+  if (!review) return res.status(404).json({ error: 'Review not found' });
+
+  // Check ownership
+  if (review.userId !== userId) {
+    return res.status(403).json({ error: 'You can only edit your own reviews' });
+  }
+
+  // Only allow editing if not yet approved
+  if (review.approved) {
+    return res.status(403).json({ error: 'Cannot edit approved reviews' });
+  }
+
+  // Update
+  const updates: any = { updatedAt: new Date() };
+  if (rating !== undefined) {
+    if (rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5' });
+    updates.rating = rating;
+  }
+  if (reviewText !== undefined) {
+    if (!reviewText?.trim()) return res.status(400).json({ error: 'Review text is required' });
+    updates.reviewText = reviewText.trim();
+  }
+  if (photos !== undefined) {
+    updates.photos = photos;
+  }
+
+  const [updated] = await db
+    .update(reviews)
+    .set(updates)
+    .where(eq(reviews.id, id))
+    .returning();
+
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  await logAction({
+    userId,
+    userName: user?.name,
+    userRole: user?.role,
+    action: 'update',
+    entityType: 'review',
+    entityId: String(id),
+    entityLabel: `Review ${id}`,
+    summary: 'Updated own review',
+    changes: { before: review, after: updated },
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
+
+  res.json({ review: updated });
+});
+
+// DELETE /api/reviews/my-reviews/:id — Customer: delete their own pending review
+reviewsRouter.delete('/reviews/my-reviews/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
+
+  const userId = (req as any).user.id;
+
+  // Get the review
+  const [review] = await db.select().from(reviews).where(eq(reviews.id, id));
+  if (!review) return res.status(404).json({ error: 'Review not found' });
+
+  // Check ownership
+  if (review.userId !== userId) {
+    return res.status(403).json({ error: 'You can only delete your own reviews' });
+  }
+
+  // Only allow deleting if not yet approved
+  if (review.approved) {
+    return res.status(403).json({ error: 'Cannot delete approved reviews. Please contact support.' });
+  }
+
+  await db.delete(reviews).where(eq(reviews.id, id));
+
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  await logAction({
+    userId,
+    userName: user?.name,
+    userRole: user?.role,
+    action: 'delete',
+    entityType: 'review',
+    entityId: String(id),
+    entityLabel: `Review ${id}`,
+    summary: 'Deleted own review',
+    changes: { before: review },
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
+
+  res.json({ ok: true });
+});
+
 // ─────────────────────────── Admin/Moderator Endpoints ───────────────────────────
 
 // GET /api/reviews — Admin/Mod: get all reviews with filters
@@ -226,7 +340,7 @@ reviewsRouter.delete('/:id', requireRole(['admin']), async (req, res) => {
 });
 
 // GET /api/reviews/stats/:productId — Public: get review stats for a product
-reviewsRouter.get('/stats/:productId', async (req, res) => {
+reviewsRouter.get('/reviews/stats/:productId', async (req, res) => {
   const productId = Number(req.params.productId);
   if (!Number.isFinite(productId)) return res.status(400).json({ error: 'Invalid product ID' });
 

@@ -48,6 +48,15 @@ interface ReviewStore {
   // Customer: Submit a review
   submitReview: (productId: number, data: { rating: number; reviewText: string; photos?: string[] }) => Promise<void>;
 
+  // Customer: Get my own reviews
+  fetchMyReviews: () => Promise<void>;
+
+  // Customer: Update my own pending review
+  updateMyReview: (reviewId: number, data: { rating?: number; reviewText?: string; photos?: string[] }) => Promise<void>;
+
+  // Customer: Delete my own pending review
+  deleteMyReview: (reviewId: number) => Promise<void>;
+
   // Admin/Mod: Get all reviews
   fetchAllReviews: (filters?: { approved?: boolean; productId?: number }) => Promise<void>;
 
@@ -96,6 +105,42 @@ export const useReviewStore = create<ReviewStore>((set) => ({
       set({ isLoading: false });
     } catch (err) {
       set({ isLoading: false });
+      throw err;
+    }
+  },
+
+  fetchMyReviews: async () => {
+    set({ isLoading: true });
+    try {
+      const data = await apiGet<{ reviews: Review[] }>('/api/reviews/my-reviews', true);
+      set({ reviews: data.reviews, isLoading: false });
+    } catch (err) {
+      console.error('fetchMyReviews failed', err);
+      set({ isLoading: false });
+    }
+  },
+
+  updateMyReview: async (reviewId, data) => {
+    set({ isLoading: true });
+    try {
+      const result = await apiPatch<{ review: Review }>(`/api/reviews/${reviewId}`, data, true);
+      set((state) => ({
+        reviews: state.reviews.map((r) => (r.id === reviewId ? result.review : r)),
+        isLoading: false,
+      }));
+    } catch (err) {
+      set({ isLoading: false });
+      throw err;
+    }
+  },
+
+  deleteMyReview: async (reviewId) => {
+    try {
+      await apiDelete(`/api/reviews/my-reviews/${reviewId}`, true);
+      set((state) => ({
+        reviews: state.reviews.filter((r) => r.id !== reviewId),
+      }));
+    } catch (err) {
       throw err;
     }
   },
