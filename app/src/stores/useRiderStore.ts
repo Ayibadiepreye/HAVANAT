@@ -65,13 +65,18 @@ export const useRiderStore = create<RiderState>()(
             id: String(d.id),
             orderId: String(d.orderId),
             riderId: d.riderId != null ? String(d.riderId) : '',
+            type: d.type || 'delivery',
             customerName: d.customerName ?? '',
             customerPhone: d.customerPhone ?? '',
             address: d.address?.street ?? '',
             city: d.address?.city ?? '',
             state: d.address?.state ?? '',
+            itemSummary: `Order #${d.orderNumber}`,
+            itemCount: 1,
+            scheduledFor: d.assignedAt ?? new Date().toISOString(),
             status: d.status ?? 'assigned',
             deliveryOtp: d.deliveryOtp ?? '',
+            deliveryFee: 2500,
             eta: d.eta,
             assignedAt: d.assignedAt ?? new Date().toISOString()
           })) as any });

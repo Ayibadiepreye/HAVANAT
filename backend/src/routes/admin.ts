@@ -322,25 +322,34 @@ adminRouter.get('/orders', requireAuth, requireRole('admin', 'moderator'), async
       ORDER BY created_at DESC
       LIMIT 200
     `);
-    const items = (rows.rows as any[]).map((o) => ({
-      id: String(o.id),
-      orderNumber: o.order_number,
-      userId: String(o.user_id),
-      status: o.status,
-      subtotal: Number(o.subtotal) || 0,
-      shippingFee: Number(o.shipping_fee) || 0,
-      total: Number(o.total) || 0,
-      customerName: o.customer_name,
-      customerEmail: o.customer_email,
-      customerPhone: o.customer_phone ?? '',
-      shippingAddress: o.shipping_address,
-      paymentMethod: o.payment_method,
-      paymentReference: o.payment_reference,
-      riderId: o.rider_id != null ? String(o.rider_id) : null,
-      createdAt: o.created_at,
-      updatedAt: o.updated_at,
-    }));
-    res.json({ items });
+    
+    // Fetch order items for each order
+    const itemsWithProducts = await Promise.all(
+      (rows.rows as any[]).map(async (o) => {
+        const orderItemsRows = await db.select().from(orderItems).where(eq(orderItems.orderId, o.id));
+        return {
+          id: String(o.id),
+          orderNumber: o.order_number,
+          userId: String(o.user_id),
+          status: o.status,
+          subtotal: Number(o.subtotal) || 0,
+          shippingFee: Number(o.shipping_fee) || 0,
+          total: Number(o.total) || 0,
+          customerName: o.customer_name,
+          customerEmail: o.customer_email,
+          customerPhone: o.customer_phone ?? '',
+          shippingAddress: o.shipping_address,
+          paymentMethod: o.payment_method,
+          paymentReference: o.payment_reference,
+          riderId: o.rider_id != null ? String(o.rider_id) : null,
+          createdAt: o.created_at,
+          updatedAt: o.updated_at,
+          items: orderItemsRows,
+        };
+      })
+    );
+    
+    res.json({ items: itemsWithProducts });
   } catch (err: any) {
     console.error('[admin/orders]', err);
     res.status(500).json({ error: 'Failed to load orders' });

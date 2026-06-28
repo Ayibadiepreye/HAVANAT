@@ -289,13 +289,13 @@ export default function AccountPage() {
                           {(order.items ?? []).map((item: any, i: number) => (
                             <div key={i} className="flex items-center gap-3">
                               <div className="w-12 h-16 bg-gray-100 overflow-hidden">
-                                <img src={item.product.images[0]} alt="" className="w-full h-full object-cover" />
+                                {item.image && <img src={item.image} alt="" className="w-full h-full object-cover" />}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm truncate">{item.product.name}</p>
+                                <p className="text-sm truncate">{item.name}</p>
                                 <p className="text-xs text-gray-400">Size: {item.size} x {item.quantity}</p>
                               </div>
-                              <span className="text-sm font-medium">{formatNaira(item.product.price * item.quantity)}</span>
+                              <span className="text-sm font-medium">{formatNaira(item.price * item.quantity)}</span>
                             </div>
                           ))}
                         </div>
