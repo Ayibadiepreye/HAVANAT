@@ -61,7 +61,20 @@ export const useRiderStore = create<RiderState>()(
         if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) return;
         try {
           const res = await apiGet<{ items: any[] }>('/api/riders/me/deliveries', true);
-          set({ deliveries: res.items.map((d) => ({ id: String(d.id), orderId: String(d.orderId), riderId: d.riderId != null ? String(d.riderId) : '', customerName: d.customerName ?? '', address: d.address ?? '', status: d.status ?? 'assigned', eta: d.eta, assignedAt: d.assignedAt ?? new Date().toISOString() })) as any });
+          set({ deliveries: res.items.map((d) => ({
+            id: String(d.id),
+            orderId: String(d.orderId),
+            riderId: d.riderId != null ? String(d.riderId) : '',
+            customerName: d.customerName ?? '',
+            customerPhone: d.customerPhone ?? '',
+            address: d.address?.street ?? '',
+            city: d.address?.city ?? '',
+            state: d.address?.state ?? '',
+            status: d.status ?? 'assigned',
+            deliveryOtp: d.deliveryOtp ?? '',
+            eta: d.eta,
+            assignedAt: d.assignedAt ?? new Date().toISOString()
+          })) as any });
         } catch (err) {
           console.error('fetchMyDeliveries failed', err);
         }

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
-import { users, riderProfiles, deliveries, payouts } from '../db/schema.js';
+import { users, riderProfiles, deliveries, payouts, orders } from '../db/schema.js';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { CreateRiderSchema } from '../lib/validators.js';
@@ -48,7 +48,24 @@ ridersRouter.patch('/:id/status', requireAuth, requireRole('admin'), async (req,
 // Rider: own deliveries
 ridersRouter.get('/me/deliveries', requireAuth, requireRole('rider'), async (req, res) => {
   const rows = await db.select().from(deliveries).where(eq(deliveries.riderId, Number(req.user!.sub))).orderBy(desc(deliveries.assignedAt));
-  res.json({ items: rows });
+  
+  // Join with orders to get customer details and address
+  const deliveriesWithDetails = await Promise.all(
+    rows.map(async (delivery) => {
+      const [order] = await db.select().from(orders).where(eq(orders.id, delivery.orderId));
+      return {
+        ...delivery,
+        customerName: order?.customerName || '',
+        customerEmail: order?.customerEmail || '',
+        customerPhone: order?.customerPhone || '',
+        address: order?.shippingAddress || {},
+        orderNumber: order?.orderNumber || '',
+        total: order?.total || '0',
+      };
+    })
+  );
+  
+  res.json({ items: deliveriesWithDetails });
 });
 
 // Rider: own payouts

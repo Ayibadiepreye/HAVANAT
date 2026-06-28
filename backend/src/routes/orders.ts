@@ -12,7 +12,16 @@ export const ordersRouter = Router();
 // Customer: own orders
 ordersRouter.get('/mine', requireAuth, async (req, res) => {
   const rows = await db.select().from(orders).where(eq(orders.userId, Number(req.user!.sub))).orderBy(desc(orders.createdAt));
-  res.json({ items: rows });
+  
+  // Fetch order items for each order
+  const ordersWithItems = await Promise.all(
+    rows.map(async (order) => {
+      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
+      return { ...order, items };
+    })
+  );
+  
+  res.json({ items: ordersWithItems });
 });
 
 // Admin: all orders
@@ -22,7 +31,16 @@ ordersRouter.get('/', requireAuth, requireRole('admin', 'moderator'), async (req
   if (status) filters.push(eq(orders.status, status as any));
   const where = filters.length > 0 ? filters[0] : undefined;
   const rows = await db.select().from(orders).where(where).orderBy(desc(orders.createdAt)).limit(Number(limit)).offset(Number(offset));
-  res.json({ items: rows });
+  
+  // Fetch order items for each order
+  const ordersWithItems = await Promise.all(
+    rows.map(async (order) => {
+      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
+      return { ...order, items };
+    })
+  );
+  
+  res.json({ items: ordersWithItems });
 });
 
 // Public: track order by order number (no auth needed — tracking ID is the secret)
