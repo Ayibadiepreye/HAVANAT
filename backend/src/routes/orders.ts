@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
-import { orders, orderItems, users, products } from '../db/schema.js';
+import { orders, orderItems, users, products, deliveries } from '../db/schema.js';
 import { desc, eq, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { AssignRiderSchema, UpdateOrderStatusSchema } from '../lib/validators.js';
@@ -157,8 +157,22 @@ ordersRouter.patch('/:id/assign-rider', requireAuth, requireRole('admin', 'moder
   if (!before) return res.status(404).json({ error: 'Not found' });
   const [rider] = await db.select().from(users).where(eq(users.id, Number(parsed.data.riderId)));
   if (!rider || rider.role !== 'rider') return res.status(400).json({ error: 'Invalid rider' });
+  
+  // Generate 4-digit OTP for delivery verification
+  const otp = String(Math.floor(1000 + Math.random() * 9000));
+  
   const newTracking = [...(before.tracking || []), { status: 'in_transit', timestamp: new Date().toISOString(), note: `Assigned to ${rider.name}` }];
   const [after] = await db.update(orders).set({ riderId: rider.id, status: 'in_transit', tracking: newTracking, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
+  
+  // Create delivery record for rider dashboard
+  await db.insert(deliveries).values({
+    orderId: id,
+    riderId: rider.id,
+    type: 'delivery',
+    status: 'assigned',
+    deliveryOtp: otp,
+  });
+  
   await logAction({
     req, user: req.user!, action: 'update', entityType: 'order',
     entityId: id, entityLabel: `Order: ${before.orderNumber}`,
