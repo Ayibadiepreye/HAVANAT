@@ -31,11 +31,35 @@ export default function ContactPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    showToast('Message sent successfully!', 'success');
-    setForm({ name: '', email: '', subject: '', message: '' });
-    setImages([]);
+    setUploading(true);
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          subject: form.subject,
+          message: form.message,
+          images: images.length > 0 ? images : undefined,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+      
+      showToast('Message sent successfully!', 'success');
+      setForm({ name: '', email: '', subject: '', message: '' });
+      setImages([]);
+    } catch (err) {
+      showToast('Failed to send message. Please try again.', 'error');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const inputClass = "w-full px-4 py-3.5 border text-sm focus:outline-none focus:border-black transition-colors bg-white";

@@ -23,6 +23,7 @@ import { membershipsRouter } from './routes/memberships.js';
 import { adminRouter } from './routes/admin.js';
 import { googleAuthRouter } from './routes/google-auth.js';
 import { reviewsRouter } from './routes/reviews.js';
+import { contactRouter } from './routes/contact.js';
 
 const app = express();
 

@@ -1,120 +1,98 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db } from '../db/client.js';
-import { contactMessages, notifications, users } from '../db/schema.js';
-import { desc, eq } from 'drizzle-orm';
-import { requireAuth, requireRole } from '../middleware/auth.js';
-import { logAction } from '../audit/logger.js';
-import { sendEmailSafe, contactFormEmailToAdmin } from '../lib/email.js';
+import { sendEmailSafe } from '../lib/email.js';
+import { config } from '../config.js';
+
 export const contactRouter = Router();
 
-// ─── Public: submit a contact form message ────────────────────────
 const ContactSchema = z.object({
-  name: z.string().min(2).max(200),
-  email: z.string().email().max(200),
-  subject: z.string().min(2).max(300),
-  body: z.string().min(5).max(5000),
+  name: z.string().min(1, 'Name required'),
+  email: z.string().email('Invalid email'),
+  subject: z.string().min(1, 'Subject required'),
+  message: z.string().min(1, 'Message required'),
+  images: z.array(z.string().url()).optional(),
 });
 
-contactRouter.post('/', async (req, res, next) => {
-  try {
-    const parsed = ContactSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ ok: false, error: 'Validation failed', issues: parsed.error.flatten() });
-    }
-    // Link to user if logged in
-    const auth = req.headers.authorization;
-    let userId: number | null = null;
-    if (auth && auth.startsWith('Bearer ')) {
-      try {
-        const { verifyAccessToken } = await import('../lib/jwt.js');
-        const payload = verifyAccessToken(auth.slice(7));
-        if (payload) userId = Number(payload.sub);
-      } catch {
-        /* anonymous */
-      }
-    }
-
-    const [row] = await db
-      .insert(contactMessages)
-      .values({
-        name: parsed.data.name,
-        email: parsed.data.email.toLowerCase(),
-        subject: parsed.data.subject,
-        body: parsed.data.body,
-      })
-      .returning();
-
-    // Notify all admins in-app
-    const admins = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, 'admin'));
-    for (const admin of admins) {
-      await db.insert(notifications).values({
-        title: `Contact: ${parsed.data.subject}`,
-        body: `${parsed.data.name} sent a message via the contact form.`,
-        category: 'system',
-        channels: 'inapp',
-        scope: 'user',
-        targetUserId: admin.id,
-        authorId: userId ?? null,
-        authorName: parsed.data.name,
-        authorRole: 'customer',
-        readBy: {},
-      }).onConflictDoNothing();
-    }
-
-    // Email admins
-    sendEmailSafe({
-      to: admins.map((a) => `${a.name} <concierge@havanat.store>`),
-      subject: `[Contact] ${parsed.data.subject} — from ${parsed.data.name}`,
-      html: contactFormEmailToAdmin({
-        name: parsed.data.name,
-        email: parsed.data.email,
-        subject: parsed.data.subject,
-        body: parsed.data.body,
-      }),
-      replyTo: parsed.data.email,
-      tags: [{ name: 'type', value: 'contact_admin' }],
-    });
-
-    await logAction({
-      req: req as any,
-      actorId: 0,
-      actorRole: 'system',
-      action: 'contact.create',
-      targetType: 'contact_message',
-      targetId: row.id,
-      meta: { subject: parsed.data.subject, from: parsed.data.email },
-    });
-
-    res.status(201).json({ ok: true, message: 'Thank you. We will get back to you shortly.' });
-  } catch (err) {
-    next(err);
+// POST /api/contact - public contact form submission
+contactRouter.post('/', async (req, res) => {
+  const parsed = ContactSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
   }
-});
 
-// ─── Admin: list messages ─────────────────────────────────────────
-contactRouter.get('/', requireAuth, requireRole('admin', 'moderator'), async (_req, res, next) => {
-  try {
-    const rows = await db.select().from(contactMessages).orderBy(desc(contactMessages.createdAt));
-    res.json({ ok: true, items: rows });
-  } catch (err) {
-    next(err);
-  }
-});
+  const { name, email, subject, message, images } = parsed.data;
 
-// ─── Admin: mark resolved ─────────────────────────────────────────
-contactRouter.post('/:id/resolve', requireAuth, requireRole('admin', 'moderator'), async (req, res, next) => {
-  try {
-    const id = Number(req.params.id);
-    if (!Number.isFinite(id)) return res.status(400).json({ ok: false, error: 'Invalid id' });
-    const [row] = await db
-      .update(contactMessages)
-      .set({ resolved: true, resolvedBy: Number(req.user!.sub), resolvedAt: new Date() })
-      .where(eq(contactMessages.id, id))
-      .returning();
-    if (!row) return res.status(404).json({ ok: false, error: 'Not found' });
-    res.json({ ok: true, item: row });
-  } catch (err) {
-    next(err);
+  // Build email HTML
+  const imageSection = images && images.length > 0
+    ? `
+      <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
+        <p style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px;">Attachments</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+          ${images.map(url => `<img src="${url}" alt="Attachment" style="width: 100%; height: 150px; object-fit: cover; border: 1px solid #e5e5e5;" />`).join('')}
+        </div>
+      </div>
+    `
+    : '';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 20px; }
+        .field { margin-bottom: 15px; }
+        .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #666; margin-bottom: 5px; }
+        .value { font-size: 14px; color: #000; }
+        .message-box { background: #f8f8f8; padding: 15px; border-left: 3px solid #000; margin-top: 15px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="font-family: Georgia, serif; font-size: 24px; font-weight: 300; margin: 0;">New Contact Form Submission</h1>
+        </div>
+        
+        <div class="field">
+          <div class="label">From</div>
+          <div class="value">${name} &lt;${email}&gt;</div>
+        </div>
+        
+        <div class="field">
+          <div class="label">Subject</div>
+          <div class="value">${subject}</div>
+        </div>
+        
+        <div class="field">
+          <div class="label">Message</div>
+          <div class="message-box">${message.replace(/\n/g, '<br>')}</div>
+        </div>
+        
+        ${imageSection}
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #999;">
+          <p>This message was sent via the HAVANAT contact form.</p>
+          <p>Reply directly to this email to respond to ${name}.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Send to admin
+  const result = await sendEmailSafe({
+    to: config.emailFrom.replace(/^.*<(.+)>$/, '$1'), // Extract email from "Name <email>" format
+    replyTo: email,
+    subject: `Contact Form: ${subject}`,
+    html,
+  });
+
+  if (!result.ok) {
+    console.error('Failed to send contact email:', result.error);
+    return res.status(500).json({ error: 'Failed to send message' });
   }
+
+  res.json({ ok: true, message: 'Message sent successfully' });
 });
