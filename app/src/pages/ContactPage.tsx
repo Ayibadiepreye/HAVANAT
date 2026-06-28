@@ -181,7 +181,7 @@ export default function ContactPage() {
             </div>
 
             {/* Map */}
-            <div className="border bg-gray-100 h-64 overflow-hidden">
+            <div className="border bg-gray-100 h-64 overflow-hidden relative">
               <img
                 src="https://maps.googleapis.com/maps/api/staticmap?center=Victoria+Island,Lagos,Nigeria&zoom=14&size=600x400&style=feature:all|saturation:-100&key=YOUR_API_KEY"
                 alt="Lagos Map"
@@ -192,12 +192,6 @@ export default function ContactPage() {
                   target.style.opacity = '0.3';
                 }}
               />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin size={24} className="mx-auto mb-2" />
-                  <p className="text-xs tracking-wide">Victoria Island, Lagos</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
