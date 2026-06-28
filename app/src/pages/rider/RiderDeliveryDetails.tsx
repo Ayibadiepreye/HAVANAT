@@ -60,10 +60,6 @@ export default function RiderDeliveryDetails() {
   };
 
   const markPickedUp = () => {
-    if (otp.join('') !== (delivery.pickupOtp ?? '')) {
-      showToast('Invalid pickup OTP', 'error');
-      return;
-    }
     updateStatus(delivery.id, 'picked_up');
     // Mirror the order status
     if (delivery.orderId && riderActor) {
@@ -135,6 +131,14 @@ export default function RiderDeliveryDetails() {
           <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Items</p>
           <p className="text-sm">{delivery.itemSummary} ({delivery.itemCount})</p>
         </div>
+        
+        {delivery.deliveryOtp && (
+          <div className="mt-4 pt-4 border-t border-gray-200 bg-blue-50 -mx-6 -mb-6 px-6 py-4">
+            <p className="text-[10px] uppercase tracking-wider text-blue-900 font-semibold mb-2">Customer Delivery OTP</p>
+            <p className="text-2xl font-mono font-bold text-blue-900 tracking-widest">{delivery.deliveryOtp}</p>
+            <p className="text-xs text-blue-700 mt-1">Customer must provide this code upon delivery</p>
+          </div>
+        )}
       </div>
 
       {/* Status Update Section */}
@@ -142,7 +146,9 @@ export default function RiderDeliveryDetails() {
         <h3 className="font-serif text-xl font-light">Update Status</h3>
 
         {delivery.status === 'assigned' && (
-          <OtpBlock otp={otp} setOtp={handleOtpChange} onSubmit={markPickedUp} submitLabel="Mark Picked Up" submitHint="Get this from the warehouse" />
+          <button onClick={markPickedUp} className="w-full py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-gray-900">
+            Mark Picked Up
+          </button>
         )}
 
         {delivery.status === 'picked_up' && (

@@ -301,15 +301,23 @@ export default function AccountPage() {
                         </div>
                         <div className="flex items-center justify-between mt-4 pt-4 border-t">
                           <span className="text-sm font-semibold">Total: {formatNaira(order.total)}</span>
-                          <button
-                            onClick={() => {
-                              useUIStore.getState().showToast('Return request initiated', 'info');
-                              useUIStore.getState().openModal('return');
-                            }}
-                            className="text-xs tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
-                          >
-                            RETURN ITEMS
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => navigate(`/account/orders/${order.id}`)}
+                              className="text-xs tracking-[0.1em] text-black hover:opacity-60 transition-opacity font-medium"
+                            >
+                              VIEW DETAILS
+                            </button>
+                            <button
+                              onClick={() => {
+                                useUIStore.getState().showToast('Return request initiated', 'info');
+                                useUIStore.getState().openModal('return');
+                              }}
+                              className="text-xs tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
+                            >
+                              RETURN ITEMS
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}

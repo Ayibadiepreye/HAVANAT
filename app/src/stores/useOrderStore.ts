@@ -134,7 +134,7 @@ export const useOrderStore = create<OrderState>()(
           const role = useAuthStore.getState().dashboardUser?.role;
           const url = (role === 'admin' || role === 'moderator') ? '/api/admin/orders' : '/api/orders/mine';
           const res = await apiGet<{ items: any[] }>(url, true);
-          set({ orders: res.items.map((o) => mapBackendOrder(o)) });
+          set({ orders: res.items.map((o) => mapBackendOrder(o, o.items || [])) });
         } catch (err) {
           console.error('fetchOrders failed', err);
         }
