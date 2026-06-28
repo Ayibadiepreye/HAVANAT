@@ -157,8 +157,8 @@ ordersRouter.patch('/:id/assign-rider', requireAuth, requireRole('admin', 'moder
   if (!before) return res.status(404).json({ error: 'Not found' });
   const [rider] = await db.select().from(users).where(eq(users.id, Number(parsed.data.riderId)));
   if (!rider || rider.role !== 'rider') return res.status(400).json({ error: 'Invalid rider' });
-  const newTracking = [...(before.tracking || []), { status: 'rider_assigned', timestamp: new Date().toISOString(), note: `Assigned to ${rider.name}` }];
-  const [after] = await db.update(orders).set({ riderId: rider.id, tracking: newTracking, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
+  const newTracking = [...(before.tracking || []), { status: 'in_transit', timestamp: new Date().toISOString(), note: `Assigned to ${rider.name}` }];
+  const [after] = await db.update(orders).set({ riderId: rider.id, status: 'in_transit', tracking: newTracking, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
   await logAction({
     req, user: req.user!, action: 'update', entityType: 'order',
     entityId: id, entityLabel: `Order: ${before.orderNumber}`,
