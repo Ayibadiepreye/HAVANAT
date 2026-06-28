@@ -278,7 +278,7 @@ export default function AccountPage() {
                       <div key={order.id} className="border p-5">
                         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                           <div>
-                            <p className="text-xs text-gray-400">{order.id}</p>
+                            <p className="text-sm font-semibold mb-1">Order #{order.id}</p>
                             <p className="text-xs text-gray-400">{new Date(order.date).toLocaleDateString('en-NG', { dateStyle: 'medium' })}</p>
                           </div>
                           <span className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase font-medium ${STATUS_COLORS[order.status]}`}>
@@ -299,24 +299,34 @@ export default function AccountPage() {
                             </div>
                           ))}
                         </div>
+                        {order.deliveryOtp && (order.status === 'processing' || order.status === 'in_transit') && (
+                          <div className="mt-4 p-3 bg-black text-white text-center">
+                            <p className="text-[8px] uppercase tracking-[0.2em] text-gray-400 mb-1">Delivery Code</p>
+                            <p className="font-serif text-2xl tracking-[0.4em]">{order.deliveryOtp}</p>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between mt-4 pt-4 border-t">
                           <span className="text-sm font-semibold">Total: {formatNaira(order.total)}</span>
                           <div className="flex items-center gap-3">
                             <button
+                              type="button"
                               onClick={() => navigate(`/account/orders/${order.id}`)}
                               className="text-xs tracking-[0.1em] text-black hover:opacity-60 transition-opacity font-medium"
                             >
                               VIEW DETAILS
                             </button>
-                            <button
-                              onClick={() => {
-                                useUIStore.getState().showToast('Return request initiated', 'info');
-                                useUIStore.getState().openModal('return');
-                              }}
-                              className="text-xs tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
-                            >
-                              RETURN ITEMS
-                            </button>
+                            {(order.status === 'delivered' || order.status === 'in_transit') && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  useUIStore.getState().showToast('Return request initiated', 'info');
+                                  useUIStore.getState().openModal('return');
+                                }}
+                                className="text-xs tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
+                              >
+                                RETURN ITEMS
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>

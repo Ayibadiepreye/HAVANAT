@@ -51,6 +51,11 @@ function mapBackendOrder(o: any, items: any[] = []): DashboardOrder {
   const tracking: TrackingEvent[] = Array.isArray(o.tracking)
     ? o.tracking.map((t: any) => ({ status: t.status as OrderStatus, timestamp: t.timestamp, note: t.note }))
     : [];
+  
+  // Extract OTP from tracking (stored when rider is assigned)
+  const otpEntry = Array.isArray(o.tracking) ? o.tracking.find((t: any) => t.otp) : null;
+  const deliveryOtp = otpEntry?.otp || null;
+  
   const orderItems: OrderItem[] = items.map((it) => ({
     productId: it.productId,
     name: it.productName || it.name || '',
@@ -78,6 +83,7 @@ function mapBackendOrder(o: any, items: any[] = []): DashboardOrder {
       state: address.state || '',
     },
     riderId: o.riderId != null ? String(o.riderId) : undefined,
+    deliveryOtp,
     trackingHistory: tracking,
     createdAt: o.createdAt,
     date: o.createdAt,

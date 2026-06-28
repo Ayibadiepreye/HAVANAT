@@ -152,13 +152,16 @@ export default function CheckoutPage() {
       if (init.mode === 'mock') {
         // No real Paystack configured - backend already marked order as paid.
         await refreshOrdersInStore();
-        clearCart();
+        clearCart(); // Clear cart after successful mock payment
         setShowSuccess(true);
         showToast('Order placed! (mock mode — no real payment processed)', 'success');
         return;
       }
 
-      // Step 3: Redirect to Paystack. The callback URL is
+      // Step 3: Clear cart before redirect - user has completed checkout
+      clearCart();
+      
+      // Redirect to Paystack. The callback URL is
       // /account/orders/{orderId}?paid=1&reference={orderNumber}.
       // The AccountPage or OrderDetailPage must call /api/payments/verify on
       // return — that's where the DB paidAt + status flip happens.

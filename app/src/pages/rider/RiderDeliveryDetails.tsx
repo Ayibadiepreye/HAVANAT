@@ -12,6 +12,7 @@ export default function RiderDeliveryDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const delivery = useRiderStore((s) => (id ? s.getDeliveryById(id) : undefined));
+  const fetchMyDeliveries = useRiderStore((s) => s.fetchMyDeliveries);
   const updateStatus = useRiderStore((s) => s.updateDeliveryStatus);
   const setProof = useRiderStore((s) => s.setDeliveryProof);
   const updateOrderStatus = useOrderStore((s) => s.updateStatus);
@@ -25,6 +26,12 @@ export default function RiderDeliveryDetails() {
   const [otp, setOtp] = useState(['', '', '', '']);
   const [photo, setPhoto] = useState<string | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!delivery) {
+      void fetchMyDeliveries();
+    }
+  }, [delivery, fetchMyDeliveries]);
 
   useEffect(() => {
     if (delivery?.proofOfDelivery?.photoUrl) setPhoto(delivery.proofOfDelivery.photoUrl);
@@ -63,7 +70,7 @@ export default function RiderDeliveryDetails() {
     updateStatus(delivery.id, 'picked_up');
     // Mirror the order status
     if (delivery.orderId && riderActor) {
-      updateOrderStatus(delivery.orderId, 'processing', riderActor, 'Rider picked up from warehouse');
+      updateOrderStatus(delivery.orderId, 'picked_up', riderActor, 'Rider picked up from warehouse');
     }
     showToast('Marked as picked up', 'success');
   };
@@ -131,14 +138,6 @@ export default function RiderDeliveryDetails() {
           <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Items</p>
           <p className="text-sm">{delivery.itemSummary} ({delivery.itemCount})</p>
         </div>
-        
-        {delivery.deliveryOtp && (
-          <div className="mt-4 pt-4 border-t border-gray-200 bg-blue-50 -mx-6 -mb-6 px-6 py-4">
-            <p className="text-[10px] uppercase tracking-wider text-blue-900 font-semibold mb-2">Customer Delivery OTP</p>
-            <p className="text-2xl font-mono font-bold text-blue-900 tracking-widest">{delivery.deliveryOtp}</p>
-            <p className="text-xs text-blue-700 mt-1">Customer must provide this code upon delivery</p>
-          </div>
-        )}
       </div>
 
       {/* Status Update Section */}
@@ -146,23 +145,40 @@ export default function RiderDeliveryDetails() {
         <h3 className="font-serif text-xl font-light">Update Status</h3>
 
         {delivery.status === 'assigned' && (
-          <button onClick={markPickedUp} className="w-full py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-gray-900">
+          <button type="button" onClick={markPickedUp} className="w-full py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-gray-900">
             Mark Picked Up
           </button>
         )}
 
         {delivery.status === 'picked_up' && (
-          <button onClick={markInTransit} className="w-full py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-gray-900">
+          <button type="button" onClick={markInTransit} className="w-full py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-gray-900">
             Mark In Transit
           </button>
         )}
 
         {delivery.status === 'in_transit' && (
           <div className="space-y-5">
-            <OtpBlock otp={otp} setOtp={handleOtpChange} onSubmit={() => {}} submitLabel="Verify OTP" submitHint="Get this from the customer" />
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium mb-2">Customer OTP Verification</p>
+              <div className="flex gap-2 justify-start">
+                {otp.map((digit, i) => (
+                  <input
+                    key={i}
+                    id={`otp-${i}`}
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(i, e.target.value)}
+                    className="w-12 h-12 text-center border border-gray-300 text-lg focus:border-black focus:outline-none"
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Ask the customer for their 4-digit delivery code</p>
+            </div>
             <SignatureBlock signature={signature} setSignature={setSignature} />
             <PhotoBlock photo={photo} onUpload={handlePhotoUpload} />
             <button
+              type="button"
               onClick={markDelivered}
               className="w-full py-3 bg-green-700 text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-green-800 flex items-center justify-center gap-2"
             >
@@ -181,39 +197,12 @@ export default function RiderDeliveryDetails() {
         )}
       </div>
 
-      {delivery.type === 'pickup' && delivery.status === 'assigned' && (
-        <OtpBlock otp={otp} setOtp={handleOtpChange} onSubmit={() => { updateStatus(delivery.id, 'picked_up'); showToast('Item collected', 'success'); navigate('/rider/pickups'); }} submitLabel="Mark Picked Up" submitHint="Get this from the customer" />
-      )}
+
     </div>
   );
 }
 
-function OtpBlock({ otp, setOtp, onSubmit, submitLabel, submitHint }: { otp: string[]; setOtp: (i: number, v: string) => void; onSubmit: () => void; submitLabel: string; submitHint?: string }) {
-  return (
-    <div>
-      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium mb-2">OTP Verification</p>
-      <div className="flex gap-2 justify-start">
-        {otp.map((digit, i) => (
-          <input
-            key={i}
-            id={`otp-${i}`}
-            inputMode="numeric"
-            maxLength={1}
-            value={digit}
-            onChange={(e) => setOtp(i, e.target.value)}
-            className="w-12 h-12 text-center border border-gray-300 text-lg focus:border-black focus:outline-none"
-          />
-        ))}
-      </div>
-      {submitHint && <p className="text-xs text-gray-500 mt-2">{submitHint}</p>}
-      <button
-        onClick={onSubmit}
-        disabled={otp.some((d) => !d)}
-        className="mt-4 px-6 py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-gray-900 disabled:opacity-50"
-      >{submitLabel}</button>
-    </div>
-  );
-}
+
 
 function PhotoBlock({ photo, onUpload }: { photo: string | null; onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
   return (
@@ -223,6 +212,7 @@ function PhotoBlock({ photo, onUpload }: { photo: string | null; onUpload: (e: R
         <div className="relative">
           <img src={photo} alt="Proof" className="h-48 w-full object-cover bg-gray-100" />
           <button
+            type="button"
             onClick={() => onUpload({ target: { files: [] } } as never)}
             className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-red-600 hover:text-white"
             aria-label="Remove"
@@ -297,6 +287,7 @@ function SignatureBlock({ signature, setSignature }: { signature: string | null;
         <div className="relative">
           <img src={signature} alt="Signature" className="border border-gray-200 w-full bg-white h-32" />
           <button
+            type="button"
             onClick={clear}
             className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-red-600 hover:text-white"
             aria-label="Clear"
@@ -321,7 +312,7 @@ function SignatureBlock({ signature, setSignature }: { signature: string | null;
             onTouchEnd={end}
             className="border border-gray-200 w-full h-32 bg-white cursor-crosshair touch-none"
           />
-          <button onClick={clear} className="mt-1 text-[10px] uppercase tracking-wider text-gray-500 hover:text-black">Clear</button>
+          <button type="button" onClick={clear} className="mt-1 text-[10px] uppercase tracking-wider text-gray-500 hover:text-black">Clear</button>
         </div>
       )}
     </div>

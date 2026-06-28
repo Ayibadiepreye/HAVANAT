@@ -433,8 +433,20 @@ export function orderStatusEmail(order: {
   reference: string;
   status: string;
   trackingUrl?: string;
+  otp?: string | null;
 }): string {
   const tracking = order.trackingUrl ? btn('Track order', order.trackingUrl) : '';
+  const otpSection = order.otp ? `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;background:${BLACK};padding:24px;text-align:center;">
+      <tr>
+        <td>
+          <p style="margin:0 0 8px 0;font-family:${FONT_SANS};font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:#999;">Delivery Verification Code</p>
+          <p style="margin:0;font-family:${FONT_SERIF};font-size:36px;font-weight:300;letter-spacing:0.4em;color:#fff;">${order.otp}</p>
+          <p style="margin:12px 0 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:#ccc;">Show this 4-digit code to the rider when they arrive to verify delivery.</p>
+        </td>
+      </tr>
+    </table>
+  ` : '';
   return emailShell({
     eyebrow: 'Order Update',
     title: `Order ${order.reference}`,
@@ -451,6 +463,7 @@ export function orderStatusEmail(order: {
           <td style="padding:14px 0;font-family:${FONT_SERIF};font-size:18px;color:${BLACK};text-transform:capitalize;">${escapeHtml(order.status)}</td>
         </tr>
       </table>
+      ${otpSection}
       ${tracking}
       ${muted('Questions? Reply to this email and our concierge will help.')}
     `,

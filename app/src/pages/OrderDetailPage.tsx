@@ -320,24 +320,20 @@ export default function OrderDetailPage() {
             </section>
 
             {/* Customer-facing delivery OTP */}
-            {order.status === 'processing' && order.deliveryOtp && (
+            {order.deliveryOtp && (order.status === 'processing' || order.status === 'in_transit') && (
               <section className="bg-white border border-black p-6">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-gray-500 mb-1">Delivery code</p>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-gray-500 mb-1">
+                  {order.status === 'in_transit' ? 'Delivery Verification Code' : 'Delivery Code'}
+                </p>
                 <p className="text-sm text-gray-700 mb-3">
-                  Show this 4-digit code to the rider when they arrive. It is also in your order email.
+                  {order.status === 'in_transit' 
+                    ? "Show this 4-digit code to the rider when they arrive to verify delivery."
+                    : "Your rider will ask for this 4-digit code when they arrive. Keep it handy."}
                 </p>
                 <p className="font-serif text-4xl font-light tracking-[0.4em] text-center">{order.deliveryOtp}</p>
-              </section>
-            )}
-            {order.status === 'in_transit' && (
-              <section className="bg-white border border-black p-6">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-gray-500 mb-1">Rider is on the way</p>
-                <p className="text-sm text-gray-700 mb-4">
-                  When your rider arrives, they&apos;ll enter the 4-digit code from your order email to confirm delivery. You don&apos;t need to do anything.
+                <p className="text-xs text-gray-500 text-center mt-3">
+                  This code was also sent to your email.
                 </p>
-                {order.deliveryOtp && (
-                  <p className="text-xs text-gray-500">Your code (for reference): <span className="font-mono font-medium">{order.deliveryOtp}</span></p>
-                )}
               </section>
             )}
 
