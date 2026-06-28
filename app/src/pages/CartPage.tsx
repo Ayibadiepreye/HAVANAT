@@ -5,6 +5,8 @@ import { useCartStore } from '@/stores/useCartStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAddressStore } from '@/stores/useAddressStore';
 import { useDeliveryZones } from '@/hooks/useDeliveryZones';
+import { useProductStore } from '@/stores/useProductStore';
+import { useUIStore } from '@/stores/useUIStore';
 import { formatNaira, CONFIG } from '@/config';
 import { NIGERIAN_STATES } from '@/pages/CheckoutPage';
 
@@ -21,7 +23,20 @@ export default function CartPage() {
   const user = useAuthStore((s) => s.user);
   const defaultAddress = useAddressStore((s) => s.addresses.find((a) => a.isDefault) ?? s.addresses[0]);
   const { zoneFeeByState } = useDeliveryZones();
+  const products = useProductStore((s) => s.products);
+  const showToast = useUIStore((s) => s.showToast);
   const [state, setState] = useState<string>(deliveryState || defaultAddress?.state || '');
+
+  // AUTO-REMOVE OUT-OF-STOCK ITEMS: Check cart items against current product stock
+  useEffect(() => {
+    items.forEach((item) => {
+      const currentProduct = products.find((p) => p.id === item.product.id);
+      if (currentProduct && currentProduct.stock <= 0) {
+        removeItem(item.product.id, item.size);
+        showToast(`${item.product.name} removed (out of stock)`, 'info');
+      }
+    });
+  }, [products, items, removeItem, showToast]);
 
   // Keep cart store's deliveryState in sync
   useEffect(() => {

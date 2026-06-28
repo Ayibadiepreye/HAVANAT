@@ -192,7 +192,36 @@ export const useOrderStore = create<OrderState>()(
           }
         }
       },
-      cancelOrder: (id, actor, note) => {
+      cancelOrder: async (id, actor, note) => {
+        const order = get().orders.find((o) => o.id === id);
+        if (!order) return;
+        
+        // STOCK RESTORATION: Add items back to stock when order is cancelled
+        const { useProductStore } = await import('@/stores/useProductStore');
+        const productStore = useProductStore.getState();
+        order.items.forEach((item) => {
+          const product = productStore.products.find((p) => p.id === item.productId);
+          if (product) {
+            const newStock = product.stock + item.quantity;
+            const updatedProducts = productStore.products.map((p) =>
+              p.id === item.productId ? { ...p, stock: newStock } : p
+            );
+            useProductStore.setState({ products: updatedProducts });
+            
+            // Audit log for stock restoration
+            logAuditAction({
+              userId: actor.id, userName: actor.name, userRole: actor.role,
+              action: 'update', entityType: 'product', entityId: String(item.productId), 
+              entityLabel: `Product: ${item.name}`,
+              summary: `Stock restored: ${product.stock} → ${newStock} (Cancelled Order ${id})`,
+              changes: { 
+                before: { stock: product.stock }, 
+                after: { stock: newStock } 
+              },
+            });
+          }
+        });
+        
         get().updateStatus(id, 'cancelled', actor, note ?? 'Cancelled by admin');
       },
       generateDeliveryOtp: (id, actor) => {
@@ -238,6 +267,33 @@ export const useOrderStore = create<OrderState>()(
           date: now,
         };
         set({ orders: [order, ...get().orders] });
+        
+        // STOCK REDUCTION: Reduce product stock for each item in the order
+        const { useProductStore } = await import('@/stores/useProductStore');
+        const productStore = useProductStore.getState();
+        input.items.forEach((item) => {
+          const product = productStore.products.find((p) => p.id === item.productId);
+          if (product) {
+            const newStock = Math.max(0, product.stock - item.quantity);
+            const updatedProducts = productStore.products.map((p) =>
+              p.id === item.productId ? { ...p, stock: newStock } : p
+            );
+            useProductStore.setState({ products: updatedProducts });
+            
+            // Audit log for stock reduction
+            logAuditAction({
+              userId: 'system', userName: 'System', userRole: 'admin',
+              action: 'update', entityType: 'product', entityId: String(item.productId), 
+              entityLabel: `Product: ${item.name}`,
+              summary: `Stock reduced: ${product.stock} → ${newStock} (Order ${order.id})`,
+              changes: { 
+                before: { stock: product.stock }, 
+                after: { stock: newStock } 
+              },
+            });
+          }
+        });
+        
         logAuditAction({
           userId: 'customer', userName: input.customerName, userRole: 'admin',
           action: 'create', entityType: 'order', entityId: order.id, entityLabel: `Order ${order.id}`,

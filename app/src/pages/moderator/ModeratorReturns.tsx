@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import StatusBadge from '@/components/admin/StatusBadge';
-import { X, Check, XCircle, Bike, Eye, DollarSign } from 'lucide-react';
+import { X, Check, XCircle, Bike, Eye } from 'lucide-react';
 import { formatDateTime } from '@/utils/formatters';
 import type { ReturnRequest, ReturnStatus } from '@/types/dashboard';
 
@@ -18,14 +18,13 @@ const TABS: { label: string; status: ReturnStatus | 'all' }[] = [
   { label: 'Rejected', status: 'rejected' },
 ];
 
-export default function AdminReturns() {
+export default function ModeratorReturns() {
   const returns = useReturnStore((s) => s.returns);
   const approve = useReturnStore((s) => s.approve);
   const reject = useReturnStore((s) => s.reject);
   const assignRider = useReturnStore((s) => s.assignRider);
   const fetchReturns = useReturnStore((s) => s.fetchReturns);
   useEffect(() => { void fetchReturns(); }, [fetchReturns]);
-  const processRefund = useReturnStore((s) => s.processRefund);
   const riders = useRiderStore((s) => s.riders);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
@@ -35,8 +34,6 @@ export default function AdminReturns() {
   const [rejectReason, setRejectReason] = useState('');
   const [assignReturn, setAssignReturn] = useState<ReturnRequest | null>(null);
   const [riderId, setRiderId] = useState('');
-  const [refundingReturn, setRefundingReturn] = useState<ReturnRequest | null>(null);
-  const [resalable, setResalable] = useState(true);
 
   const filtered = useMemo(() => {
     if (activeTab === 'all') return returns;
@@ -62,18 +59,13 @@ export default function AdminReturns() {
           {r.status === 'pending' && (
             <>
               <button
-                onClick={() => dashboardUser && approve(r.id, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' })}
+                onClick={() => dashboardUser && approve(r.id, { id: dashboardUser.id, name: dashboardUser.name, role: 'moderator' })}
                 className="p-1.5 hover:bg-green-50 text-green-700 transition-colors" aria-label="Approve"><Check className="h-4 w-4" /></button>
               <button onClick={() => setRejecting(r)} className="p-1.5 hover:bg-red-50 text-red-600 transition-colors" aria-label="Reject"><XCircle className="h-4 w-4" /></button>
             </>
           )}
           {(r.status === 'approved' || r.status === 'pending') && (
             <button onClick={() => { setAssignReturn(r); setRiderId(''); }} className="p-1.5 hover:bg-blue-50 text-blue-700 transition-colors" aria-label="Assign Rider"><Bike className="h-4 w-4" /></button>
-          )}
-          {r.status === 'rider_scheduled' && (
-            <button
-              onClick={() => { setRefundingReturn(r); setResalable(true); }}
-              className="p-1.5 hover:bg-green-50 text-green-700 transition-colors" aria-label="Refund"><DollarSign className="h-4 w-4" /></button>
           )}
         </div>
       ),
@@ -84,7 +76,7 @@ export default function AdminReturns() {
     <div className="space-y-6">
       <div>
         <h2 className="font-serif text-2xl sm:text-3xl font-light">Returns</h2>
-        <p className="text-sm text-gray-500 mt-1">{filtered.length} return requests</p>
+        <p className="text-sm text-gray-500 mt-1">{filtered.length} return requests · Moderator view (no refund processing)</p>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -156,7 +148,7 @@ export default function AdminReturns() {
               <button
                 onClick={() => {
                   if (!dashboardUser || !rejecting) return;
-                  reject(rejecting.id, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' }, rejectReason || 'No reason provided');
+                  reject(rejecting.id, { id: dashboardUser.id, name: dashboardUser.name, role: 'moderator' }, rejectReason || 'No reason provided');
                   showToast('Return rejected', 'success');
                   setRejecting(null);
                   setRejectReason('');
@@ -190,54 +182,13 @@ export default function AdminReturns() {
                   if (!dashboardUser || !assignReturn) return;
                   const r = riders.find((x) => x.id === riderId);
                   if (!r) return;
-                  assignRider(assignReturn.id, r.id, r.name, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' });
+                  assignRider(assignReturn.id, r.id, r.name, { id: dashboardUser.id, name: dashboardUser.name, role: 'moderator' });
                   showToast(`Rider ${r.name} assigned`, 'success');
                   setAssignReturn(null);
                 }}
                 disabled={!riderId}
                 className="px-4 py-2 text-[10px] uppercase tracking-[0.15em] bg-black text-white hover:bg-gray-900 disabled:opacity-50"
               >Assign</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {refundingReturn && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setRefundingReturn(null)}>
-          <div className="bg-white max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-serif text-xl font-light mb-1">Process Refund</h3>
-            <p className="text-sm text-gray-500 mb-4">Confirm refund details and stock restoration.</p>
-            
-            <label className="flex items-center gap-3 p-3 border border-gray-200 hover:border-black cursor-pointer mb-4">
-              <input
-                type="checkbox"
-                checked={resalable}
-                onChange={(e) => setResalable(e.target.checked)}
-                className="w-5 h-5 accent-black"
-              />
-              <div>
-                <p className="text-sm font-medium">Items are resalable</p>
-                <p className="text-xs text-gray-500">Check this to restore items to inventory</p>
-              </div>
-            </label>
-
-            {!resalable && (
-              <div className="bg-amber-50 border border-amber-200 p-3 mb-4 text-sm text-amber-800">
-                Items will be marked as damaged/unsalable and NOT added back to stock.
-              </div>
-            )}
-            
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setRefundingReturn(null)} className="px-4 py-2 text-[10px] uppercase tracking-[0.15em] border border-gray-300 hover:border-black">Cancel</button>
-              <button
-                onClick={async () => {
-                  if (!dashboardUser || !refundingReturn) return;
-                  await processRefund(refundingReturn.id, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' }, resalable);
-                  showToast(`Refund processed${resalable ? ' (stock restored)' : ' (items written off)'}`, 'success');
-                  setRefundingReturn(null);
-                }}
-                className="px-4 py-2 text-[10px] uppercase tracking-[0.15em] bg-green-600 text-white hover:bg-green-700"
-              >Process Refund</button>
             </div>
           </div>
         </div>

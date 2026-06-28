@@ -12,7 +12,7 @@ interface ReturnState {
   approve: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
   reject: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }, reason: string) => void;
   assignRider: (id: string, riderId: string, riderName: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
-  processRefund: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
+  processRefund: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }, resalable?: boolean) => Promise<void>;
   setStatus: (id: string, status: ReturnStatus, note?: string) => void;
   getById: (id: string) => ReturnRequest | undefined;
 }
@@ -89,18 +89,48 @@ export const useReturnStore = create<ReturnState>()(
           changes: { before, after: { riderId, status: 'rider_scheduled' } },
         });
       },
-      processRefund: (id, actor) => {
+      processRefund: async (id, actor, resalable = true) => {
         const ret = get().returns.find((r) => r.id === id);
         if (!ret) return;
         const before = { status: ret.status };
+        
+        // STOCK RESTORATION: If items are resalable, add them back to stock
+        if (resalable && ret.items && ret.items.length > 0) {
+          const { useProductStore } = await import('@/stores/useProductStore');
+          const productStore = useProductStore.getState();
+          
+          ret.items.forEach((item: any) => {
+            const product = productStore.products.find((p) => p.id === item.productId);
+            if (product) {
+              const newStock = product.stock + (item.quantity || 1);
+              const updatedProducts = productStore.products.map((p) =>
+                p.id === item.productId ? { ...p, stock: newStock } : p
+              );
+              useProductStore.setState({ products: updatedProducts });
+              
+              // Audit log for stock restoration
+              logAuditAction({
+                userId: actor.id, userName: actor.name, userRole: actor.role,
+                action: 'update', entityType: 'product', entityId: String(item.productId), 
+                entityLabel: `Product: ${item.name || product.name}`,
+                summary: `Stock restored: ${product.stock} → ${newStock} (Return ${id} - resalable)`,
+                changes: { 
+                  before: { stock: product.stock }, 
+                  after: { stock: newStock } 
+                },
+              });
+            }
+          });
+        }
+        
         set({
-          returns: get().returns.map((r) => (r.id === id ? { ...r, status: 'completed', adminNote: 'Refund issued' } : r)),
+          returns: get().returns.map((r) => (r.id === id ? { ...r, status: 'completed', adminNote: `Refund issued${resalable ? ' (items resalable)' : ' (items damaged)'}` } : r)),
         });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
           action: 'status_change', entityType: 'return', entityId: id, entityLabel: `Return ${id}`,
-          summary: 'Processed refund and marked complete',
-          changes: { before, after: { status: 'completed' } },
+          summary: `Processed refund and marked complete${resalable ? ' (stock restored)' : ' (no stock restoration)'}`,
+          changes: { before, after: { status: 'completed', resalable } },
         });
       },
       setStatus: (id, status, note) => {

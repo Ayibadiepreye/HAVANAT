@@ -307,6 +307,12 @@ export default function MembershipPanel() {
         <p className="text-[10px] text-gray-400 mt-3">
           Subscription prices come from your account&apos;s membership tier settings and are managed by your admin. Downgrades take effect at the end of the current period. Auto-revert to Standard if you don&apos;t renew.
         </p>
+        <div className="bg-blue-50 border border-blue-200 p-4 mt-4 text-sm text-gray-700">
+          <p className="font-medium mb-1">How Multi-Month Subscriptions Work</p>
+          <p className="text-xs">
+            Subscriptions are billed monthly (30 days per payment). Each time you pay, your membership extends by another month from your current expiration date. Pay consecutively to maintain continuous access with no gaps.
+          </p>
+        </div>
       </div>
 
       {!paidTier && (

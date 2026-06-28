@@ -45,6 +45,7 @@ export function ModeratorLayout({ children }: { children: React.ReactNode }) {
     { label: 'Content', href: '/moderator', icon: FileText },
     { label: 'Products', href: '/moderator/products', icon: Eye },
     { label: 'Orders', href: '/moderator/orders', icon: Eye },
+    { label: 'Returns', href: '/moderator/returns', icon: RotateCcw },
     { label: 'Reviews', href: '/moderator/reviews', icon: Star },
   ];
 

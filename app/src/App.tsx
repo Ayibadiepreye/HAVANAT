@@ -56,6 +56,7 @@ import AdminReviews from '@/pages/admin/AdminReviews';
 import ModeratorContent from '@/pages/moderator/ModeratorContent';
 import ModeratorProducts from '@/pages/moderator/ModeratorProducts';
 import ModeratorOrders from '@/pages/moderator/ModeratorOrders';
+import ModeratorReturns from '@/pages/moderator/ModeratorReturns';
 import ModeratorReviews from '@/pages/moderator/ModeratorReviews';
 
 import RiderLayout from '@/pages/rider/RiderLayout';
@@ -63,7 +64,6 @@ import RiderDashboard from '@/pages/rider/RiderDashboard';
 import RiderDeliveries from '@/pages/rider/RiderDeliveries';
 import RiderDeliveryDetails from '@/pages/rider/RiderDeliveryDetails';
 import RiderPickups from '@/pages/rider/RiderPickups';
-import RiderEarnings from '@/pages/rider/RiderEarnings';
 import RiderProfile from '@/pages/rider/RiderProfile';
 
 import RoleGuard from '@/components/auth/RoleGuard';
@@ -104,6 +104,7 @@ export default function App() {
         <Route path="/moderator" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorContent /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/products" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorProducts /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/orders" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorOrders /></ModeratorLayout></RoleGuard>} />
+        <Route path="/moderator/returns" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReturns /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/reviews" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReviews /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/broadcast" element={<RoleGuard roles={['moderator']}><AdminLayout><AdminBroadcast /></AdminLayout></RoleGuard>} />
 
@@ -112,7 +113,6 @@ export default function App() {
         <Route path="/rider/deliveries" element={<RoleGuard roles={['rider']}><RiderLayout><RiderDeliveries /></RiderLayout></RoleGuard>} />
         <Route path="/rider/deliveries/:id" element={<RoleGuard roles={['rider']}><RiderLayout><RiderDeliveryDetails /></RiderLayout></RoleGuard>} />
         <Route path="/rider/pickups" element={<RoleGuard roles={['rider']}><RiderLayout><RiderPickups /></RiderLayout></RoleGuard>} />
-        <Route path="/rider/earnings" element={<RoleGuard roles={['rider']}><RiderLayout><RiderEarnings /></RiderLayout></RoleGuard>} />
         <Route path="/rider/profile" element={<RoleGuard roles={['rider']}><RiderLayout><RiderProfile /></RiderLayout></RoleGuard>} />
       </Routes>
     </div>
