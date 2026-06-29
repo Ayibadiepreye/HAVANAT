@@ -8,6 +8,7 @@ import { useUIStore } from '@/stores/useUIStore';
 import { useNavigate } from 'react-router-dom';
 import { apiPost } from '@/lib/api';
 import { useTierStore } from '@/stores/useTierStore';
+import { useEffect } from 'react';
 
 const FAQS = [
   { q: 'Can I change or cancel my membership?', a: 'Yes, you can upgrade, downgrade, or cancel your membership at any time from your account dashboard. Changes take effect at the start of your next billing cycle.' },
@@ -19,6 +20,13 @@ const FAQS = [
 
 export default function MembershipPage() {
   const liveTiers = useTierStore((s) => s.tiers);
+  const fetchTiers = useTierStore((s) => s.fetch);
+  
+  // Fetch tiers on mount
+  useEffect(() => {
+    void fetchTiers();
+  }, [fetchTiers]);
+  
   const tiers = (liveTiers.length > 0 ? liveTiers : MEMBERSHIP_TIERS).map((t) => ({
     tier: t.tier,
     displayName: t.displayName,

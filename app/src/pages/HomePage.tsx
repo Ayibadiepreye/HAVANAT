@@ -240,6 +240,13 @@ function MembershipTeaser() {
   // Pull live tier data from /api/memberships/tiers so admin edits propagate
   // here without code changes. Falls back to the static config while loading.
   const liveTiers = useTierStore((s) => s.tiers);
+  const fetchTiers = useTierStore((s) => s.fetch);
+  
+  // Fetch tiers on mount
+  useEffect(() => {
+    void fetchTiers();
+  }, [fetchTiers]);
+  
   const tiers = (liveTiers.length > 0 ? liveTiers : MEMBERSHIP_TIERS).map((t) => ({
     tier: t.tier,
     displayName: t.displayName,

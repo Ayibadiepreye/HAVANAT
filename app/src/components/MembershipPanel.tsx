@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiPost } from '@/lib/api';
 import { Crown, Calendar, Check, AlertCircle } from 'lucide-react';
@@ -18,6 +18,13 @@ export default function MembershipPanel() {
 
   // Live tier data from /api/memberships/tiers — replaces hardcoded TIER_PRICING.
   const liveTiers = useTierStore((s) => s.tiers);
+  const fetchTiers = useTierStore((s) => s.fetch);
+  
+  // Fetch tiers on mount
+  useEffect(() => {
+    void fetchTiers();
+  }, [fetchTiers]);
+  
   const tierPriceFor = (tier: 'standard' | 'deluxe' | 'elite') => {
     const live = liveTiers.find((t) => t.tier.toLowerCase() === tier);
     if (live) return { monthly: live.price, label: live.displayName };
