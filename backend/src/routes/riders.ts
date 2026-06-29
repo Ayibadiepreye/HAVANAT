@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
-import { users, riderProfiles, deliveries, payouts, orders } from '../db/schema.js';
+import { users, riderProfiles, deliveries, payouts, orders, notifications } from '../db/schema.js';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { CreateRiderSchema } from '../lib/validators.js';
@@ -137,23 +137,84 @@ ridersRouter.patch('/:id/profile', requireAuth, requireRole('rider', 'admin', 'm
 ridersRouter.patch('/me/deliveries/:id/status', requireAuth, requireRole('rider'), async (req, res) => {
   const deliveryId = Number(req.params.id);
   const riderId = Number(req.user!.sub);
-  const { status } = (req.body ?? {}) as { status?: string };
+  const { status, proofPhotoUrl, proofSignatureUrl } = (req.body ?? {}) as { status?: string; proofPhotoUrl?: string; proofSignatureUrl?: string };
   if (!Number.isInteger(deliveryId) || deliveryId <= 0) return res.status(400).json({ error: 'Invalid delivery id' });
-  const allowed = ['pending', 'picked_up', 'in_transit', 'delivered', 'failed'];
+  const allowed = ['assigned', 'picked_up', 'in_transit', 'delivered', 'failed'];
   if (!status || !allowed.includes(status)) return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
   // Only update if this delivery belongs to the caller.
   const [before] = await db.select().from(deliveries).where(eq(deliveries.id, deliveryId));
   if (!before) return res.status(404).json({ error: 'Delivery not found' });
   if (before.riderId !== riderId) return res.status(403).json({ error: 'Not your delivery' });
+  
   const [after] = await db.update(deliveries)
     .set({
       status: status as typeof deliveries.$inferInsert.status,
       pickedUpAt: status === 'picked_up' ? new Date() : before.pickedUpAt,
       completedAt: status === 'delivered' ? new Date() : before.completedAt,
+      proofPhotoUrl: proofPhotoUrl ?? before.proofPhotoUrl,
+      proofSignatureUrl: proofSignatureUrl ?? before.proofSignatureUrl,
     })
     .where(eq(deliveries.id, deliveryId))
     .returning();
   if (!after) return res.status(500).json({ error: 'Failed to update' });
+  
+  // Also update the corresponding order status
+  const [order] = await db.select().from(orders).where(eq(orders.id, before.orderId));
+  if (order) {
+    let orderStatus: typeof order.status = order.status;
+    let statusNote = '';
+    
+    if (status === 'picked_up') {
+      orderStatus = 'processing';
+      statusNote = 'Rider picked up from warehouse';
+    } else if (status === 'in_transit') {
+      orderStatus = 'in_transit';
+      statusNote = 'Rider on the way';
+    } else if (status === 'delivered') {
+      orderStatus = 'delivered';
+      statusNote = 'Delivery completed';
+    }
+    
+    if (orderStatus !== order.status) {
+      const newTracking = [...(order.tracking || []), {
+        status: orderStatus,
+        timestamp: new Date().toISOString(),
+        note: statusNote,
+      }];
+      
+      await db.update(orders).set({
+        status: orderStatus,
+        tracking: newTracking,
+        updatedAt: new Date(),
+      }).where(eq(orders.id, order.id));
+      
+      // Send notification to customer
+      await db.insert(notifications).values({
+        category: 'order',
+        title: `Order ${orderStatus}`,
+        body: `Your order ${order.orderNumber} is now ${orderStatus}. ${statusNote}`,
+        targetUserId: order.userId,
+        scope: 'user',
+      });
+      
+      // Send email update
+      const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
+      const otpFromTracking = Array.isArray(newTracking) ? newTracking.find((t: any) => t.otp)?.otp : null;
+      
+      const { sendEmailSafe, orderStatusEmail } = await import('../lib/email.js');
+      await sendEmailSafe({
+        to: order.customerEmail,
+        subject: `Order ${order.orderNumber} — ${orderStatus}`,
+        html: orderStatusEmail({
+          reference: order.orderNumber,
+          status: orderStatus,
+          trackingUrl: `${frontendUrl}/account/orders/${order.id}`,
+          otp: otpFromTracking,
+        }),
+      });
+    }
+  }
+  
   await logAction({
     req, user: req.user!,
     action: 'update', entityType: 'delivery', entityId: String(deliveryId),

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { Rider, RiderStatus, Delivery, DeliveryStatus } from '@/types/dashboard';
 import type { ProofOfDelivery } from '@/types/dashboard';
 import { logAuditAction } from '@/utils/auditLogger';
-import { apiConfig, apiGet } from '@/lib/api';
+import { apiConfig, apiGet, apiPatch } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 interface RiderState {
@@ -125,7 +125,8 @@ export const useRiderStore = create<RiderState>()(
           changes: { before: { name: rider.name }, after: null },
         });
       },
-      updateDeliveryStatus: (deliveryId, status, proof) => {
+      updateDeliveryStatus: async (deliveryId, status, proof) => {
+        // Optimistically update UI
         set({
           deliveries: get().deliveries.map((d) =>
             d.id === deliveryId
@@ -138,6 +139,21 @@ export const useRiderStore = create<RiderState>()(
               : d
           ),
         });
+        
+        // Call backend to persist
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPatch(`/api/riders/me/deliveries/${deliveryId}/status`, {
+              status,
+              proofPhotoUrl: proof?.photoUrl,
+              proofSignatureUrl: proof?.signatureDataUrl,
+            }, true);
+            // Refetch to ensure sync
+            await get().fetchMyDeliveries();
+          } catch (err) {
+            console.error('updateDeliveryStatus backend failed', err);
+          }
+        }
       },
       setDeliveryProof: (deliveryId, proof) => {
         set({
