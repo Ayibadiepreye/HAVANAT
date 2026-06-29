@@ -118,13 +118,9 @@ export interface Rider {
   idVerified: boolean;
   rating: number;
   totalDeliveries: number;
-  totalEarnings: number;
+  pendingDeliveries: number;
+  deliveredDeliveries: number;
   joinedAt: string;
-  bank: {
-    bankName: string;
-    accountNumber: string;
-    accountName: string;
-  };
 }
 
 export type DeliveryStatus =

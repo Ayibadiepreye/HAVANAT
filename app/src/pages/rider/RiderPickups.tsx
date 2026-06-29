@@ -20,7 +20,14 @@ export default function RiderPickups() {
     () => deliveries.filter((d) => d.status === 'pending' || d.status === 'picked_up'),
     [deliveries]
   );
-  useEffect(() => { void deliveriesState.refresh(); }, []);
+  // Auto-refresh every 10 seconds
+  useEffect(() => { 
+    void deliveriesState.refresh();
+    const interval = setInterval(() => {
+      void deliveriesState.refresh();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [deliveriesState]);
 
   // Mark picked up / delivered — PATCH the actual delivery row, then refetch.
   async function markStatus(deliveryId: number, status: 'picked_up' | 'delivered') {

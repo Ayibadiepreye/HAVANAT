@@ -11,10 +11,14 @@ export default function RiderProfile() {
   const rider = me.data;
   const profile = rider?.profile;
 
-  // Fetch fresh data on mount to ensure live updates
+  // Fetch fresh data on mount and auto-refresh every 30 seconds
   useEffect(() => {
     void me.refresh();
-  }, []);
+    const interval = setInterval(() => {
+      void me.refresh();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [me]);
 
   const [form, setForm] = useState({
     name: '',
@@ -22,9 +26,6 @@ export default function RiderProfile() {
     phone: '',
     address: '',
     plateNumber: '',
-    bankName: '',
-    accountNumber: '',
-    accountName: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -49,9 +50,6 @@ export default function RiderProfile() {
         phone: rider.phone ?? '',
         address: profile?.address ?? '',
         plateNumber: profile?.plateNumber ?? '',
-        bankName: profile?.bankName ?? '',
-        accountNumber: profile?.accountNumber ?? '',
-        accountName: profile?.accountName ?? '',
       });
     }
   }, [rider?.id, profile?.userId]);
@@ -93,9 +91,6 @@ export default function RiderProfile() {
       await apiPatch(`/api/riders/${rider.id}/profile`, {
         address: form.address,
         plateNumber: form.plateNumber,
-        bankName: form.bankName,
-        accountNumber: form.accountNumber,
-        accountName: form.accountName,
       }, true);
       showToast('Profile updated', 'success');
       await me.refresh();
@@ -163,9 +158,6 @@ export default function RiderProfile() {
           <Field label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
           <Field label="Vehicle Plate" value={form.plateNumber} onChange={(v) => setForm({ ...form, plateNumber: v })} />
           <Field label="Address" value={form.address} onChange={(v) => setForm({ ...form, address: v })} fullWidth />
-          <Field label="Bank Name" value={form.bankName} onChange={(v) => setForm({ ...form, bankName: v })} />
-          <Field label="Account Number" value={form.accountNumber} onChange={(v) => setForm({ ...form, accountNumber: v })} />
-          <Field label="Account Name" value={form.accountName} onChange={(v) => setForm({ ...form, accountName: v })} fullWidth />
         </div>
 
         <div className="mt-6 flex justify-end">
@@ -183,11 +175,10 @@ export default function RiderProfile() {
       {profile && (
         <div className="bg-white border border-gray-200 p-6">
           <h3 className="font-medium mb-3">KYC Status</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
             <KycRow label="ID Verified" ok={profile.idVerified} />
             <KycRow label="Vehicle" ok={!!profile.vehicleType} />
             <KycRow label="Address" ok={!!profile.address} />
-            <KycRow label="Bank Details" ok={!!profile.accountNumber} />
           </div>
         </div>
       )}

@@ -26,8 +26,14 @@ export default function RiderDeliveries() {
     () => [...deliveries].sort((a: any, b: any) => (a.assignedAt ?? '').localeCompare(b.assignedAt ?? '')),
     [deliveries]
   );
-  // Re-fetch on mount (the hook already does this, but be explicit for clarity).
-  useEffect(() => { void deliveriesState.refresh(); }, []);
+  // Re-fetch on mount and auto-refresh every 10 seconds
+  useEffect(() => { 
+    void deliveriesState.refresh();
+    const interval = setInterval(() => {
+      void deliveriesState.refresh();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [deliveriesState]);
   const filtered = useMemo(
     () => tab === 'all' ? myDeliveries : myDeliveries.filter((d) => d.status === tab),
     [myDeliveries, tab]

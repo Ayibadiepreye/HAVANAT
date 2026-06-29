@@ -6,7 +6,7 @@ import { useRiderMe, useRiderDeliveries } from '@/hooks/useRiderMe';
 import StatsCard from '@/components/admin/StatsCard';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { Power, Clock, ArrowRight, Package } from 'lucide-react';
-import { formatTime, formatNaira } from '@/utils/formatters';
+import { formatTime } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 
 function todayISO(): string {
@@ -24,6 +24,15 @@ export default function RiderDashboard() {
   const me = useRiderMe();
   const deliveriesState = useRiderDeliveries();
   const deliveries = (deliveriesState.data?.items ?? []) as any[];
+
+  // Auto-refresh every 10 seconds for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void me.refresh();
+      void deliveriesState.refresh();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [me, deliveriesState]);
 
   // Mirror deliveries into the store so legacy code (RiderDeliveries etc.) still works.
   useEffect(() => {
@@ -71,9 +80,13 @@ export default function RiderDashboard() {
     () => myDeliveries.filter((d: any) => d.status === 'assigned' || d.status === 'picked_up' || d.status === 'in_transit').length,
     [myDeliveries]
   );
-  const todayEarnings = useMemo(
-    () => today.filter((d: any) => d.status === 'delivered').reduce((sum: number, d: any) => sum + (Number(d.deliveryFee) || 0), 0),
-    [today]
+  const delivered = useMemo(
+    () => myDeliveries.filter((d: any) => d.status === 'delivered').length,
+    [myDeliveries]
+  );
+  const totalDeliveries = useMemo(
+    () => myDeliveries.length,
+    [myDeliveries]
   );
   const sortedToday = useMemo(
     () => [...today].sort((a: any, b: any) => a.assignedAt.localeCompare(b.assignedAt)),
@@ -149,9 +162,9 @@ export default function RiderDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatsCard label="Today's Deliveries" value={String(today.length)} sublabel={`${pending} pending`} />
-        <StatsCard label="Today's Earnings" value={formatNaira(todayEarnings)} sublabel={profile.status === 'active' ? 'Active' : profile.status} />
-        <StatsCard label="Lifetime Earnings" value={formatNaira(0)} sublabel="From payouts" />
+        <StatsCard label="Total Deliveries" value={String(totalDeliveries)} sublabel={`${delivered} delivered`} />
+        <StatsCard label="Pending" value={String(pending)} sublabel="In progress" />
+        <StatsCard label="Today's Tasks" value={String(today.length)} sublabel={`${todayKey}`} />
       </div>
 
       <div className="bg-white border border-gray-200">

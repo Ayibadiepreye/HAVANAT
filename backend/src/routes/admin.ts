@@ -227,7 +227,7 @@ adminRouter.get('/customers', requireAuth, requireRole('admin', 'moderator'), as
   }
 });
 
-// GET /api/admin/riders — every rider user joined with their rider profile.
+// GET /api/admin/riders — every rider user joined with their rider profile + delivery counts.
 adminRouter.get('/riders', requireAuth, requireRole('admin', 'moderator'), async (_req, res) => {
   try {
     const rows = await db.execute<{
@@ -236,10 +236,16 @@ adminRouter.get('/riders', requireAuth, requireRole('admin', 'moderator'), async
       id_verified: boolean; address: string | null;
       bank_name: string | null; account_number: string | null; account_name: string | null;
       created_at: string;
+      total_deliveries: string;
+      pending_deliveries: string;
+      delivered_deliveries: string;
     }>(sql`
       SELECT u.id, u.name, u.email, u.phone, u.created_at,
              rp.vehicle_type, rp.plate_number, rp.status, rp.id_verified, rp.address,
-             rp.bank_name, rp.account_number, rp.account_name
+             rp.bank_name, rp.account_number, rp.account_name,
+             COALESCE((SELECT COUNT(*)::text FROM deliveries WHERE rider_id = u.id), '0') AS total_deliveries,
+             COALESCE((SELECT COUNT(*)::text FROM deliveries WHERE rider_id = u.id AND status IN ('pending', 'assigned', 'picked_up', 'in_transit')), '0') AS pending_deliveries,
+             COALESCE((SELECT COUNT(*)::text FROM deliveries WHERE rider_id = u.id AND status = 'delivered'), '0') AS delivered_deliveries
       FROM users u
       LEFT JOIN rider_profiles rp ON rp.user_id = u.id
       WHERE u.role = 'rider'
@@ -259,6 +265,9 @@ adminRouter.get('/riders', requireAuth, requireRole('admin', 'moderator'), async
       accountNumber: r.account_number ?? '',
       accountName: r.account_name ?? '',
       joinedAt: r.created_at,
+      totalDeliveries: Number(r.total_deliveries) || 0,
+      pendingDeliveries: Number(r.pending_deliveries) || 0,
+      deliveredDeliveries: Number(r.delivered_deliveries) || 0,
     }));
     res.json({ items });
   } catch (err: any) {

@@ -5,14 +5,22 @@ import { useUIStore } from '@/stores/useUIStore';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { Plus, X, Star, Eye, Mail } from 'lucide-react';
-import { formatNaira } from '@/utils/formatters';
 import type { Rider } from '@/types/dashboard';
 
 export default function AdminRiders() {
   const riders = useRiderStore((s) => s.riders);
   const setStatus = useRiderStore((s) => s.setStatus);
   const fetchRiders = useRiderStore((s) => s.fetchRiders);
-  useEffect(() => { void fetchRiders(); }, [fetchRiders]);
+  
+  // Auto-refresh every 10 seconds for real-time updates
+  useEffect(() => {
+    void fetchRiders();
+    const interval = setInterval(() => {
+      void fetchRiders();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [fetchRiders]);
+  
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
   const [details, setDetails] = useState<Rider | null>(null);
@@ -23,8 +31,7 @@ export default function AdminRiders() {
     { key: 'phone', label: 'Phone', render: (r) => <span className="text-xs">{r.phone}</span> },
     { key: 'vehicle', label: 'Vehicle', render: (r) => <span className="text-xs">{r.vehicleType} · {r.plateNumber}</span> },
     { key: 'rating', label: 'Rating', render: (r) => <span className="flex items-center gap-1 text-xs"><Star className="h-3 w-3 fill-current" /> {r.rating}</span> },
-    { key: 'deliveries', label: 'Deliveries', render: (r) => r.totalDeliveries, align: 'right' },
-    { key: 'earnings', label: 'Earnings', render: (r) => formatNaira(r.totalEarnings), align: 'right' },
+    { key: 'deliveries', label: 'Deliveries', render: (r) => <div className="text-right"><div className="font-medium">{r.totalDeliveries || 0}</div><div className="text-[10px] text-gray-500">{r.pendingDeliveries || 0} pending · {r.deliveredDeliveries || 0} done</div></div>, align: 'right' },
     { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} type="rider" /> },
     {
       key: 'actions', label: '', align: 'right', width: '160px',
@@ -82,12 +89,9 @@ export default function AdminRiders() {
                 <Field label="Vehicle" value={`${details.vehicleType} (${details.plateNumber})`} />
                 <Field label="Rating" value={`${details.rating} ★`} />
                 <Field label="Status" value={<StatusBadge status={details.status} type="rider" />} />
-                <Field label="Total Deliveries" value={details.totalDeliveries} />
-                <Field label="Total Earnings" value={formatNaira(details.totalEarnings)} />
-              </div>
-              <div className="bg-gray-50 p-3 text-sm">
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1 font-semibold">Bank Details</p>
-                <p>{details.bank.bankName} · {details.bank.accountNumber} · {details.bank.accountName}</p>
+                <Field label="Total Deliveries" value={details.totalDeliveries || 0} />
+                <Field label="Pending Deliveries" value={details.pendingDeliveries || 0} />
+                <Field label="Delivered" value={details.deliveredDeliveries || 0} />
               </div>
             </div>
           </div>
@@ -109,12 +113,11 @@ export default function AdminRiders() {
   );
 }
 
-function AddRiderModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (rider: Omit<Rider, 'id' | 'rating' | 'totalDeliveries' | 'totalEarnings' | 'joinedAt'>) => void }) {
+function AddRiderModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (rider: Omit<Rider, 'id' | 'rating' | 'totalDeliveries' | 'pendingDeliveries' | 'deliveredDeliveries' | 'joinedAt'>) => void }) {
   const [form, setForm] = useState({
     name: '', email: '', phone: '', address: '',
     vehicleType: 'Bike' as Rider['vehicleType'], plateNumber: '',
     status: 'pending' as Rider['status'], idVerified: false,
-    bank: { bankName: '', accountNumber: '', accountName: '' },
   });
 
   const isValid = form.name && form.phone && form.email && form.vehicleType && form.plateNumber;
@@ -141,14 +144,7 @@ function AddRiderModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (
             <Field1 label="Plate Number" value={form.plateNumber} onChange={(v) => setForm({ ...form, plateNumber: v })} />
           </div>
 
-          <div className="border-t border-gray-200 pt-4">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-3 font-medium">Bank Details</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Field1 label="Bank Name" value={form.bank.bankName} onChange={(v) => setForm({ ...form, bank: { ...form.bank, bankName: v } })} />
-              <Field1 label="Account Number" value={form.bank.accountNumber} onChange={(v) => setForm({ ...form, bank: { ...form.bank, accountNumber: v } })} />
-              <Field1 label="Account Name" value={form.bank.accountName} onChange={(v) => setForm({ ...form, bank: { ...form.bank, accountName: v } })} />
-            </div>
-          </div>
+
 
           <div>
             <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">ID Verification</label>
