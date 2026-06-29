@@ -84,7 +84,7 @@ function TierCard({ tier, onSave }: { tier: MembershipTier; onSave: (t: Membersh
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Crown className="h-4 w-4" />
-          <h3 className="font-serif text-2xl font-light">{tier.tier}</h3>
+          <h3 className="font-serif text-2xl font-light">{tier.displayName || tier.tier}</h3>
         </div>
         {isPopular && <span className="text-[9px] uppercase tracking-widest bg-black text-white px-2 py-0.5">Popular</span>}
       </div>

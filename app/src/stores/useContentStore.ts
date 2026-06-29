@@ -69,7 +69,12 @@ export const useContentStore = create<ContentState>()(
             apiGet<any>('/api/content/branding', true).catch(() => null),
           ]);
           set((s) => ({
-            ...(homepage ? { homepage: homepage.items ?? homepage ?? s.homepage } : {}),
+            ...(homepage ? { 
+              homepage: {
+                ...(homepage.items ?? homepage ?? s.homepage),
+                featuredCollectionIds: (homepage.items ?? homepage)?.featuredCollectionIds || [],
+              }
+            } : {}),
             ...(lookbook ? { lookbook: lookbook.items ?? lookbook ?? s.lookbook } : {}),
             ...(testimonials ? { testimonials: testimonials.items ?? testimonials ?? s.testimonials } : {}),
             ...(banners ? { banners: banners.items ?? banners ?? s.banners } : {}),

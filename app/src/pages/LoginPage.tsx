@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { ROLE_HOME } from '@/utils/permissions';
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     document.title = 'Sign in · Havanat';
@@ -147,14 +149,24 @@ export default function LoginPage() {
           )}
           <div>
             <label className="block text-[10px] tracking-[0.25em] text-gray-500 mb-2 uppercase font-semibold">Password</label>
-            <input
-              type="password"
-              required
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className={inputClass}
-              placeholder={mode === 'signup' ? 'Create a password' : 'Enter your password'}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className={inputClass}
+                placeholder={mode === 'signup' ? 'Create a password' : 'Enter your password'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
           <button
             type="submit"

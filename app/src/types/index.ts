@@ -79,6 +79,7 @@ export interface Address {
 
 export interface MembershipTier {
   tier: string;
+  displayName?: string;
   price: number;
   billing: string;
   description: string;

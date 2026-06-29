@@ -10,7 +10,10 @@ export default function HomepageEditor() {
   const saveHomepage = useContentStore((s) => s.saveHomepage);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
-  const [form, setForm] = useState(homepage);
+  const [form, setForm] = useState({
+    ...homepage,
+    featuredCollectionIds: homepage.featuredCollectionIds || [],
+  });
 
   return (
     <div className="bg-white border border-gray-200 p-6 max-w-3xl space-y-5">

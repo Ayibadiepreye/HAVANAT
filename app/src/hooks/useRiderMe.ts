@@ -104,7 +104,7 @@ function useAuthedEndpoint<T>(path: string): AsyncState<T> {
     }
   }, [path]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void refresh(); }, [path]);
 
   return { data, loading, error, refresh };
 }
