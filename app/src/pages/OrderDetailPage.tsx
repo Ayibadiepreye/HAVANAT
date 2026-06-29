@@ -13,6 +13,7 @@ import {
   PackageCheck,
 } from 'lucide-react';
 import { useOrderStore } from '@/stores/useOrderStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useUIStore } from '@/stores/useUIStore';
@@ -55,10 +56,15 @@ export default function OrderDetailPage() {
   const showToast = useUIStore((s) => s.showToast);
   const orders = useOrderStore((s) => s.orders);
   const fetchOrders = useOrderStore((s) => s.fetchOrders);
+  const fetchNotifications = useNotificationStore((s) => s.fetchNotifications);
+  
   // Ensure we have the order — fetch if not present locally.
   useEffect(() => {
-    if (!orders.find((o) => o.id === id)) void fetchOrders();
-  }, [id, orders, fetchOrders]);
+    if (!orders.find((o) => o.id === id)) {
+      void fetchOrders();
+      void fetchNotifications(); // Also fetch notifications to show any new updates
+    }
+  }, [id, orders, fetchOrders, fetchNotifications]);
 
   // When user returns from Paystack (callback: ?paid=1&reference=ORD-...),
   // call /api/payments/verify to flip paidAt + status on the backend.
@@ -320,13 +326,15 @@ export default function OrderDetailPage() {
             </section>
 
             {/* Customer-facing delivery OTP */}
-            {order.deliveryOtp && (order.status === 'processing' || order.status === 'in_transit') && (
+            {order.deliveryOtp && (order.status === 'processing' || order.status === 'in_transit' || order.status === 'delivered') && (
               <section className="bg-white border border-black p-6">
                 <p className="text-[10px] uppercase tracking-[0.25em] text-gray-500 mb-1">
-                  {order.status === 'in_transit' ? 'Delivery Verification Code' : 'Delivery Code'}
+                  {order.status === 'delivered' ? 'Delivery Verification Code (Completed)' : order.status === 'in_transit' ? 'Delivery Verification Code' : 'Delivery Code'}
                 </p>
                 <p className="text-sm text-gray-700 mb-3">
-                  {order.status === 'in_transit' 
+                  {order.status === 'delivered'
+                    ? "This was the code used to verify your delivery."
+                    : order.status === 'in_transit' 
                     ? "Show this 4-digit code to the rider when they arrive to verify delivery."
                     : "Your rider will ask for this 4-digit code when they arrive. Keep it handy."}
                 </p>
