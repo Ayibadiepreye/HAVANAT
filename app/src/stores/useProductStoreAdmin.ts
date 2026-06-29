@@ -46,11 +46,15 @@ interface AdminProductState {
  * that we still need to pass through. The backend schema is .partial() so
  * unknown fields are dropped by zod; we'll send what we can.
  */
-function toBackendPayload(p: Partial<Product>, isCreate: boolean) {
+function toBackendPayload(p: Partial<Product>, _isCreate: boolean) {
   const slug =
     p.slug && /^[a-z0-9-]+$/.test(p.slug)
       ? p.slug
       : (p.name ?? 'product').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'product';
+  
+  // Type assertion helper to access any field
+  const pAny = p as any;
+  
   const payload: Record<string, unknown> = {
     name: p.name,
     slug,
@@ -60,30 +64,31 @@ function toBackendPayload(p: Partial<Product>, isCreate: boolean) {
     images: Array.isArray(p.images) && p.images.length > 0
       ? p.images
       : ['https://placehold.co/600x800/EEE/333?text=No+Image'],
-    category: (p.category ?? 'suits'),
-    sizes: p.sizes ?? [],
-    colors: (p as any).colors ?? [],
-    fit: (p as any).fit ?? 'Tailored',
+    category: p.category ?? 'suits',
+    sizes: Array.isArray(p.sizes) ? p.sizes : [],
+    colors: Array.isArray(pAny.colors) ? pAny.colors : [],
+    fit: pAny.fit || 'Tailored',
     inStock: p.inStock !== false,
-    stock: (p as any).stock ?? 0,
+    stock: Number(pAny.stock ?? 0),
     isSneakPeek: !!p.isSneakPeek,
     sneakPeekReleasedAt: p.sneakPeekReleasedAt ?? null,
-    tags: (p as any).tags ?? [],
-    details: (p as any).details ?? '',
-    care: (p as any).care ?? '',
-    sku: (p as any).sku,
-    occasion: (p as any).occasion,
-    deliveryFee: (p as any).deliveryFee,
-    deluxeDiscount: (p as any).deluxeDiscount,
-    eliteDiscount: (p as any).eliteDiscount,
-    lowStockThreshold: (p as any).lowStockThreshold,
-    published: (p as any).published !== false,
+    tags: Array.isArray(pAny.tags) ? pAny.tags : [],
+    details: pAny.details ?? '',
+    care: pAny.care ?? '',
+    sku: pAny.sku,
+    occasion: pAny.occasion,
+    deliveryFee: pAny.deliveryFee != null ? Number(pAny.deliveryFee) : undefined,
+    deluxeDiscount: pAny.deluxeDiscount != null ? Number(pAny.deluxeDiscount) : undefined,
+    eliteDiscount: pAny.eliteDiscount != null ? Number(pAny.eliteDiscount) : undefined,
+    lowStockThreshold: pAny.lowStockThreshold != null ? Number(pAny.lowStockThreshold) : undefined,
+    published: pAny.published !== false,
   };
-  if (!isCreate) {
-    // On update we only send fields that exist on the frontend Product.
-    // Backend's UpdateProductSchema is .partial() so missing fields are fine.
-    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
-  }
+  
+  // Always remove undefined values to let backend use defaults
+  Object.keys(payload).forEach((k) => {
+    if (payload[k] === undefined) delete payload[k];
+  });
+  
   return payload;
 }
 
