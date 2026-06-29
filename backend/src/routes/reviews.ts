@@ -339,7 +339,7 @@ reviewsRouter.get('/reviews/stats/:productId', async (req, res) => {
   const stats = await db
     .select({
       totalReviews: sql<number>`count(*)::int`,
-      averageRating: sql<number>`round(avg(${reviews.rating})::numeric, 1)`,
+      averageRating: sql<number>`COALESCE(round(avg(${reviews.rating})::numeric, 1), 0)`,
       rating5: sql<number>`count(*) filter (where ${reviews.rating} = 5)::int`,
       rating4: sql<number>`count(*) filter (where ${reviews.rating} = 4)::int`,
       rating3: sql<number>`count(*) filter (where ${reviews.rating} = 3)::int`,
