@@ -13,15 +13,16 @@ export const ordersRouter = Router();
 ordersRouter.get('/mine', requireAuth, async (req, res) => {
   const rows = await db.select().from(orders).where(eq(orders.userId, Number(req.user!.sub))).orderBy(desc(orders.createdAt));
   
-  // Fetch order items for each order
-  const ordersWithItems = await Promise.all(
+  // Fetch order items and delivery info for each order
+  const ordersWithItemsAndDelivery = await Promise.all(
     rows.map(async (order) => {
       const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-      return { ...order, items };
+      const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
+      return { ...order, items, deliveryOtp: delivery?.deliveryOtp || null };
     })
   );
   
-  res.json({ items: ordersWithItems });
+  res.json({ items: ordersWithItemsAndDelivery });
 });
 
 // Admin: all orders
@@ -32,15 +33,16 @@ ordersRouter.get('/', requireAuth, requireRole('admin', 'moderator'), async (req
   const where = filters.length > 0 ? filters[0] : undefined;
   const rows = await db.select().from(orders).where(where).orderBy(desc(orders.createdAt)).limit(Number(limit)).offset(Number(offset));
   
-  // Fetch order items for each order
-  const ordersWithItems = await Promise.all(
+  // Fetch order items and delivery info for each order
+  const ordersWithItemsAndDelivery = await Promise.all(
     rows.map(async (order) => {
       const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-      return { ...order, items };
+      const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
+      return { ...order, items, deliveryOtp: delivery?.deliveryOtp || null };
     })
   );
   
-  res.json({ items: ordersWithItems });
+  res.json({ items: ordersWithItemsAndDelivery });
 });
 
 // Public: track order by order number (no auth needed — tracking ID is the secret)
@@ -76,7 +78,11 @@ ordersRouter.get('/:id', requireAuth, async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
-  res.json({ ...order, items });
+  
+  // Get delivery info including OTP if a delivery exists
+  const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, id)).limit(1);
+  
+  res.json({ ...order, items, deliveryOtp: delivery?.deliveryOtp || null });
 });
 
 // Customer: place new order

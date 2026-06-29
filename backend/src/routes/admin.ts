@@ -5,7 +5,7 @@
 
 import { Router } from 'express';
 import { db } from '../db/client.js';
-import { orders, orderItems, riderProfiles, products, users, members, returns, memberships, addresses } from '../db/schema.js';
+import { orders, orderItems, riderProfiles, products, users, members, returns, memberships, addresses, deliveries } from '../db/schema.js';
 import { sql, eq } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
@@ -327,6 +327,7 @@ adminRouter.get('/orders', requireAuth, requireRole('admin', 'moderator'), async
     const itemsWithProducts = await Promise.all(
       (rows.rows as any[]).map(async (o) => {
         const orderItemsRows = await db.select().from(orderItems).where(eq(orderItems.orderId, o.id));
+        const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id)).limit(1);
         return {
           id: String(o.id),
           orderNumber: o.order_number,
@@ -345,6 +346,7 @@ adminRouter.get('/orders', requireAuth, requireRole('admin', 'moderator'), async
           createdAt: o.created_at,
           updatedAt: o.updated_at,
           items: orderItemsRows,
+          deliveryOtp: delivery?.deliveryOtp || null,
         };
       })
     );

@@ -52,9 +52,8 @@ function mapBackendOrder(o: any, items: any[] = []): DashboardOrder {
     ? o.tracking.map((t: any) => ({ status: t.status as OrderStatus, timestamp: t.timestamp, note: t.note }))
     : [];
   
-  // Extract OTP from tracking (stored when rider is assigned)
-  const otpEntry = Array.isArray(o.tracking) ? o.tracking.find((t: any) => t.otp) : null;
-  const deliveryOtp = otpEntry?.otp || null;
+  // OTP comes directly from backend as deliveryOtp field (fetched from deliveries table)
+  const deliveryOtp = o.deliveryOtp || null;
   
   const orderItems: OrderItem[] = items.map((it) => ({
     productId: it.productId,
