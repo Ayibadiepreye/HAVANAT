@@ -208,7 +208,7 @@ ridersRouter.patch('/me/deliveries/:id/status', requireAuth, requireRole('rider'
         html: orderStatusEmail({
           reference: order.orderNumber,
           status: orderStatus,
-          trackingUrl: `${frontendUrl}/account/orders/${order.id}`,
+          trackingUrl: `${frontendUrl}/track?orderNumber=${order.orderNumber}`,
           otp: otpFromTracking,
         }),
       });

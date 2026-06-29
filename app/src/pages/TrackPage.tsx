@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Package, CheckCircle2, Truck, Phone, Clock } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 
@@ -27,6 +27,7 @@ interface TrackingResponse {
   destination: TrackingDestination;
   tracking: TrackingEvent[];
   rider: { name: string; phone: string } | null;
+  deliveryOtp?: string | null;
 }
 
 interface DisplayEvent {
@@ -81,10 +82,24 @@ function mapTrackingEvents(tracking: TrackingEvent[]): DisplayEvent[] {
 }
 
 export default function TrackPage() {
+  const [searchParams] = useSearchParams();
   const [orderInput, setOrderInput] = useState('');
   const [result, setResult] = useState<TrackingResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Auto-fill order number from URL parameter if present
+  useEffect(() => {
+    const orderNumberFromUrl = searchParams.get('orderNumber');
+    if (orderNumberFromUrl) {
+      setOrderInput(orderNumberFromUrl);
+      // Auto-submit
+      const form = document.querySelector('form');
+      if (form) {
+        form.requestSubmit();
+      }
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -199,6 +214,15 @@ export default function TrackPage() {
                 </div>
               )}
             </div>
+
+            {/* Delivery OTP */}
+            {result.deliveryOtp && (result.status === 'processing' || result.status === 'in_transit') && (
+              <div className="bg-black text-white p-6 mb-8 text-center">
+                <p className="text-[10px] tracking-[0.25em] uppercase mb-2 opacity-70">Delivery Verification Code</p>
+                <p className="font-serif text-4xl tracking-[0.4em]">{result.deliveryOtp}</p>
+                <p className="text-xs mt-3 opacity-70">Show this code to the rider when they arrive</p>
+              </div>
+            )}
 
             {/* Timeline */}
             {displayEvents.length > 0 && (

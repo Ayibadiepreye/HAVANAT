@@ -51,6 +51,10 @@ ordersRouter.get('/track/:orderNumber', async (req, res, next) => {
     const { orderNumber } = req.params;
     const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
     if (!order) return res.status(404).json({ error: 'Order not found' });
+    
+    // Get delivery info including OTP
+    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
+    
     // Return limited public-safe fields (no customer email/phone in response)
     const [riderRow] = order.riderId
       ? await db.select().from(users).where(eq(users.id, order.riderId)).limit(1)
@@ -63,6 +67,7 @@ ordersRouter.get('/track/:orderNumber', async (req, res, next) => {
       destination: order.shippingAddress,
       tracking: order.tracking || [],
       rider: riderRow ? { name: riderRow.name, phone: riderRow.phone } : null,
+      deliveryOtp: delivery?.deliveryOtp || null,
     });
   } catch (err) {
     next(err);
@@ -179,7 +184,7 @@ ordersRouter.patch('/:id/status', requireAuth, requireRole('admin', 'moderator')
     html: orderStatusEmail({
       reference: after.orderNumber,
       status: parsed.data.status,
-      trackingUrl: `${frontendUrl}/account/orders/${after.id}`,
+      trackingUrl: `${frontendUrl}/track?orderNumber=${after.orderNumber}`,
       otp: otpFromTracking,
     }),
   });
@@ -264,7 +269,7 @@ ordersRouter.patch('/:id/assign-rider', requireAuth, requireRole('admin', 'moder
           <p><strong>Important:</strong> When the rider arrives, they will ask for this 4-digit code to confirm delivery. Please have it ready.</p>
           
           <p>You can track your order here:<br>
-          <a href="${frontendUrl}/account/orders/${id}" style="color: #000; text-decoration: underline;">${frontendUrl}/account/orders/${id}</a></p>
+          <a href="${frontendUrl}/track?orderNumber=${before.orderNumber}" style="color: #000; text-decoration: underline;">${frontendUrl}/track?orderNumber=${before.orderNumber}</a></p>
           
           <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #999;">
             <p>HAVANAT - Bespoke Tailoring</p>

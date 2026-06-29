@@ -82,11 +82,7 @@ export default function RiderDeliveryDetails() {
       showToast('Invalid delivery OTP', 'error');
       return;
     }
-    if (!photo) {
-      showToast('Please upload a delivery photo', 'error');
-      return;
-    }
-    const proof = { photoUrl: photo, signatureDataUrl: signature ?? undefined, timestamp: new Date().toISOString() };
+    const proof = { photoUrl: photo || undefined, signatureDataUrl: signature ?? undefined, timestamp: new Date().toISOString() };
     setProof(delivery.id, proof);
     await updateStatus(delivery.id, 'delivered', proof);
     // Refetch orders to sync with backend
@@ -169,12 +165,17 @@ export default function RiderDeliveryDetails() {
               </div>
               <p className="text-xs text-gray-500 mt-2">Ask the customer for their 4-digit delivery code</p>
             </div>
-            <SignatureBlock signature={signature} setSignature={setSignature} />
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium mb-2">Proof of Delivery (Optional)</p>
+              <p className="text-xs text-gray-500 mb-3">Signature and photo are optional but recommended for your records</p>
+              <SignatureBlock signature={signature} setSignature={setSignature} />
+            </div>
             <PhotoBlock photo={photo} onUpload={handlePhotoUpload} />
             <button
               type="button"
               onClick={markDelivered}
-              className="w-full py-3 bg-green-700 text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-green-800 flex items-center justify-center gap-2"
+              disabled={otp.some((d) => !d)}
+              className="w-full py-3 bg-green-700 text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Check className="h-3.5 w-3.5" /> Mark Delivered
             </button>
