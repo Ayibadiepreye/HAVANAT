@@ -47,6 +47,7 @@ export function ModeratorLayout({ children }: { children: React.ReactNode }) {
     { label: 'Orders', href: '/moderator/orders', icon: Eye },
     { label: 'Returns', href: '/moderator/returns', icon: RotateCcw },
     { label: 'Reviews', href: '/moderator/reviews', icon: Star },
+    { label: 'Profile', href: '/moderator/profile', icon: UsersIcon },
   ];
 
   if (dashboardUser?.role !== 'moderator') return null;

@@ -58,6 +58,7 @@ import ModeratorProducts from '@/pages/moderator/ModeratorProducts';
 import ModeratorOrders from '@/pages/moderator/ModeratorOrders';
 import ModeratorReturns from '@/pages/moderator/ModeratorReturns';
 import ModeratorReviews from '@/pages/moderator/ModeratorReviews';
+import ModeratorProfile from '@/pages/moderator/ModeratorProfile';
 
 import RiderLayout from '@/pages/rider/RiderLayout';
 import RiderDashboard from '@/pages/rider/RiderDashboard';
@@ -106,6 +107,7 @@ export default function App() {
         <Route path="/moderator/orders" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorOrders /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/returns" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReturns /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/reviews" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReviews /></ModeratorLayout></RoleGuard>} />
+        <Route path="/moderator/profile" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorProfile /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/broadcast" element={<RoleGuard roles={['moderator']}><AdminLayout><AdminBroadcast /></AdminLayout></RoleGuard>} />
 
         {/* Rider */}
