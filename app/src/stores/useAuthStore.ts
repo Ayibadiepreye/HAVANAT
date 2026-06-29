@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { apiConfig, apiPost } from '@/lib/api';
+import { apiConfig, apiPost, getAccessToken } from '@/lib/api';
 import type { User } from '@/types';
 import type { UserRole, CustomerTier, DashboardUser } from '@/types/dashboard';
 

@@ -5,7 +5,7 @@ import { apiPost } from '@/lib/api';
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function ModeratorProfile() {
-  const user = useAuthStore((s) => s.user);
+  const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const fetchUserData = useAuthStore((s) => s.fetchUserData);
   const showToast = useUIStore((s) => s.showToast);
 
@@ -28,7 +28,7 @@ export default function ModeratorProfile() {
 
   const [changingPassword, setChangingPassword] = useState(false);
 
-  if (!user) {
+  if (!dashboardUser) {
     return (
       <div className="bg-white border border-gray-200 p-8 text-center">
         <p className="text-sm text-gray-500">Please log in to view your profile</p>
@@ -81,7 +81,7 @@ export default function ModeratorProfile() {
               Full Name
             </label>
             <input
-              value={user.name}
+              value={dashboardUser.name}
               readOnly
               className="w-full px-3 py-2.5 text-sm border border-gray-200 bg-gray-50 text-gray-500"
             />
@@ -91,7 +91,7 @@ export default function ModeratorProfile() {
               Email
             </label>
             <input
-              value={user.email}
+              value={dashboardUser.email}
               readOnly
               className="w-full px-3 py-2.5 text-sm border border-gray-200 bg-gray-50 text-gray-500"
             />
@@ -101,7 +101,7 @@ export default function ModeratorProfile() {
               Role
             </label>
             <span className="inline-block px-3 py-1.5 bg-purple-100 text-purple-700 text-xs uppercase tracking-wider font-semibold">
-              {user.role}
+              {dashboardUser.role}
             </span>
           </div>
         </div>

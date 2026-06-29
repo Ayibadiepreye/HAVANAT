@@ -14,7 +14,7 @@ export interface InvoiceOrder {
     street: string;
     city: string;
     state: string;
-    postalCode: string;
+    postalCode?: string;
   };
   items: Array<{
     name: string;
@@ -100,7 +100,7 @@ export async function generateInvoicePDF(order: InvoiceOrder): Promise<void> {
     const addr = order.shippingAddress;
     doc.text(`${addr.street}`, leftMargin, y);
     y += 5;
-    doc.text(`${addr.city}, ${addr.state} ${addr.postalCode}`, leftMargin, y);
+    doc.text(`${addr.city}, ${addr.state}${addr.postalCode ? ' ' + addr.postalCode : ''}`, leftMargin, y);
     y += 5;
   }
   

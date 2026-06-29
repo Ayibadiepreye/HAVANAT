@@ -8,7 +8,7 @@ import type {
   Branding,
 } from '@/types/dashboard';
 import { logAuditAction } from '@/utils/auditLogger';
-import { apiConfig, apiDelete, apiGet, apiPatch } from '@/lib/api';
+import { apiConfig, apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 interface ContentActor {
@@ -79,7 +79,7 @@ export const useContentStore = create<ContentState>()(
           console.error('fetchContent failed', err);
         }
       },
-      saveHomepage: (next, actor) => {
+      saveHomepage: async (next, actor) => {
         const before = get().homepage;
         set({ homepage: { ...next, updatedAt: new Date().toISOString() } });
         logAuditAction({
@@ -88,6 +88,13 @@ export const useContentStore = create<ContentState>()(
           summary: 'Updated homepage content',
           changes: { before: { ...before }, after: { ...next } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPut('/api/content/homepage', next, true);
+          } catch (err) {
+            console.error('saveHomepage failed:', err);
+          }
+        }
       },
       saveLookbook: (next, actor) => {
         const before = get().lookbook;
@@ -99,21 +106,32 @@ export const useContentStore = create<ContentState>()(
           changes: { before: { count: before.length }, after: { count: next.length } },
         });
       },
-      addLookbookImage: (image, actor) => {
-        const id = `lb-${Date.now()}`;
+      addLookbookImage: async (image, actor) => {
+        const tempId = `lb-${Date.now()}`;
         const order = get().lookbook.length + 1;
-        const next: LookbookImage = { ...image, id, order };
+        const next: LookbookImage = { ...image, id: tempId, order };
         set({ lookbook: [...get().lookbook, next] });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
-          action: 'create', entityType: 'lookbook', entityId: id, entityLabel: `Lookbook image "${image.caption}"`,
+          action: 'create', entityType: 'lookbook', entityId: tempId, entityLabel: `Lookbook image "${image.caption}"`,
           summary: 'Added lookbook image',
           changes: { before: null, after: { caption: image.caption } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            const created = await apiPost<{ id: number }>('/api/content/lookbook', { url: image.url, caption: image.caption, order }, true);
+            set({ lookbook: get().lookbook.map((img) => (img.id === tempId ? { ...img, id: String(created.id) } : img)) });
+            await get().fetchContent();
+          } catch (err) {
+            console.error('addLookbookImage failed:', err);
+            set({ lookbook: get().lookbook.filter((img) => img.id !== tempId) });
+          }
+        }
       },
-      removeLookbookImage: (id, actor) => {
+      removeLookbookImage: async (id, actor) => {
         const target = get().lookbook.find((i) => i.id === id);
         if (!target) return;
+        const before = get().lookbook;
         set({ lookbook: get().lookbook.filter((i) => i.id !== id) });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
@@ -121,18 +139,37 @@ export const useContentStore = create<ContentState>()(
           summary: 'Removed lookbook image',
           changes: { before: { caption: target.caption }, after: null },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiDelete(`/api/content/lookbook/${id}`, true);
+            await get().fetchContent();
+          } catch (err) {
+            console.error('removeLookbookImage failed:', err);
+            set({ lookbook: before });
+          }
+        }
       },
-      addTestimonial: (t, actor) => {
-        const id = `tst-${Date.now()}`;
-        set({ testimonials: [...get().testimonials, { ...t, id }] });
+      addTestimonial: async (t, actor) => {
+        const tempId = `tst-${Date.now()}`;
+        set({ testimonials: [...get().testimonials, { ...t, id: tempId }] });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
-          action: 'create', entityType: 'testimonial', entityId: id, entityLabel: `Testimonial: ${t.name}`,
+          action: 'create', entityType: 'testimonial', entityId: tempId, entityLabel: `Testimonial: ${t.name}`,
           summary: `Added new ${t.rating}-star testimonial`,
           changes: { before: null, after: { name: t.name, rating: t.rating } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            const created = await apiPost<{ id: number }>('/api/content/testimonials', t, true);
+            set({ testimonials: get().testimonials.map((x) => (x.id === tempId ? { ...x, id: String(created.id) } : x)) });
+            await get().fetchContent();
+          } catch (err) {
+            console.error('addTestimonial failed:', err);
+            set({ testimonials: get().testimonials.filter((x) => x.id !== tempId) });
+          }
+        }
       },
-      updateTestimonial: (id, t, actor) => {
+      updateTestimonial: async (id, t, actor) => {
         const before = get().testimonials.find((x) => x.id === id);
         if (!before) return;
         set({ testimonials: get().testimonials.map((x) => (x.id === id ? { ...x, ...t } : x)) });
@@ -142,6 +179,15 @@ export const useContentStore = create<ContentState>()(
           summary: 'Edited testimonial',
           changes: { before: { ...before }, after: { ...before, ...t } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPatch(`/api/content/testimonials/${id}`, t, true);
+            await get().fetchContent();
+          } catch (err) {
+            console.error('updateTestimonial failed:', err);
+            set({ testimonials: get().testimonials.map((x) => (x.id === id ? before : x)) });
+          }
+        }
       },
       approveTestimonial: async (id, approved, actor) => {
         const before = get().testimonials.find((x) => x.id === id);
@@ -181,17 +227,27 @@ export const useContentStore = create<ContentState>()(
           }
         }
       },
-      addBanner: (b, actor) => {
-        const id = `bnr-${Date.now()}`;
-        set({ banners: [...get().banners, { ...b, id }] });
+      addBanner: async (b, actor) => {
+        const tempId = `bnr-${Date.now()}`;
+        set({ banners: [...get().banners, { ...b, id: tempId }] });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
-          action: 'create', entityType: 'banner', entityId: id, entityLabel: `Banner: ${b.title}`,
+          action: 'create', entityType: 'banner', entityId: tempId, entityLabel: `Banner: ${b.title}`,
           summary: 'Created new banner',
           changes: { before: null, after: { title: b.title } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            const created = await apiPost<{ id: number }>('/api/content/banners', b, true);
+            set({ banners: get().banners.map((x) => (x.id === tempId ? { ...x, id: String(created.id) } : x)) });
+            await get().fetchContent();
+          } catch (err) {
+            console.error('addBanner failed:', err);
+            set({ banners: get().banners.filter((x) => x.id !== tempId) });
+          }
+        }
       },
-      updateBanner: (id, b, actor) => {
+      updateBanner: async (id, b, actor) => {
         const before = get().banners.find((x) => x.id === id);
         if (!before) return;
         set({ banners: get().banners.map((x) => (x.id === id ? { ...x, ...b } : x)) });
@@ -201,10 +257,20 @@ export const useContentStore = create<ContentState>()(
           summary: 'Updated banner',
           changes: { before: { ...before }, after: { ...before, ...b } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPatch(`/api/content/banners/${id}`, b, true);
+            await get().fetchContent();
+          } catch (err) {
+            console.error('updateBanner failed:', err);
+            set({ banners: get().banners.map((x) => (x.id === id ? before : x)) });
+          }
+        }
       },
-      removeBanner: (id, actor) => {
+      removeBanner: async (id, actor) => {
         const b = get().banners.find((x) => x.id === id);
         if (!b) return;
+        const before = get().banners;
         set({ banners: get().banners.filter((x) => x.id !== id) });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
@@ -212,8 +278,17 @@ export const useContentStore = create<ContentState>()(
           summary: 'Removed banner',
           changes: { before: { title: b.title }, after: null },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiDelete(`/api/content/banners/${id}`, true);
+            await get().fetchContent();
+          } catch (err) {
+            console.error('removeBanner failed:', err);
+            set({ banners: before });
+          }
+        }
       },
-      saveBranding: (next, actor) => {
+      saveBranding: async (next, actor) => {
         const before = get().branding;
         set({ branding: { ...next, updatedAt: new Date().toISOString() } });
         logAuditAction({
@@ -222,6 +297,13 @@ export const useContentStore = create<ContentState>()(
           summary: 'Updated brand assets',
           changes: { before: { ...before }, after: { ...next } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPut('/api/content/branding', next, true);
+          } catch (err) {
+            console.error('saveBranding failed:', err);
+          }
+        }
       },
     }),
 );

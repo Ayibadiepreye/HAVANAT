@@ -29,7 +29,7 @@ export class ApiError extends Error {
   }
 }
 
-function getAccessToken(): string | null {
+export function getAccessToken(): string | null {
   try {
     // Fallback: legacy direct token key (most reliable)
     const legacy = localStorage.getItem('havanat-access-token');
@@ -45,6 +45,7 @@ function getAccessToken(): string | null {
   }
 }
 
+/* unused for now
 function getRefreshToken(): string | null {
   try {
     // Fallback: legacy direct token key (most reliable)
@@ -60,6 +61,7 @@ function getRefreshToken(): string | null {
     return null;
   }
 }
+*/
 
 export async function api<T = unknown>(path: string, options: { method?: string; body?: unknown; headers?: Record<string, string>; auth?: boolean; _retry?: boolean } = {}): Promise<T> {
   const { method = 'GET', body, headers = {}, auth = false, _retry = false } = options;

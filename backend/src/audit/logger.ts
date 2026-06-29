@@ -9,7 +9,7 @@ export type EntityType =
   | 'membership' | 'homepage' | 'lookbook' | 'testimonial'
   | 'banner' | 'branding' | 'delivery_zone' | 'settings' | 'staff'
   | 'event_discount' | 'tier_discount' | 'bespoke_request' | 'contact_message'
-  | 'address' | 'auth' | 'password_reset' | 'email_verify' | 'payment' | 'user' | 'lockout' | 'review';
+  | 'address' | 'auth' | 'password_reset' | 'email_verify' | 'payment' | 'user' | 'lockout' | 'review' | 'notification';
 
 interface LogParams {
   req: Request;

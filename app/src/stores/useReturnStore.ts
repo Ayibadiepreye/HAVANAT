@@ -3,15 +3,15 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ReturnRequest, ReturnStatus } from '@/types/dashboard';
 import { logAuditAction } from '@/utils/auditLogger';
-import { apiConfig, apiGet } from '@/lib/api';
+import { apiConfig, apiGet, apiPost } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 interface ReturnState {
   returns: ReturnRequest[];
   fetchReturns: () => Promise<void>;
-  approve: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
-  reject: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }, reason: string) => void;
-  assignRider: (id: string, riderId: string, riderName: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
+  approve: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => Promise<void>;
+  reject: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }, reason: string) => Promise<void>;
+  assignRider: (id: string, riderId: string, riderName: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => Promise<void>;
   processRefund: (id: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }, resalable?: boolean) => Promise<void>;
   setStatus: (id: string, status: ReturnStatus, note?: string) => void;
   getById: (id: string) => ReturnRequest | undefined;
@@ -47,7 +47,7 @@ export const useReturnStore = create<ReturnState>()(
           console.error('fetchReturns failed', err);
         }
       },
-      approve: (id, actor) => {
+      approve: async (id, actor) => {
         const ret = get().returns.find((r) => r.id === id);
         if (!ret) return;
         const before = { status: ret.status };
@@ -58,8 +58,17 @@ export const useReturnStore = create<ReturnState>()(
           summary: 'Approved return request',
           changes: { before, after: { status: 'approved' } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPost(`/api/returns/${id}/approve`, {}, true);
+            await get().fetchReturns();
+          } catch (err) {
+            console.error('approve failed:', err);
+            set({ returns: get().returns.map((r) => (r.id === id ? { ...r, status: before.status } : r)) });
+          }
+        }
       },
-      reject: (id, actor, reason) => {
+      reject: async (id, actor, reason) => {
         const ret = get().returns.find((r) => r.id === id);
         if (!ret) return;
         const before = { status: ret.status, adminNote: ret.adminNote };
@@ -72,8 +81,17 @@ export const useReturnStore = create<ReturnState>()(
           summary: `Rejected return: ${reason}`,
           changes: { before, after: { status: 'rejected', adminNote: reason } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPost(`/api/returns/${id}/reject`, { reason }, true);
+            await get().fetchReturns();
+          } catch (err) {
+            console.error('reject failed:', err);
+            set({ returns: get().returns.map((r) => (r.id === id ? { ...r, status: before.status, adminNote: before.adminNote } : r)) });
+          }
+        }
       },
-      assignRider: (id, riderId, riderName, actor) => {
+      assignRider: async (id, riderId, riderName, actor) => {
         const ret = get().returns.find((r) => r.id === id);
         if (!ret) return;
         const before = { riderId: ret.riderId ?? null, status: ret.status };
@@ -88,6 +106,15 @@ export const useReturnStore = create<ReturnState>()(
           summary: `Assigned rider ${riderName} for pickup`,
           changes: { before, after: { riderId, status: 'rider_scheduled' } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPost(`/api/returns/${id}/assign-rider`, { riderId }, true);
+            await get().fetchReturns();
+          } catch (err) {
+            console.error('assignRider failed:', err);
+            set({ returns: get().returns.map((r) => (r.id === id ? { ...r, riderId: before.riderId ?? undefined, status: before.status } : r)) });
+          }
+        }
       },
       processRefund: async (id, actor, resalable = true) => {
         const ret = get().returns.find((r) => r.id === id);

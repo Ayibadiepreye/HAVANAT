@@ -10,7 +10,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AppNotification, NotificationCategory, NotificationChannel, NotificationScope } from '@/types/notifications';
-import { logAuditAction } from '@/utils/auditLogger';
 import { apiConfig, apiGet, apiPost } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
@@ -41,16 +40,16 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function newId() {
-  return `ntf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-}
+// Unused helper functions kept for future use
+// function newId() {
+//   return `ntf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+// }
 
-function sendEmail(notif: AppNotification, recipientLabel: string) {
-  // eslint-disable-next-line no-console
-  console.info(
-    `[mock-email] To: ${recipientLabel} — Subject: ${notif.title} — ${notif.body.slice(0, 80)}${notif.body.length > 80 ? '…' : ''}`
-  );
-}
+// function sendEmail(notif: AppNotification, recipientLabel: string) {
+//   console.info(
+//     `[mock-email] To: ${recipientLabel} — Subject: ${notif.title} — ${notif.body.slice(0, 80)}${notif.body.length > 80 ? '…' : ''}`
+//   );
+// }
 
 export const useNotificationStore = create<NotificationState>()(
   persist(
@@ -116,7 +115,7 @@ export const useNotificationStore = create<NotificationState>()(
           })),
         }));
       },
-      broadcast: async (input, actor) => {
+      broadcast: async (input) => {
         // Call backend API to create notification (no localStorage fallback)
         try {
           const response = await apiPost<{ ok: boolean; notification: any }>('/api/notifications', {

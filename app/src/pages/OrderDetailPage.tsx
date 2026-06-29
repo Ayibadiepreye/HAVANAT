@@ -18,7 +18,6 @@ import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useUIStore } from '@/stores/useUIStore';
 import { formatNaira } from '@/config';
-import { BRAND } from '@/config/brand';
 import { apiPost } from '@/lib/api';
 import type { OrderStatus } from '@/types/dashboard';
 

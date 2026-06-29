@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { Rider, RiderStatus, Delivery, DeliveryStatus } from '@/types/dashboard';
 import type { ProofOfDelivery } from '@/types/dashboard';
 import { logAuditAction } from '@/utils/auditLogger';
-import { apiConfig, apiGet, apiPatch } from '@/lib/api';
+import { apiConfig, apiGet, apiPatch, apiPost, apiDelete } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 interface RiderState {
@@ -11,9 +11,9 @@ interface RiderState {
   fetchMyDeliveries: () => Promise<void>;
   riders: Rider[];
   deliveries: Delivery[];
-  addRider: (rider: Omit<Rider, 'id' | 'rating' | 'totalDeliveries' | 'totalEarnings' | 'joinedAt'>, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
+  addRider: (rider: Omit<Rider, 'id' | 'rating' | 'totalDeliveries' | 'pendingDeliveries' | 'deliveredDeliveries' | 'joinedAt'>, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => Promise<void>;
   setStatus: (riderId: string, status: RiderStatus, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => Promise<void>;
-  removeRider: (riderId: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
+  removeRider: (riderId: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => Promise<void>;
   updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus, proof?: ProofOfDelivery) => void;
   setDeliveryProof: (deliveryId: string, proof: ProofOfDelivery) => void;
   getRiderById: (riderId: string) => Rider | undefined;
@@ -80,23 +80,43 @@ export const useRiderStore = create<RiderState>()(
           console.error('fetchMyDeliveries failed', err);
         }
       },
-      addRider: (rider, actor) => {
-        const id = `rider-${Date.now()}`;
+      addRider: async (rider, actor) => {
+        const tempId = `rider-${Date.now()}`;
         const newRider: Rider = {
           ...rider,
-          id,
+          id: tempId,
           rating: 5.0,
           totalDeliveries: 0,
-          totalEarnings: 0,
+          pendingDeliveries: 0,
+          deliveredDeliveries: 0,
           joinedAt: new Date().toISOString(),
         };
         set({ riders: [...get().riders, newRider] });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
-          action: 'create', entityType: 'rider', entityId: id, entityLabel: `Rider: ${rider.name}`,
+          action: 'create', entityType: 'rider', entityId: tempId, entityLabel: `Rider: ${rider.name}`,
           summary: `Onboarded new rider (${rider.vehicleType})`,
           changes: { before: null, after: { name: rider.name, vehicleType: rider.vehicleType } },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            const created = await apiPost<{ user: { id: number } }>('/api/riders', {
+              name: rider.name,
+              email: rider.email,
+              phone: rider.phone,
+              address: rider.address,
+              vehicleType: rider.vehicleType,
+              plateNumber: rider.plateNumber,
+              bank: { bankName: '', accountNumber: '', accountName: '' }
+            }, true);
+            set({ riders: get().riders.map((r) => (r.id === tempId ? { ...r, id: String(created.user.id) } : r)) });
+            await get().fetchRiders();
+          } catch (err) {
+            console.error('addRider failed:', err);
+            set({ riders: get().riders.filter((r) => r.id !== tempId) });
+            throw err;
+          }
+        }
       },
       setStatus: async (riderId, status, actor) => {
         const rider = get().riders.find((r) => r.id === riderId);
@@ -121,9 +141,10 @@ export const useRiderStore = create<RiderState>()(
           }
         }
       },
-      removeRider: (riderId, actor) => {
+      removeRider: async (riderId, actor) => {
         const rider = get().riders.find((r) => r.id === riderId);
         if (!rider) return;
+        const before = get().riders;
         set({ riders: get().riders.filter((r) => r.id !== riderId) });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
@@ -131,6 +152,16 @@ export const useRiderStore = create<RiderState>()(
           summary: 'Removed rider from roster',
           changes: { before: { name: rider.name }, after: null },
         });
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiDelete(`/api/staff/${riderId}`, true);
+            await get().fetchRiders();
+          } catch (err) {
+            console.error('removeRider failed:', err);
+            set({ riders: before });
+            throw err;
+          }
+        }
       },
       updateDeliveryStatus: async (deliveryId, status, proof) => {
         // Optimistically update UI
