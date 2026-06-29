@@ -15,12 +15,12 @@ export default function NotificationsPage() {
 
   const [filter, setFilter] = useState<NotificationCategory | 'all'>('all');
 
-  const userId = user?.id ?? 'guest';
+  const userId = String(user?.id ?? 'guest');
   const userTier = user?.membershipTier;
   const visible = useMemo(() => {
     const base = notifications.filter((n) => {
       if (n.scope === 'all') return true;
-      if (n.scope === 'user') return n.targetUserId === userId;
+      if (n.scope === 'user') return String(n.targetUserId) === userId;
       if (n.scope === 'tier') return n.targetTier === userTier;
       return false;
     });

@@ -18,7 +18,6 @@ export default function RiderDeliveryDetails() {
 
   const [otp, setOtp] = useState(['', '', '', '']);
   const [photo, setPhoto] = useState<string | null>(null);
-  const [signature, setSignature] = useState<string | null>(null);
 
   useEffect(() => {
     if (!delivery) {
@@ -28,8 +27,7 @@ export default function RiderDeliveryDetails() {
 
   useEffect(() => {
     if (delivery?.proofOfDelivery?.photoUrl) setPhoto(delivery.proofOfDelivery.photoUrl);
-    if (delivery?.proofOfDelivery?.signatureDataUrl) setSignature(delivery.proofOfDelivery.signatureDataUrl);
-  }, [delivery?.proofOfDelivery?.photoUrl, delivery?.proofOfDelivery?.signatureDataUrl]);
+  }, [delivery?.proofOfDelivery?.photoUrl]);
 
   if (!delivery) {
     return (
@@ -82,7 +80,7 @@ export default function RiderDeliveryDetails() {
       showToast('Invalid delivery OTP', 'error');
       return;
     }
-    const proof = { photoUrl: photo || undefined, signatureDataUrl: signature ?? undefined, timestamp: new Date().toISOString() };
+    const proof = { photoUrl: photo || undefined, timestamp: new Date().toISOString() };
     setProof(delivery.id, proof);
     await updateStatus(delivery.id, 'delivered', proof);
     // Refetch orders to sync with backend
@@ -167,8 +165,7 @@ export default function RiderDeliveryDetails() {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium mb-2">Proof of Delivery (Optional)</p>
-              <p className="text-xs text-gray-500 mb-3">Signature and photo are optional but recommended for your records</p>
-              <SignatureBlock signature={signature} setSignature={setSignature} />
+              <p className="text-xs text-gray-500 mb-3">Photo is optional but recommended for your records</p>
             </div>
             <PhotoBlock photo={photo} onUpload={handlePhotoUpload} />
             <button
@@ -222,93 +219,6 @@ function PhotoBlock({ photo, onUpload }: { photo: string | null; onUpload: (e: R
           </div>
           <input type="file" accept="image/*" onChange={onUpload} className="hidden" />
         </label>
-      )}
-    </div>
-  );
-}
-
-function SignatureBlock({ signature, setSignature }: { signature: string | null; setSignature: (s: string | null) => void }) {
-  const [drawing, setDrawing] = useState(false);
-  const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null);
-
-  const getCtx = () => canvasRef?.getContext('2d') ?? null;
-
-  const start = (e: React.MouseEvent | React.TouchEvent) => {
-    setDrawing(true);
-    const ctx = getCtx();
-    if (ctx && canvasRef) {
-      const rect = canvasRef.getBoundingClientRect();
-      const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-      const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    }
-  };
-
-  const draw = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!drawing) return;
-    const ctx = getCtx();
-    if (ctx && canvasRef) {
-      const rect = canvasRef.getBoundingClientRect();
-      const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-      const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    }
-  };
-
-  const end = () => {
-    setDrawing(false);
-    if (canvasRef) {
-      setSignature(canvasRef.toDataURL('image/png'));
-    }
-  };
-
-  const clear = () => {
-    const ctx = getCtx();
-    if (ctx && canvasRef) {
-      ctx.clearRect(0, 0, canvasRef.width, canvasRef.height);
-      setSignature(null);
-    }
-  };
-
-  return (
-    <div>
-      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium mb-2">Customer Signature</p>
-      {signature ? (
-        <div className="relative">
-          <img src={signature} alt="Signature" className="border border-gray-200 w-full bg-white h-32" />
-          <button
-            type="button"
-            onClick={clear}
-            className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-red-600 hover:text-white"
-            aria-label="Clear"
-          ><X className="h-3.5 w-3.5" /></button>
-        </div>
-      ) : (
-        <div>
-          <canvas
-            ref={(el) => {
-              if (el && el.width === 0) {
-                el.width = el.offsetWidth;
-                el.height = 128;
-              }
-              setCanvasRef(el);
-            }}
-            onMouseDown={start}
-            onMouseMove={draw}
-            onMouseUp={end}
-            onMouseLeave={end}
-            onTouchStart={start}
-            onTouchMove={draw}
-            onTouchEnd={end}
-            className="border border-gray-200 w-full h-32 bg-white cursor-crosshair touch-none"
-          />
-          <button type="button" onClick={clear} className="mt-1 text-[10px] uppercase tracking-wider text-gray-500 hover:text-black">Clear</button>
-        </div>
       )}
     </div>
   );

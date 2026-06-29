@@ -63,21 +63,33 @@ export const useNotificationStore = create<NotificationState>()(
             apiGet<{ items: any[] }>('/api/notifications', true).catch(() => ({ items: [] })),
             apiGet<{ count: number }>('/api/notifications/unread-count', true).catch(() => ({ count: 0 })) as unknown as { count: number },
           ]);
+          const currentUserId = String(useAuthStore.getState().user?.id ?? 0);
           set({
-            notifications: list.items.map((n) => ({
-              id: String(n.id),
-              category: (n.category ?? 'system') as any,
-              title: n.title ?? '',
-              body: n.body ?? '',
-              channels: (n.channels ?? 'inapp') as any,
-              scope: (n.scope ?? 'all') as any,
-              authorId: n.authorId != null ? String(n.authorId) : undefined,
-              authorName: n.authorName ?? 'system',
-              authorRole: (n.authorRole ?? 'system') as any,
-              readBy: (n.readBy ?? {}) as Record<string, boolean>,
-              createdAt: n.createdAt ?? nowIso(),
-              read: !!(n.readBy?.[String(useAuthStore.getState().dashboardUser?.id ?? 0)]),
-            } as unknown as AppNotification)),
+            notifications: list.items.map((n) => {
+              const readBy = n.readBy ?? {};
+              // Convert readBy to boolean map (backend stores timestamps as values)
+              const readByBool: Record<string, boolean> = {};
+              Object.keys(readBy).forEach(uid => {
+                readByBool[uid] = !!readBy[uid];
+              });
+              
+              return {
+                id: String(n.id),
+                category: (n.category ?? 'system') as any,
+                title: n.title ?? '',
+                body: n.body ?? '',
+                channels: (n.channels ?? 'inapp') as any,
+                scope: (n.scope ?? 'all') as any,
+                targetUserId: n.targetUserId != null ? String(n.targetUserId) : undefined,
+                targetTier: n.targetTier,
+                authorId: n.authorId != null ? String(n.authorId) : undefined,
+                authorName: n.authorName ?? 'system',
+                authorRole: (n.authorRole ?? 'system') as any,
+                readBy: readByBool as any,
+                createdAt: n.createdAt ?? nowIso(),
+                read: !!readByBool[currentUserId],
+              } as unknown as AppNotification;
+            }),
           });
         } catch (err) {
           console.error('fetchNotifications failed', err);

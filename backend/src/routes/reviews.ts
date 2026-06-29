@@ -42,7 +42,7 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
 
   if (existing) return res.status(400).json({ error: 'You have already reviewed this product' });
 
-  // 2. Verify user purchased this product
+  // 2. Verify user purchased this product (any order status is acceptable)
   const purchased = await db
     .select({ orderId: orders.id })
     .from(orders)
