@@ -27,7 +27,7 @@ interface NotificationState {
     scope: NotificationScope;
     targetUserId?: string;
     targetTier?: 'Standard' | 'Deluxe' | 'Elite';
-  }, actor: Actor) => AppNotification;
+  }, actor: Actor) => Promise<AppNotification>;
   markRead: (id: string, userId: string) => void;
   markAllRead: (userId: string) => void;
   remove: (id: string) => void;
@@ -116,44 +116,46 @@ export const useNotificationStore = create<NotificationState>()(
           })),
         }));
       },
-      broadcast: (input, actor) => {
-        const notif: AppNotification = {
-          id: newId(),
-          title: input.title.trim(),
-          body: input.body.trim(),
-          category: input.category,
-          channels: input.channels,
-          scope: input.scope,
-          targetUserId: input.targetUserId,
-          targetTier: input.targetTier,
-          authorId: actor.id,
-          authorName: actor.name,
-          authorRole: actor.role,
-          createdAt: nowIso(),
-          readBy: {},
-        };
-        set({ notifications: [notif, ...get().notifications] });
+      broadcast: async (input, actor) => {
+        // Call backend API to create notification (no localStorage fallback)
+        try {
+          const response = await apiPost<{ ok: boolean; notification: any }>('/api/notifications', {
+            title: input.title,
+            body: input.body,
+            category: input.category,
+            channels: input.channels,
+            scope: input.scope,
+            targetUserId: input.targetUserId ? Number(input.targetUserId) : undefined,
+            targetTier: input.targetTier?.toLowerCase(),
+          }, true);
 
-        // Mock fan-out: log + email the channel mix
-        if (notif.channels === 'email' || notif.channels === 'both') {
-          let recipient = 'all subscribers';
-          if (notif.scope === 'user' && notif.targetUserId) recipient = notif.targetUserId;
-          else if (notif.scope === 'tier' && notif.targetTier) recipient = `all ${notif.targetTier} members`;
-          sendEmail(notif, recipient);
+          if (response.ok && response.notification) {
+            const notif: AppNotification = {
+              id: String(response.notification.id),
+              title: response.notification.title,
+              body: response.notification.body,
+              category: response.notification.category as any,
+              channels: response.notification.channels as any,
+              scope: response.notification.scope as any,
+              targetUserId: response.notification.targetUserId ? String(response.notification.targetUserId) : undefined,
+              targetTier: response.notification.targetTier,
+              authorId: String(response.notification.authorId),
+              authorName: response.notification.authorName,
+              authorRole: response.notification.authorRole as any,
+              readBy: response.notification.readBy ?? {},
+              createdAt: response.notification.createdAt,
+            };
+
+            // Update local state
+            set({ notifications: [notif, ...get().notifications] });
+            return notif;
+          }
+          
+          throw new Error('Failed to create notification');
+        } catch (err) {
+          console.error('[broadcast] API call failed:', err);
+          throw err;
         }
-
-        logAuditAction({
-          userId: actor.id,
-          userName: actor.name,
-          userRole: actor.role === 'system' ? 'admin' : actor.role,
-          action: 'create',
-          entityType: 'notification',
-          entityId: notif.id,
-          entityLabel: `Notification: ${notif.title}`,
-          summary: `Broadcast ${notif.scope} via ${notif.channels}`,
-          changes: { before: null, after: { title: notif.title, scope: notif.scope, channels: notif.channels } },
-        });
-        return notif;
       },
       remove: (id) => {
         set({ notifications: get().notifications.filter((n) => n.id !== id) });

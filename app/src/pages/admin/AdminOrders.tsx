@@ -97,19 +97,25 @@ export default function AdminOrders() {
       render: (o) => (
         <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           <button
-            onClick={() => {
+            onClick={async () => {
               if (!dashboardUser) return;
-              window.print();
-              logAuditAction({
-                userId: dashboardUser.id, userName: dashboardUser.name, userRole: 'admin',
-                action: 'update', entityType: 'order', entityId: o.id, entityLabel: `Order ${o.id}`,
-                summary: `Printed invoice for ${o.id}`,
-                changes: { before: null, after: { printedAt: new Date().toISOString() } },
-              });
+              try {
+                const { generateInvoicePDF } = await import('@/utils/invoiceGenerator');
+                await generateInvoicePDF(o);
+                logAuditAction({
+                  userId: dashboardUser.id, userName: dashboardUser.name, userRole: 'admin',
+                  action: 'update', entityType: 'order', entityId: o.id, entityLabel: `Order ${o.id}`,
+                  summary: `Downloaded invoice for ${o.id}`,
+                  changes: { before: null, after: { downloadedAt: new Date().toISOString() } },
+                });
+                showToast('Invoice downloaded', 'success');
+              } catch (err) {
+                showToast('Failed to generate invoice', 'error');
+              }
             }}
             className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] uppercase tracking-wider border border-gray-200 hover:border-black transition-colors"
-            aria-label="Print invoice"
-            title="Print invoice"
+            aria-label="Download invoice"
+            title="Download invoice"
           >
             <Printer className="h-3.5 w-3.5" /> Invoice
           </button>

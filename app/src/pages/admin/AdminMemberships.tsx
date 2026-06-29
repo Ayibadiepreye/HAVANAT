@@ -10,7 +10,7 @@ type TierName = 'Standard' | 'Deluxe' | 'Elite';
 
 export default function AdminMemberships() {
   const tiers = useMembershipStore((s) => s.tiers);
-  const saveTier: (tierName: TierName, next: MembershipTier, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void = useMembershipStore((s) => s.saveTier);
+  const saveTier: (tierName: TierName, next: MembershipTier, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => Promise<void> = useMembershipStore((s) => s.saveTier);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
 
@@ -26,10 +26,14 @@ export default function AdminMemberships() {
           <TierCard
             key={t.tier}
             tier={t}
-            onSave={(next) => {
+            onSave={async (next) => {
               if (!dashboardUser) return;
-              saveTier(t.tier as TierName, next, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' });
-              showToast(`${t.tier} tier updated`, 'success');
+              try {
+                await saveTier(t.tier as TierName, next, { id: String(dashboardUser.id), name: dashboardUser.name, role: 'admin' });
+                showToast(`${t.tier} tier updated`, 'success');
+              } catch (err: any) {
+                showToast(err?.message || 'Failed to update tier', 'error');
+              }
             }}
           />
         ))}
@@ -38,12 +42,13 @@ export default function AdminMemberships() {
   );
 }
 
-function TierCard({ tier, onSave }: { tier: MembershipTier; onSave: (t: MembershipTier) => void }) {
+function TierCard({ tier, onSave }: { tier: MembershipTier; onSave: (t: MembershipTier) => Promise<void> }) {
   const [price, setPrice] = useState(tier.price);
   const [billing, setBilling] = useState(tier.billing);
   const [features, setFeatures] = useState(tier.features);
   const [newFeature, setNewFeature] = useState('');
   const [description, setDescription] = useState(tier.description);
+  const [saving, setSaving] = useState(false);
 
   const isPopular = tier.tier === 'Deluxe';
 
@@ -54,6 +59,15 @@ function TierCard({ tier, onSave }: { tier: MembershipTier; onSave: (t: Membersh
     }
   };
   const removeFeature = (i: number) => setFeatures(features.filter((_, idx) => idx !== i));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave({ ...tier, price, billing, description, features });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="bg-white border border-gray-200 p-6 flex flex-col">
@@ -138,9 +152,10 @@ function TierCard({ tier, onSave }: { tier: MembershipTier; onSave: (t: Membersh
       </div>
 
       <button
-        onClick={() => onSave({ ...tier, price, billing, description, features })}
-        className="mt-6 w-full py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-gray-900 transition-colors"
-      >Save Changes</button>
+        onClick={handleSave}
+        disabled={saving}
+        className="mt-6 w-full py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-gray-900 transition-colors disabled:opacity-50"
+      >{saving ? 'Saving...' : 'Save Changes'}</button>
     </div>
   );
 }

@@ -145,38 +145,17 @@ export default function OrderDetailPage() {
     showToast('Order cancelled', 'info');
   };
 
-  const handleDownloadInvoice = () => {
-    showToast('Preparing your invoice…', 'info');
-    // Generate a tiny text invoice and trigger a download — keeps the UI honest about "mock".
-    const lines = [
-      `${BRAND.name.toUpperCase()}`,
-      `${BRAND.tagline}`,
-      '',
-      `INVOICE`,
-      `Order: ${order.id}`,
-      `Date: ${new Date(order.date).toLocaleString('en-NG')}`,
-      `Customer: ${order.customerName}`,
-      `Email: ${order.customerEmail}`,
-      `Phone: ${order.customerPhone}`,
-      '',
-      'ITEMS',
-      ...order.items.map(
-        (it) => `- ${it.name} (size ${it.size}, x${it.quantity}) — ${formatNaira(it.price * it.quantity)}`
-      ),
-      '',
-      `Subtotal: ${formatNaira(order.subtotal)}`,
-      `Delivery: ${formatNaira(order.deliveryFee)}`,
-      `Total:    ${formatNaira(order.total)}`,
-    ];
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `invoice-${order.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  const handleDownloadInvoice = async () => {
+    showToast('Generating invoice PDF…', 'info');
+    
+    try {
+      const { generateInvoicePDF } = await import('@/utils/invoiceGenerator');
+      await generateInvoicePDF(order);
+      showToast('Invoice downloaded successfully', 'success');
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+      showToast('Failed to generate invoice PDF', 'error');
+    }
   };
 
   // Where in the timeline is this order?

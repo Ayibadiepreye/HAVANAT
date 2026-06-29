@@ -12,7 +12,7 @@ interface MembershipState {
   fetchTiers: () => Promise<void>;
   fetchMembers: () => Promise<void>;
   members: Member[];
-  saveTier: (tier: 'Standard' | 'Deluxe' | 'Elite', next: MembershipTier, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
+  saveTier: (tier: 'Standard' | 'Deluxe' | 'Elite', next: MembershipTier, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => Promise<void>;
   setMemberStatus: (memberId: string, status: Member['status'], actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
   changeMemberTier: (memberId: string, tier: Member['tier'], actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
 }

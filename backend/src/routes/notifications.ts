@@ -1,14 +1,203 @@
-// User-facing notifications API.
-// Backend creates notifications via other endpoints (orders, payments, bespoke, contact).
-// This route lets users LIST theirs, mark one read, mark all read.
-
 import { Router } from 'express';
 import { db } from '../db/client.js';
-import { notifications } from '../db/schema.js';
+import { notifications, users } from '../db/schema.js';
 import { and, desc, eq, or, sql } from 'drizzle-orm';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { logAction } from '../audit/logger.js';
+import { sendEmailSafe } from '../lib/email.js';
+import { z } from 'zod';
 
 export const notificationsRouter = Router();
+
+/**
+ * POST /api/notifications — Create a broadcast notification (admin/moderator only)
+ * Allows admins and moderators to send notifications to users via in-app and/or email.
+ */
+notificationsRouter.post('/', requireAuth, requireRole('admin', 'moderator'), async (req, res, next) => {
+  try {
+    const Schema = z.object({
+      title: z.string().min(1, 'Title required').max(200, 'Title too long'),
+      body: z.string().min(1, 'Body required').max(5000, 'Body too long'),
+      category: z.enum(['general', 'order', 'return', 'membership', 'promotion', 'system']).default('general'),
+      channels: z.enum(['in_app', 'email', 'both']).default('in_app'),
+      scope: z.enum(['all', 'tier', 'user']),
+      targetUserId: z.number().optional(),
+      targetTier: z.enum(['standard', 'deluxe', 'elite']).optional(),
+    });
+
+    const parsed = Schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: 'Invalid input', 
+        details: parsed.error.flatten() 
+      });
+    }
+
+    const { title, body, category, channels, scope, targetUserId, targetTier } = parsed.data;
+
+    // Validate scope-specific requirements
+    if (scope === 'user' && !targetUserId) {
+      return res.status(400).json({ ok: false, error: 'targetUserId required when scope is "user"' });
+    }
+    if (scope === 'tier' && !targetTier) {
+      return res.status(400).json({ ok: false, error: 'targetTier required when scope is "tier"' });
+    }
+
+    // Verify target user exists if scope is 'user'
+    if (scope === 'user' && targetUserId) {
+      const [targetUser] = await db.select().from(users).where(eq(users.id, targetUserId)).limit(1);
+      if (!targetUser) {
+        return res.status(404).json({ ok: false, error: 'Target user not found' });
+      }
+    }
+
+    const authorId = Number(req.user!.sub);
+    const [author] = await db.select().from(users).where(eq(users.id, authorId)).limit(1);
+    if (!author) {
+      return res.status(404).json({ ok: false, error: 'Author not found' });
+    }
+
+    // Create notification in database
+    const [notification] = await db.insert(notifications).values({
+      title,
+      body,
+      category,
+      channels,
+      scope,
+      targetUserId: scope === 'user' ? targetUserId : null,
+      targetTier: scope === 'tier' ? targetTier : null,
+      authorId,
+      authorName: author.name,
+      authorRole: req.user!.role as 'admin' | 'moderator' | 'system',
+      readBy: {},
+    }).returning();
+
+    if (!notification) {
+      return res.status(500).json({ ok: false, error: 'Failed to create notification' });
+    }
+
+    // Send emails if channel includes email
+    if (channels === 'email' || channels === 'both') {
+      try {
+        let recipientEmails: string[] = [];
+
+        if (scope === 'all') {
+          // Get all customer emails
+          const customers = await db.select({ email: users.email })
+            .from(users)
+            .where(eq(users.role, 'customer'));
+          recipientEmails = customers.map(c => c.email);
+
+          // ALSO include newsletter subscribers (people who signed up via footer)
+          const { newsletterSubscribers } = await import('../db/schema.js');
+          const subscribers = await db.select({ email: newsletterSubscribers.email })
+            .from(newsletterSubscribers);
+          
+          // Merge and deduplicate
+          const allEmails = new Set([...recipientEmails, ...subscribers.map(s => s.email)]);
+          recipientEmails = Array.from(allEmails);
+
+        } else if (scope === 'tier' && targetTier) {
+          // Get emails for specific tier
+          const tierUsers = await db.select({ email: users.email })
+            .from(users)
+            .where(and(
+              eq(users.role, 'customer'),
+              eq(users.tier, targetTier)
+            ));
+          recipientEmails = tierUsers.map(u => u.email);
+        } else if (scope === 'user' && targetUserId) {
+          // Get single user email
+          const [targetUser] = await db.select({ email: users.email })
+            .from(users)
+            .where(eq(users.id, targetUserId))
+            .limit(1);
+          if (targetUser) {
+            recipientEmails = [targetUser.email];
+          }
+        }
+
+        // Send emails in batches (Resend supports batch sending)
+        if (recipientEmails.length > 0) {
+          // For large lists, send in batches of 100
+          const batchSize = 100;
+          for (let i = 0; i < recipientEmails.length; i += batchSize) {
+            const batch = recipientEmails.slice(i, i + batchSize);
+            
+            // Send to each recipient
+            for (const email of batch) {
+              await sendEmailSafe({
+                to: email,
+                subject: title,
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #000; font-size: 24px; margin-bottom: 20px;">${title}</h2>
+                    <p style="color: #333; font-size: 16px; line-height: 1.6;">${body.replace(/\n/g, '<br>')}</p>
+                    <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+                    <p style="color: #666; font-size: 12px;">
+                      This notification was sent by ${author.name} (${req.user!.role}).<br>
+                      Visit <a href="${process.env.FRONTEND_URL || 'https://havanat.store'}" style="color: #000;">havanat.store</a> to view all notifications.
+                    </p>
+                  </div>
+                `,
+                tags: [
+                  { name: 'type', value: 'broadcast' },
+                  { name: 'category', value: category },
+                  { name: 'scope', value: scope },
+                ],
+              });
+            }
+          }
+
+          console.info(`[broadcast] Sent ${recipientEmails.length} emails for notification ${notification.id}`);
+        }
+      } catch (emailErr) {
+        console.error('[broadcast] Email sending failed:', emailErr);
+        // Don't fail the request if email fails - notification is already created
+      }
+    }
+
+    // Log audit action
+    await logAction({
+      req,
+      user: req.user!,
+      action: 'create',
+      entityType: 'notification',
+      entityId: String(notification.id),
+      entityLabel: `Notification: ${notification.title}`,
+      summary: `Broadcast to ${scope}${scope === 'tier' ? ` (${targetTier})` : ''}${scope === 'user' ? ` (user ${targetUserId})` : ''} via ${channels}`,
+      before: null,
+      after: {
+        title: notification.title,
+        scope: notification.scope,
+        channels: notification.channels,
+        category: notification.category,
+      },
+    });
+
+    res.status(201).json({
+      ok: true,
+      notification: {
+        id: notification.id,
+        title: notification.title,
+        body: notification.body,
+        category: notification.category,
+        channels: notification.channels,
+        scope: notification.scope,
+        targetUserId: notification.targetUserId,
+        targetTier: notification.targetTier,
+        authorId: notification.authorId,
+        authorName: notification.authorName,
+        authorRole: notification.authorRole,
+        readBy: notification.readBy,
+        createdAt: notification.createdAt.toISOString(),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * GET /api/notifications — list notifications for the current user.

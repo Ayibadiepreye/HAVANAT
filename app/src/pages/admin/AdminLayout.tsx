@@ -1,7 +1,7 @@
 import { useAuthStore } from '@/stores/useAuthStore';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import type { SidebarItem } from '@/components/dashboard/DashboardSidebar';
-import { LayoutDashboard, Package, ShoppingCart, Users, RotateCcw, Bike, Crown, FileText, ShieldCheck, Settings, Eye, Users as UsersIcon, Star } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Users, RotateCcw, Bike, Crown, FileText, ShieldCheck, Settings, Eye, Users as UsersIcon, Star, Send } from 'lucide-react';
 
 export const ADMIN_NAV_ITEMS: SidebarItem[] = [
   { label: 'Overview', href: '/admin', icon: LayoutDashboard },
@@ -14,6 +14,7 @@ export const ADMIN_NAV_ITEMS: SidebarItem[] = [
   { label: 'Memberships', href: '/admin/memberships', icon: Crown },
   { label: 'Content', href: '/admin/content', icon: FileText },
   { label: 'Team', href: '/admin/team', icon: UsersIcon },
+  { label: 'Broadcast', href: '/admin/broadcast', icon: Send },
   { label: 'Audit Log', href: '/admin/audit-log', icon: ShieldCheck },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];
@@ -47,6 +48,7 @@ export function ModeratorLayout({ children }: { children: React.ReactNode }) {
     { label: 'Orders', href: '/moderator/orders', icon: Eye },
     { label: 'Returns', href: '/moderator/returns', icon: RotateCcw },
     { label: 'Reviews', href: '/moderator/reviews', icon: Star },
+    { label: 'Broadcast', href: '/moderator/broadcast', icon: Send },
     { label: 'Profile', href: '/moderator/profile', icon: UsersIcon },
   ];
 
