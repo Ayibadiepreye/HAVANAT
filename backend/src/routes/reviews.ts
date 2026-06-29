@@ -208,7 +208,7 @@ reviewsRouter.delete('/reviews/my-reviews/:id', requireAuth, async (req, res) =>
 // ─────────────────────────── Admin/Moderator Endpoints ───────────────────────────
 
 // GET /api/reviews — Admin/Mod: get all reviews with filters
-reviewsRouter.get('/reviews', requireRole('admin', 'moderator'), async (req, res) => {
+reviewsRouter.get('/reviews', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const { approved, productId } = req.query as Record<string, string>;
 
   const filters: any[] = [];
@@ -223,7 +223,7 @@ reviewsRouter.get('/reviews', requireRole('admin', 'moderator'), async (req, res
 });
 
 // PATCH /api/reviews/:id/approve — Admin/Mod: approve or reject a review
-reviewsRouter.patch('/reviews/:id/approve', requireRole('admin', 'moderator'), async (req, res) => {
+reviewsRouter.patch('/reviews/:id/approve', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
 
@@ -263,7 +263,7 @@ reviewsRouter.patch('/reviews/:id/approve', requireRole('admin', 'moderator'), a
 });
 
 // PATCH /api/reviews/:id/reply — Admin/Mod: add a reply to a review
-reviewsRouter.patch('/reviews/:id/reply', requireRole('admin', 'moderator'), async (req, res) => {
+reviewsRouter.patch('/reviews/:id/reply', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
 
@@ -305,7 +305,7 @@ reviewsRouter.patch('/reviews/:id/reply', requireRole('admin', 'moderator'), asy
 });
 
 // DELETE /api/reviews/:id — Admin only: delete a review
-reviewsRouter.delete('/reviews/:id', requireRole('admin'), async (req, res) => {
+reviewsRouter.delete('/reviews/:id', requireAuth, requireRole('admin'), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
 
