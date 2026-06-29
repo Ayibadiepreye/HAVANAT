@@ -42,21 +42,75 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
 
   if (existing) return res.status(400).json({ error: 'You have already reviewed this product' });
 
-  // 2. Verify user purchased this product (any order status is acceptable)
-  const purchased = await db
-    .select({ orderId: orders.id })
+  // 2. Verify user purchased this product (check order history)
+  let purchased = await db
+    .select({ orderId: orders.id, status: orders.status })
     .from(orders)
     .innerJoin(orderItems, eq(orderItems.orderId, orders.id))
-    .where(and(eq(orders.userId, userId), eq(orderItems.productId, productId)))
+    .where(and(
+      eq(orders.userId, userId), 
+      eq(orderItems.productId, productId)
+    ))
     .limit(1);
 
+  // Debug logging
+  console.log('Review submission check:', {
+    userId,
+    productId,
+    productIdType: typeof productId,
+    purchasedCount: purchased.length,
+    firstPurchase: purchased[0]
+  });
+
   if (purchased.length === 0) {
-    return res.status(403).json({ error: 'You can only review products you have purchased' });
+    // Check if this is a type mismatch issue - try with explicit casting
+    const purchasedWithCast = await db
+      .select({ orderId: orders.id, status: orders.status })
+      .from(orders)
+      .innerJoin(orderItems, eq(orderItems.orderId, orders.id))
+      .where(and(
+        eq(orders.userId, userId), 
+        sql`${orderItems.productId}::integer = ${productId}::integer`
+      ))
+      .limit(1);
+    
+    console.log('Debug - With cast:', purchasedWithCast);
+    
+    if (purchasedWithCast.length > 0) {
+      // Type mismatch was the issue, use this result
+      purchased = purchasedWithCast;
+      console.log('Found with cast! Continuing...');
+    } else {
+      // Still no match - check user's orders for debugging
+      const allUserOrders = await db
+        .select({ 
+          orderId: orders.id, 
+          orderStatus: orders.status
+        })
+        .from(orders)
+        .leftJoin(orderItems, eq(orderItems.orderId, orders.id))
+        .where(eq(orders.userId, userId))
+        .limit(5);
+      
+      console.log('Debug - User orders:', allUserOrders);
+      
+      return res.status(403).json({ 
+        error: 'You can only review products you have purchased',
+        debug: { 
+          userId,
+          productId,
+          userOrdersCount: allUserOrders.length
+        }
+      });
+    }
   }
 
   // 3. Get user details
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   if (!user) return res.status(404).json({ error: 'User not found' });
+
+  // Use the purchased order ID (either from original query or cast query)
+  const orderIdToUse = purchased.length > 0 ? purchased[0].orderId : null;
 
   // 4. Create review
   const [review] = await db
@@ -64,7 +118,7 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
     .values({
       productId,
       userId,
-      orderId: purchased[0].orderId,
+      orderId: orderIdToUse,
       rating,
       reviewText: reviewText.trim(),
       userTier: user.tier,
