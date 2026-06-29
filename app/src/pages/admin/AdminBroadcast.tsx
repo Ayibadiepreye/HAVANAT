@@ -11,6 +11,16 @@ export default function AdminBroadcastPage() {
   const showToast = useUIStore((s) => s.showToast);
   const broadcast = useNotificationStore((s) => s.broadcast);
   const notifications = useNotificationStore((s) => s.notifications);
+  const fetchNotifications = useNotificationStore((s) => s.fetchNotifications);
+
+  // Fetch notifications on mount and auto-refresh every 30 seconds
+  useEffect(() => {
+    void fetchNotifications();
+    const interval = setInterval(() => {
+      void fetchNotifications();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
