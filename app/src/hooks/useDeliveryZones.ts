@@ -1,7 +1,7 @@
 // Convenience hook: read the active delivery zones from the admin-managed store
 // and shape them into a { state -> fee } map for the cart / checkout.
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useDeliveryZoneStore } from '@/stores/useDeliveryZoneStore';
 import { CONFIG } from '@/config';
 
@@ -13,6 +13,15 @@ export interface DeliveryZoneView {
 
 export function useDeliveryZones(): { zoneFeeByState: Record<string, number>; zones: DeliveryZoneView[] } {
   const zones = useDeliveryZoneStore((s) => s.zones);
+  const fetchZones = useDeliveryZoneStore((s) => s.fetchZones);
+  
+  // Fetch zones on first use
+  useEffect(() => {
+    if (zones.length === 0) {
+      void fetchZones();
+    }
+  }, [zones.length, fetchZones]);
+  
   return useMemo(() => {
     const map: Record<string, number> = {};
     const list: DeliveryZoneView[] = zones.map((z) => {

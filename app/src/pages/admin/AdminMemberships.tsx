@@ -53,6 +53,7 @@ export default function AdminMemberships() {
 }
 
 function TierCard({ tier, onSave }: { tier: MembershipTier; onSave: (t: MembershipTier) => Promise<void> }) {
+  const [displayName, setDisplayName] = useState(tier.displayName || tier.tier);
   const [price, setPrice] = useState(tier.price);
   const [billing, setBilling] = useState(tier.billing);
   const [features, setFeatures] = useState(tier.features);
@@ -73,7 +74,10 @@ function TierCard({ tier, onSave }: { tier: MembershipTier; onSave: (t: Membersh
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave({ ...tier, price, billing, description, features });
+      await onSave({ ...tier, displayName, price, billing, description, features });
+    } catch (err) {
+      console.error('Save failed:', err);
+      throw err;
     } finally {
       setSaving(false);
     }
@@ -84,13 +88,23 @@ function TierCard({ tier, onSave }: { tier: MembershipTier; onSave: (t: Membersh
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Crown className="h-4 w-4" />
-          <h3 className="font-serif text-2xl font-light">{tier.displayName || tier.tier}</h3>
+          <h3 className="font-serif text-2xl font-light">{displayName}</h3>
         </div>
         {isPopular && <span className="text-[9px] uppercase tracking-widest bg-black text-white px-2 py-0.5">Popular</span>}
       </div>
-      <p className="text-xs text-gray-500 mb-4">{tier.description}</p>
+      <p className="text-xs text-gray-500 mb-4">{description}</p>
 
       <div className="space-y-4 flex-1">
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Tier Name</label>
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none"
+            placeholder="Standard, Deluxe, or Elite"
+          />
+        </div>
+
         <div>
           <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Monthly Price (₦)</label>
           <input

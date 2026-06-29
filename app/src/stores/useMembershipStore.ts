@@ -57,7 +57,7 @@ export const useMembershipStore = create<MembershipState>()(
       },
       saveTier: async (tierName, next, actor) => {
         const before = get().tiers.find((t) => t.tier === tierName);
-        if (!before) return;
+        if (!before) throw new Error('Tier not found');
         // Optimistic local update so the UI reflects immediately.
         set({ tiers: get().tiers.map((t) => (t.tier === tierName ? next : t)) });
         logAuditAction({
@@ -71,7 +71,7 @@ export const useMembershipStore = create<MembershipState>()(
         if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
           try {
             await apiPut(`/api/content/memberships/${encodeURIComponent(tierName)}`, {
-              displayName: next.tier,
+              displayName: next.displayName || tierName,
               description: next.description,
               price: Number(next.price) || 0,
               billingCycles: ['monthly'],
@@ -88,6 +88,9 @@ export const useMembershipStore = create<MembershipState>()(
             } catch {}
           } catch (err) {
             console.error('saveTier failed:', err);
+            // Rollback optimistic update on error
+            set({ tiers: get().tiers.map((t) => (t.tier === tierName ? before : t)) });
+            throw err;
           }
         }
       },

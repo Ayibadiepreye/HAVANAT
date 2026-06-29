@@ -165,11 +165,17 @@ function PaymentTab() {
 
 function DeliveryZonesTab() {
   const zones = useDeliveryZoneStore((s) => s.zones);
+  const fetchZones = useDeliveryZoneStore((s) => s.fetchZones);
   const addZone = useDeliveryZoneStore((s) => s.addZone);
   const removeZone = useDeliveryZoneStore((s) => s.removeZone);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
   const [showAdd, setShowAdd] = useState(false);
+
+  // Fetch zones on mount
+  useEffect(() => {
+    void fetchZones();
+  }, [fetchZones]);
 
   const columns: Column<DeliveryZone>[] = [
     { key: 'state', label: 'State', render: (z) => z.state },
