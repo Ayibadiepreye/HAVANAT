@@ -68,9 +68,9 @@ export default function RiderDeliveryDetails() {
 
   const markPickedUp = () => {
     updateStatus(delivery.id, 'picked_up');
-    // Mirror the order status
+    // Mirror the order status - orders don't have picked_up status, they go to processing
     if (delivery.orderId && riderActor) {
-      updateOrderStatus(delivery.orderId, 'picked_up', riderActor, 'Rider picked up from warehouse');
+      updateOrderStatus(delivery.orderId, 'processing', riderActor, 'Rider picked up from warehouse');
     }
     showToast('Marked as picked up', 'success');
   };

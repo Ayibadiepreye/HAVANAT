@@ -190,7 +190,7 @@ export const orders = pgTable('orders', {
   customerEmail: varchar('customer_email', { length: 200 }).notNull(),
   customerPhone: varchar('customer_phone', { length: 30 }),
   shippingAddress: jsonb('shipping_address').$type<{ fullName: string; phone: string; street: string; city: string; state: string; }>().notNull(),
-  tracking: jsonb('tracking').$type<Array<{ status: string; timestamp: string; note?: string }>>().notNull().default([]),
+  tracking: jsonb('tracking').$type<Array<{ status: string; timestamp: string; note?: string; otp?: string }>>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
