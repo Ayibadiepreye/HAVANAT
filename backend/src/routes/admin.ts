@@ -243,9 +243,9 @@ adminRouter.get('/riders', requireAuth, requireRole('admin', 'moderator'), async
       SELECT u.id, u.name, u.email, u.phone, u.created_at,
              rp.vehicle_type, rp.plate_number, rp.status, rp.id_verified, rp.address,
              rp.bank_name, rp.account_number, rp.account_name,
-             COALESCE((SELECT COUNT(*)::text FROM deliveries WHERE rider_id = u.id), '0') AS total_deliveries,
-             COALESCE((SELECT COUNT(*)::text FROM deliveries WHERE rider_id = u.id AND status IN ('pending', 'assigned', 'picked_up', 'in_transit')), '0') AS pending_deliveries,
-             COALESCE((SELECT COUNT(*)::text FROM deliveries WHERE rider_id = u.id AND status = 'delivered'), '0') AS delivered_deliveries
+             COALESCE((SELECT COUNT(*)::text FROM deliveries WHERE rider_id = u.id::integer), '0') AS total_deliveries,
+             COALESCE((SELECT COUNT(*)::text FROM deliveries WHERE rider_id = u.id::integer AND status IN ('assigned', 'picked_up', 'in_transit')), '0') AS pending_deliveries,
+             COALESCE((SELECT COUNT(*)::text FROM deliveries WHERE rider_id = u.id::integer AND status = 'delivered'), '0') AS delivered_deliveries
       FROM users u
       LEFT JOIN rider_profiles rp ON rp.user_id = u.id
       WHERE u.role = 'rider'

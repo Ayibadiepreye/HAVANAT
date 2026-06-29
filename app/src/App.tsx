@@ -108,7 +108,7 @@ export default function App() {
         <Route path="/moderator/returns" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReturns /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/reviews" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReviews /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/profile" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorProfile /></ModeratorLayout></RoleGuard>} />
-        <Route path="/moderator/broadcast" element={<RoleGuard roles={['moderator']}><AdminLayout><AdminBroadcast /></AdminLayout></RoleGuard>} />
+        <Route path="/moderator/broadcast" element={<RoleGuard roles={['moderator']}><ModeratorLayout><AdminBroadcast /></ModeratorLayout></RoleGuard>} />
 
         {/* Rider */}
         <Route path="/rider" element={<RoleGuard roles={['rider']}><RiderLayout><RiderDashboard /></RiderLayout></RoleGuard>} />

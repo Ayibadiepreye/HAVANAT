@@ -3,6 +3,20 @@ import { Client } from 'pg';
 
 const TIERS = [
   {
+    tier: 'Standard',
+    displayName: 'Standard',
+    price: '0.00',
+    billingCycles: ['monthly'],
+    features: [
+      'Full access to shop',
+      'Standard shipping',
+      'Customer support',
+    ],
+    description: 'Browse and shop our full collection.',
+    sortOrder: 0,
+    active: true,
+  },
+  {
     tier: 'Deluxe',
     displayName: 'Deluxe',
     price: '10000.00',
