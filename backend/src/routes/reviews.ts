@@ -76,7 +76,9 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
       userName: user.name,
       userAvatar: user.avatarUrl,
       photos: photos || [],
-      approved: false, // Requires admin approval
+      approved: true, // Auto-approve reviews
+      approvedBy: userId,
+      approvedAt: new Date(),
     })
     .returning();
 
@@ -206,7 +208,7 @@ reviewsRouter.delete('/reviews/my-reviews/:id', requireAuth, async (req, res) =>
 // ─────────────────────────── Admin/Moderator Endpoints ───────────────────────────
 
 // GET /api/reviews — Admin/Mod: get all reviews with filters
-reviewsRouter.get('/', requireRole('admin', 'moderator'), async (req, res) => {
+reviewsRouter.get('/reviews', requireRole('admin', 'moderator'), async (req, res) => {
   const { approved, productId } = req.query as Record<string, string>;
 
   const filters: any[] = [];
@@ -221,7 +223,7 @@ reviewsRouter.get('/', requireRole('admin', 'moderator'), async (req, res) => {
 });
 
 // PATCH /api/reviews/:id/approve — Admin/Mod: approve or reject a review
-reviewsRouter.patch('/:id/approve', requireRole('admin', 'moderator'), async (req, res) => {
+reviewsRouter.patch('/reviews/:id/approve', requireRole('admin', 'moderator'), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
 
@@ -231,7 +233,7 @@ reviewsRouter.patch('/:id/approve', requireRole('admin', 'moderator'), async (re
   const [before] = await db.select().from(reviews).where(eq(reviews.id, id));
   if (!before) return res.status(404).json({ error: 'Review not found' });
 
-  const userId = (req as any).user.id;
+  const userId = Number((req as any).user.sub);
   const [user] = await db.select().from(users).where(eq(users.id, userId));
 
   const [after] = await db
@@ -261,7 +263,7 @@ reviewsRouter.patch('/:id/approve', requireRole('admin', 'moderator'), async (re
 });
 
 // PATCH /api/reviews/:id/reply — Admin/Mod: add a reply to a review
-reviewsRouter.patch('/:id/reply', requireRole('admin', 'moderator'), async (req, res) => {
+reviewsRouter.patch('/reviews/:id/reply', requireRole('admin', 'moderator'), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
 
@@ -271,7 +273,7 @@ reviewsRouter.patch('/:id/reply', requireRole('admin', 'moderator'), async (req,
   const [before] = await db.select().from(reviews).where(eq(reviews.id, id));
   if (!before) return res.status(404).json({ error: 'Review not found' });
 
-  const userId = (req as any).user.id;
+  const userId = Number((req as any).user.sub);
   const [user] = await db.select().from(users).where(eq(users.id, userId));
 
   const [after] = await db
@@ -303,7 +305,7 @@ reviewsRouter.patch('/:id/reply', requireRole('admin', 'moderator'), async (req,
 });
 
 // DELETE /api/reviews/:id — Admin only: delete a review
-reviewsRouter.delete('/:id', requireRole('admin'), async (req, res) => {
+reviewsRouter.delete('/reviews/:id', requireRole('admin'), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid review ID' });
 
@@ -312,7 +314,7 @@ reviewsRouter.delete('/:id', requireRole('admin'), async (req, res) => {
 
   await db.delete(reviews).where(eq(reviews.id, id));
 
-  const userId = (req as any).user.id;
+  const userId = Number((req as any).user.sub);
   const [user] = await db.select().from(users).where(eq(users.id, userId));
 
   await logAction({

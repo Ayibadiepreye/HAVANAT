@@ -37,7 +37,7 @@ export default function ReviewForm({ productId, productName, onClose, onSuccess 
     setSubmitting(true);
     try {
       await submitReview(productId, { rating, reviewText: reviewText.trim(), photos });
-      showToast('Review submitted! It will appear after approval.', 'success');
+      showToast('Review submitted successfully!', 'success');
       onSuccess();
       onClose();
     } catch (err: any) {
