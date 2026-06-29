@@ -31,20 +31,38 @@ export class ApiError extends Error {
 
 function getAccessToken(): string | null {
   try {
-    // Primary location: store state (used by useAuthStore)
-    const fromState = JSON.parse(localStorage.getItem('havanat-auth') || '{}')?.state?.accessToken;
-    if (fromState) return fromState;
-    // Fallback: legacy direct token keys (used by GoogleCallback)
+    // Fallback: legacy direct token key (most reliable)
     const legacy = localStorage.getItem('havanat-access-token');
     if (legacy) return legacy;
+    
+    // Secondary: store state (used by useAuthStore persist)
+    const fromState = JSON.parse(localStorage.getItem('havanat-auth') || '{}')?.state?.accessToken;
+    if (fromState) return fromState;
+    
     return null;
   } catch {
     return null;
   }
 }
 
-export async function api<T = unknown>(path: string, options: { method?: string; body?: unknown; headers?: Record<string, string>; auth?: boolean } = {}): Promise<T> {
-  const { method = 'GET', body, headers = {}, auth = false } = options;
+function getRefreshToken(): string | null {
+  try {
+    // Fallback: legacy direct token key (most reliable)
+    const legacy = localStorage.getItem('havanat-refresh-token');
+    if (legacy) return legacy;
+    
+    // Secondary: store state
+    const fromState = JSON.parse(localStorage.getItem('havanat-auth') || '{}')?.state?.refreshToken;
+    if (fromState) return fromState;
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function api<T = unknown>(path: string, options: { method?: string; body?: unknown; headers?: Record<string, string>; auth?: boolean; _retry?: boolean } = {}): Promise<T> {
+  const { method = 'GET', body, headers = {}, auth = false, _retry = false } = options;
   const h: Record<string, string> = { 'Content-Type': 'application/json', ...headers };
   if (auth) {
     const token = getAccessToken();
@@ -60,6 +78,20 @@ export async function api<T = unknown>(path: string, options: { method?: string;
   });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
+  
+  // If 401 Unauthorized and we haven't retried yet, try refreshing token
+  if (res.status === 401 && auth && !_retry && path !== '/api/auth/refresh') {
+    try {
+      // Import dynamically to avoid circular dependency
+      const { useAuthStore } = await import('@/stores/useAuthStore');
+      await useAuthStore.getState().refreshToken();
+      // Retry the request with new token
+      return api<T>(path, { ...options, _retry: true });
+    } catch {
+      // Refresh failed, throw original error
+    }
+  }
+  
   if (!res.ok) {
     const msg = data?.error || data?.message || res.statusText;
     throw new ApiError(res.status, msg, data);

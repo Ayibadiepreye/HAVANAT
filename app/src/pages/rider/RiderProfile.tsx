@@ -11,6 +11,11 @@ export default function RiderProfile() {
   const rider = me.data;
   const profile = rider?.profile;
 
+  // Fetch fresh data on mount to ensure live updates
+  useEffect(() => {
+    void me.refresh();
+  }, []);
+
   const [form, setForm] = useState({
     name: '',
     email: '',

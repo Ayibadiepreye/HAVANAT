@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import type { SidebarItem } from '@/components/dashboard/DashboardSidebar';
@@ -21,6 +22,12 @@ export const ADMIN_NAV_ITEMS: SidebarItem[] = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
+  const fetchUserData = useAuthStore((s) => s.fetchUserData);
+
+  // Fetch fresh user data on mount to ensure live updates
+  useEffect(() => {
+    void fetchUserData();
+  }, [fetchUserData]);
 
   if (dashboardUser?.role !== 'admin') {
     return null;
@@ -41,6 +48,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
 export function ModeratorLayout({ children }: { children: React.ReactNode }) {
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
+  const fetchUserData = useAuthStore((s) => s.fetchUserData);
+
+  // Fetch fresh user data on mount to ensure live updates
+  useEffect(() => {
+    void fetchUserData();
+  }, [fetchUserData]);
 
   const items: SidebarItem[] = [
     { label: 'Content', href: '/moderator', icon: FileText },

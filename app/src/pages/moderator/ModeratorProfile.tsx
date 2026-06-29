@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { apiPost } from '@/lib/api';
@@ -6,7 +6,13 @@ import { Eye, EyeOff } from 'lucide-react';
 
 export default function ModeratorProfile() {
   const user = useAuthStore((s) => s.user);
+  const fetchUserData = useAuthStore((s) => s.fetchUserData);
   const showToast = useUIStore((s) => s.showToast);
+
+  // Fetch fresh user data on mount
+  useEffect(() => {
+    void fetchUserData();
+  }, [fetchUserData]);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',

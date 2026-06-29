@@ -21,7 +21,7 @@ export const config = {
   databaseUrl: required('DATABASE_URL'),
   jwtAccessSecret: required('JWT_ACCESS_SECRET'),
   jwtRefreshSecret: required('JWT_REFRESH_SECRET'),
-  jwtAccessTtl: process.env.JWT_ACCESS_TTL ?? '1h',
+  jwtAccessTtl: process.env.JWT_ACCESS_TTL ?? '4h',
   jwtRefreshTtl: process.env.JWT_REFRESH_TTL ?? '30d',
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:3000').split(',').map((s) => s.trim()),
   rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000),

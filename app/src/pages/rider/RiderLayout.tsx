@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   LayoutDashboard,
   Package,
@@ -17,6 +18,12 @@ export const RIDER_NAV_ITEMS: SidebarItem[] = [
 
 export default function RiderLayout({ children }: { children: React.ReactNode }) {
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
+  const fetchUserData = useAuthStore((s) => s.fetchUserData);
+
+  // Fetch fresh user data on mount to ensure live updates
+  useEffect(() => {
+    void fetchUserData();
+  }, [fetchUserData]);
 
   if (dashboardUser?.role !== 'rider') {
     return null;

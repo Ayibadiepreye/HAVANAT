@@ -52,10 +52,16 @@ function writeJSON<T>(key: string, value: T) {
 // ────────────────────────── Component ──────────────────────────
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
+  const fetchUserData = useAuthStore((s) => s.fetchUserData);
   const showToast = useUIStore((s) => s.showToast);
 
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabKey>('personal');
+
+  // Fetch fresh user data on mount
+  useEffect(() => {
+    void fetchUserData();
+  }, [fetchUserData]);
 
   // Use the same nav as AccountPage so users can navigate to the
   // account tabs from here. 'Profile' goes to /profile (this page),
@@ -88,13 +94,29 @@ export default function ProfilePage() {
   const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
 
   // ───── Personal save ─────
-  const handlePersonalSave = () => {
+  const handlePersonalSave = async () => {
     if (!user) return;
-    const nextUser = { ...user, name: personalForm.name.trim(), phone: personalForm.phone.trim() };
-    // The legacy user object is hydrated by useAuthStore.persist, but it's also a public field
-    useAuthStore.setState({ user: nextUser });
-    writeJSON(PROFILE_KEY, extras);
-    showToast('Profile updated', 'success');
+    try {
+      // Save to backend
+      await apiPatch('/api/auth/me', {
+        name: personalForm.name.trim(),
+        phone: personalForm.phone.trim() || null,
+      }, true);
+      
+      // Update local state
+      const nextUser = { ...user, name: personalForm.name.trim(), phone: personalForm.phone.trim() };
+      useAuthStore.setState({ user: nextUser });
+      
+      // Save extras to localStorage
+      writeJSON(PROFILE_KEY, extras);
+      
+      // Fetch fresh data from backend to ensure sync
+      await fetchUserData();
+      
+      showToast('Profile updated', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to update profile', 'error');
+    }
   };
 
   // ───── Avatar upload ─────
