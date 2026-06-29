@@ -32,19 +32,7 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
   if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5' });
   if (!reviewText?.trim()) return res.status(400).json({ error: 'Review text is required' });
 
-  const userId = (req as any).user.id;
-
-  // Debug: Log the authenticated user info
-  const debugInfo: any = {
-    jwtUser: {
-      id: userId,
-      email: (req as any).user.email,
-      sub: (req as any).user.sub,
-      role: (req as any).user.role
-    }
-  };
-  console.log('=== REVIEW SUBMISSION DEBUG ===');
-  console.log('Authenticated user from JWT:', debugInfo.jwtUser);
+  const userId = Number((req as any).user.sub); // Use 'sub' from JWT, not 'id'
 
   // 1. Check if user already reviewed this product
   const [existing] = await db
@@ -54,41 +42,7 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
 
   if (existing) return res.status(400).json({ error: 'You have already reviewed this product' });
 
-  // 2. Verify user purchased this product - with detailed debugging
-  console.log('Checking purchase for:', { userId, productId });
-  
-  // First, check what orders exist for this user
-  const userOrders = await db
-    .select({ 
-      id: orders.id, 
-      userId: orders.userId,
-      status: orders.status,
-      orderNumber: orders.orderNumber
-    })
-    .from(orders)
-    .where(eq(orders.userId, userId));
-  
-  debugInfo.userOrders = userOrders;
-  console.log('Orders for user:', userOrders);
-  
-  // Check all order items for this user
-  debugInfo.userOrderItems = [];
-  if (userOrders.length > 0) {
-    const orderIds = userOrders.map(o => o.id);
-    const userOrderItems = await db
-      .select()
-      .from(orderItems)
-      .where(sql`${orderItems.orderId} = ANY(${orderIds})`);
-    
-    debugInfo.userOrderItems = userOrderItems.map(i => ({
-      orderId: i.orderId,
-      productId: i.productId,
-      productName: i.productName
-    }));
-    console.log('Order items for user:', debugInfo.userOrderItems);
-  }
-  
-  // Now do the actual purchase check
+  // 2. Verify user purchased this product
   const purchased = await db
     .select({ orderId: orders.id, status: orders.status })
     .from(orders)
@@ -99,14 +53,9 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
     ))
     .limit(1);
 
-  debugInfo.purchased = purchased;
-  console.log('Purchase check result:', purchased);
-  console.log('=== END DEBUG ===');
-
   if (purchased.length === 0) {
     return res.status(403).json({ 
-      error: 'You can only review products you have purchased',
-      debug: debugInfo
+      error: 'You can only review products you have purchased'
     });
   }
 

@@ -65,6 +65,7 @@ export default function ReviewForm({ productId, productName, onClose, onSuccess 
             <p className="text-sm text-gray-500 mt-1">{productName}</p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-2 hover:bg-gray-100 transition-colors"
             aria-label="Close"
@@ -89,6 +90,7 @@ export default function ReviewForm({ productId, productName, onClose, onSuccess 
                   onMouseEnter={() => setHoverRating(i + 1)}
                   onMouseLeave={() => setHoverRating(0)}
                   className="transition-transform hover:scale-110"
+                  aria-label={`Rate ${i + 1} star${i === 0 ? '' : 's'}`}
                 >
                   <Star
                     size={32}
@@ -130,14 +132,15 @@ export default function ReviewForm({ productId, productName, onClose, onSuccess 
             <label className="block text-[10px] uppercase tracking-[0.1em] text-gray-500 mb-2">
               Add Photos (Optional)
             </label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {photos.map((photo, i) => (
-                <div key={i} className="relative aspect-square">
+                <div key={`${photo}-${i}`} className="relative aspect-square">
                   <img src={photo} alt={`Review ${i + 1}`} className="w-full h-full object-cover border" />
                   <button
                     type="button"
                     onClick={() => handleRemovePhoto(i)}
                     className="absolute top-1 right-1 p-1 bg-white border hover:bg-red-50 transition-colors"
+                    aria-label={`Remove photo ${i + 1}`}
                   >
                     <X size={14} />
                   </button>

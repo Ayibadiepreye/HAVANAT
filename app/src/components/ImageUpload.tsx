@@ -132,18 +132,19 @@ export default function ImageUpload({
             accept="image/*"
             onChange={handleChange}
             className="hidden"
+            aria-label="Upload image file"
           />
-          <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+          <div className="h-full flex flex-col items-center justify-center p-4 sm:p-6 text-center">
             {uploading ? (
               <>
-                <Loader2 className="h-8 w-8 text-gray-400 animate-spin mb-3" />
-                <p className="text-sm text-gray-500">Uploading...</p>
+                <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 animate-spin mb-2 sm:mb-3" />
+                <p className="text-xs sm:text-sm text-gray-500">Uploading...</p>
               </>
             ) : (
               <>
-                <Upload className="h-8 w-8 text-gray-400 mb-3" />
-                <p className="text-sm text-gray-600 mb-1">Drag & drop or click to upload</p>
-                <p className="text-xs text-gray-400">JPG, PNG, WebP up to {maxSizeMB}MB</p>
+                <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 mb-2 sm:mb-3" />
+                <p className="text-xs sm:text-sm text-gray-600 mb-1 px-2">Drag & drop or click to upload</p>
+                <p className="text-[10px] sm:text-xs text-gray-400 px-2">JPG, PNG up to {maxSizeMB}MB</p>
               </>
             )}
           </div>
