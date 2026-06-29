@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useProductStore } from '@/stores/useProductStore';
 import { MEMBERSHIP_TIERS } from '@/config/membership';
@@ -13,6 +13,12 @@ import { BRAND } from '@/config/brand';
 /* ──────────────────── HERO ──────────────────── */
 function HeroSection() {
   const heroRef = useRef<HTMLDivElement>(null);
+  const homepage = useContentStore((s) => s.homepage);
+  
+  // Fallback to defaults if content not set
+  const heroImage = homepage.heroImage || '/images/hero/fabric-hero.jpg';
+  const headline = homepage.headline || BRAND.name;
+  const tagline = homepage.tagline || BRAND.tagline;
 
   useEffect(() => {
     const el = heroRef.current;
@@ -31,17 +37,17 @@ function HeroSection() {
   return (
     <section ref={heroRef} className="relative w-full h-screen overflow-hidden bg-black">
       <div className="hero-img absolute inset-0 w-full h-full">
-        <img src="/images/hero/fabric-hero.jpg" alt="Premium fabric" className="w-full h-full object-cover opacity-70" />
+        <img src={heroImage} alt="Premium fabric" className="w-full h-full object-cover opacity-70" />
         <div className="absolute inset-0 bg-black/30" />
       </div>
 
       <div className="hero-text relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
         <img src={BRAND.assets.crest} alt={BRAND.name} className="h-20 sm:h-24 lg:h-28 w-auto opacity-90 mb-4" />
         <h1 className="font-serif text-white text-[12vw] md:text-[10vw] lg:text-[8vw] leading-none tracking-[-0.02em]">
-          {BRAND.name}
+          {headline}
         </h1>
         <p className="text-white/80 text-xs sm:text-sm tracking-[0.3em] mt-4 sm:mt-6 font-light uppercase">
-          {BRAND.tagline}
+          {tagline}
         </p>
         <div className="flex flex-col sm:flex-row items-center gap-4 mt-10 sm:mt-14">
           <Link to="/shop" className="px-8 py-3.5 bg-white text-black text-[10px] sm:text-xs tracking-[0.15em] font-semibold hover:bg-white/90 transition-colors">
@@ -307,41 +313,73 @@ function MembershipTeaser() {
 
 /* ──────────────────── LOOKBOOK / COMMUNITY ──────────────────── */
 function LookbookSection() {
+  const lookbook = useContentStore((s) => s.lookbook);
   const testimonials = useContentStore((s) => s.testimonials);
   const fetchContent = useContentStore((s) => s.fetchContent);
   useEffect(() => { fetchContent(); }, [fetchContent]);
+  
+  // Use lookbook images if available, fallback to default community images
+  const displayImages = lookbook.length > 0 ? lookbook : [
+    { id: '1', url: '/images/community/professional-1.jpg', caption: 'Professional style', order: 1 },
+    { id: '2', url: '/images/community/professional-2.jpg', caption: 'Tailored excellence', order: 2 },
+    { id: '3', url: '/images/community/event-1.jpg', caption: 'Event ready', order: 3 },
+  ];
+  
+  // Only show testimonials if there are approved ones
+  const approvedTestimonials = testimonials.filter(t => t.approved);
 
   return (
     <section className="w-full py-20 lg:py-28 bg-white">
       <div className="px-4 sm:px-6 lg:px-12">
+        {/* Lookbook Section - always show with fallback */}
         <div className="flex items-end justify-between mb-12 lg:mb-16">
           <div>
             <p className="text-[10px] tracking-[0.25em] text-gray-400 uppercase mb-3">The {BRAND.name} Community</p>
-            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl">How It&apos;s Going</h2>
+            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl">Lookbook</h2>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-          {testimonials.map((review) => (
-            <div key={review.id} className="group">
+          {displayImages.slice(0, 3).map((item) => (
+            <div key={item.id} className="group">
               <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 img-zoom">
-                <img src={review.avatar} alt={review.name} className="w-full h-full object-cover" />
+                <img src={item.url} alt={item.caption} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300" />
                 <div className="absolute inset-0 flex items-end p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <div className="text-white">
-                    <div className="flex gap-0.5 mb-2">
-                      {Array.from({ length: review.rating }).map((_, i) => (
-                        <Star key={i} size={12} className="fill-white text-white" />
-                      ))}
-                    </div>
-                    <p className="text-sm italic leading-relaxed">&ldquo;{review.text}&rdquo;</p>
-                    <p className="text-xs mt-3 tracking-wide text-white/70">— {review.name}</p>
+                    <p className="text-sm leading-relaxed">{item.caption}</p>
                   </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
+        
+        {/* Testimonials Section - only show if there are approved testimonials */}
+        {approvedTestimonials.length > 0 && (
+          <div className="mt-20">
+            <div className="text-center mb-10">
+              <p className="text-[10px] tracking-[0.25em] text-gray-400 uppercase mb-3">Client Reviews</p>
+              <h3 className="font-serif text-2xl sm:text-3xl">What Our Clients Say</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {approvedTestimonials.slice(0, 3).map((review) => (
+                <div key={review.id} className="bg-gray-50 p-6">
+                  <div className="flex gap-0.5 mb-3">
+                    {Array.from({ length: review.rating }).map((_, i) => (
+                      <Star key={i} size={14} className="fill-black text-black" />
+                    ))}
+                  </div>
+                  <p className="text-sm italic leading-relaxed mb-4">&ldquo;{review.text}&rdquo;</p>
+                  <div className="flex items-center gap-3">
+                    <img src={review.avatar} alt={review.name} className="h-10 w-10 rounded-full object-cover" />
+                    <p className="text-xs font-medium">— {review.name}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Founder's note */}
         <div className="mt-20 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -432,10 +470,63 @@ function NewsletterSection() {
   );
 }
 
+/* ──────────────────── BANNER CAROUSEL ──────────────────── */
+function BannerCarousel() {
+  const banners = useContentStore((s) => s.banners);
+  const [current, setCurrent] = useState(0);
+  
+  // Only show active banners
+  const activeBanners = banners.filter(b => b.status === 'active');
+  
+  useEffect(() => {
+    if (activeBanners.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % activeBanners.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [activeBanners.length]);
+  
+  if (activeBanners.length === 0) return null;
+  
+  const banner = activeBanners[current];
+  
+  return (
+    <section className="w-full bg-black text-white">
+      <Link to={banner.link} className="block relative h-64 lg:h-80 overflow-hidden group">
+        <img src={banner.image} alt={banner.title} className="w-full h-full object-cover opacity-70 group-hover:opacity-80 transition-opacity" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-white text-center px-4">{banner.title}</h2>
+        </div>
+        {activeBanners.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+            {activeBanners.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={(e) => { e.preventDefault(); setCurrent(i); }}
+                className={`h-2 w-2 rounded-full transition-all ${i === current ? 'bg-white w-6' : 'bg-white/40'}`}
+                aria-label={`Go to banner ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </Link>
+    </section>
+  );
+}
+
 /* ──────────────────── HOME PAGE ──────────────────── */
 export default function HomePage() {
+  const fetchContent = useContentStore((s) => s.fetchContent);
+  
+  // Fetch all content on mount
+  useEffect(() => {
+    void fetchContent();
+  }, [fetchContent]);
+  
   return (
     <main>
+      <BannerCarousel />
       <HeroSection />
       <TrustBar />
       <FeaturedSection />

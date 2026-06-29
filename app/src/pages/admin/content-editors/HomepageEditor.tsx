@@ -23,14 +23,24 @@ export default function HomepageEditor() {
         folder="havanat/homepage"
         label="Hero Image"
         aspect="wide"
-        hint="Recommended: 1920×1080 (main hero background)"
+        hint="Recommended: 1920×1080 (main hero background). Leave empty to use default."
       />
+      {form.heroImage && (
+        <button
+          type="button"
+          onClick={() => setForm({ ...form, heroImage: '' })}
+          className="text-xs text-red-600 hover:underline"
+        >
+          Clear image (use default)
+        </button>
+      )}
 
       <div>
         <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Headline</label>
         <input
           value={form.headline}
           onChange={(e) => setForm({ ...form, headline: e.target.value })}
+          placeholder="Leave empty to use brand name"
           className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none font-serif text-lg"
         />
       </div>
@@ -40,6 +50,7 @@ export default function HomepageEditor() {
         <input
           value={form.tagline}
           onChange={(e) => setForm({ ...form, tagline: e.target.value })}
+          placeholder="Leave empty to use brand tagline"
           className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none"
         />
       </div>
@@ -49,12 +60,14 @@ export default function HomepageEditor() {
         <input
           value={form.featuredCollectionIds.join(', ')}
           onChange={(e) => setForm({ ...form, featuredCollectionIds: e.target.value.split(',').map((s) => Number(s.trim())).filter(Boolean) })}
+          placeholder="e.g., 1, 2, 3, 4"
           className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none"
         />
         <p className="text-xs text-gray-500 mt-1.5">Last updated: {new Date(homepage.updatedAt).toLocaleString('en-NG')}</p>
       </div>
 
       <button
+        type="button"
         onClick={() => {
           if (!dashboardUser) return;
           saveHomepage(form, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' });
