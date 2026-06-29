@@ -10,7 +10,7 @@ const TIER_COLORS = {
 };
 
 export default function AdminReviews() {
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('all');
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [replyText, setReplyText] = useState('');
   
