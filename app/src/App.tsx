@@ -91,7 +91,7 @@ export default function App() {
         <Route path="/admin/members" element={<RoleGuard roles={['admin']}><AdminLayout><AdminMembers /></AdminLayout></RoleGuard>} />
         <Route path="/admin/returns" element={<RoleGuard roles={['admin']}><AdminLayout><AdminReturns /></AdminLayout></RoleGuard>} />
         <Route path="/admin/riders" element={<RoleGuard roles={['admin']}><AdminLayout><AdminRiders /></AdminLayout></RoleGuard>} />
-        <Route path="/admin/memberships" element={<RoleGuard roles={['admin']}><AdminLayout><AdminMemberships /></AdminLayout></RoleGuard>} />
+        <Route path="/admin/memberships" element={<RoleGuard roles={['admin', 'moderator']}><AdminLayout><AdminMemberships /></AdminLayout></RoleGuard>} />
         <Route path="/admin/content" element={<RoleGuard roles={['admin']}><AdminLayout><AdminContent /></AdminLayout></RoleGuard>} />
         <Route path="/admin/team" element={<RoleGuard roles={['admin']}><AdminLayout><AdminTeam /></AdminLayout></RoleGuard>} />
         <Route path="/admin/audit-log" element={<RoleGuard roles={['admin']}><AdminLayout><AdminAuditLog /></AdminLayout></RoleGuard>} />
@@ -107,6 +107,7 @@ export default function App() {
         <Route path="/moderator/orders" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorOrders /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/returns" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReturns /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/reviews" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReviews /></ModeratorLayout></RoleGuard>} />
+        <Route path="/moderator/memberships" element={<RoleGuard roles={['moderator']}><ModeratorLayout><AdminMemberships /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/profile" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorProfile /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/broadcast" element={<RoleGuard roles={['moderator']}><ModeratorLayout><AdminBroadcast /></ModeratorLayout></RoleGuard>} />
 

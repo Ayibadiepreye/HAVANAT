@@ -68,7 +68,7 @@ export default function MembershipPage() {
 
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  const allFeatures = Array.from(new Set(MEMBERSHIP_TIERS.flatMap((m) => m.features)));
+  const allFeatures = Array.from(new Set(tiers.flatMap((m) => m.features)));
 
   return (
     <main className="min-h-screen pt-20 lg:pt-24 bg-white">
@@ -159,7 +159,7 @@ export default function MembershipPage() {
               <thead>
                 <tr className="border-b-2 border-black">
                   <th className="text-left py-4 pr-6 text-xs tracking-[0.1em] font-semibold">FEATURE</th>
-                  {MEMBERSHIP_TIERS.map((t) => (
+                  {tiers.map((t) => (
                     <th key={t.tier} className="text-center py-4 px-4 text-xs tracking-[0.1em] font-semibold">
                       {t.tier.toUpperCase()}
                     </th>
@@ -170,7 +170,7 @@ export default function MembershipPage() {
                 {allFeatures.map((feature) => (
                   <tr key={feature} className="border-b border-gray-200">
                     <td className="py-4 pr-6">{feature}</td>
-                    {MEMBERSHIP_TIERS.map((tier) => (
+                    {tiers.map((tier) => (
                       <td key={tier.tier} className="text-center py-4 px-4">
                         {tier.features.includes(feature) ? (
                           <Check size={16} className="mx-auto" />

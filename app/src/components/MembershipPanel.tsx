@@ -279,7 +279,7 @@ export default function MembershipPanel() {
                           ? 'Redirecting…'
                           : tier === paidTier
                             ? 'Current plan'
-                            : `Pay & switch to ${TIER_PRICING[tier].label}`}
+                            : `Pay & switch to ${tierPriceFor(tier).label}`}
                       </button>
                     )}
                     {isPaid && isScheduled && (
