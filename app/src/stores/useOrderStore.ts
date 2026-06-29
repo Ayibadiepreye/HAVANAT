@@ -29,7 +29,7 @@ interface CreateOrderInput {
 
 interface OrderState {
   orders: DashboardOrder[];
-  updateStatus: (id: string, status: OrderStatus, actor: Actor, note?: string) => void;
+  updateStatus: (id: string, status: OrderStatus, actor: Actor, note?: string) => Promise<void>;
   assignRider: (id: string, riderId: string, riderName: string, actor: Actor) => void;
   cancelOrder: (id: string, actor: Actor, note?: string) => void;
   /** Generate the 4-digit delivery OTP when an order moves to `processing`. */
@@ -144,7 +144,7 @@ export const useOrderStore = create<OrderState>()(
           console.error('fetchOrders failed', err);
         }
       },
-      updateStatus: (id, status, actor, note) => {
+      updateStatus: async (id, status, actor, note) => {
         const order = get().orders.find((o) => o.id === id);
         if (!order) return;
         const before = { status: order.status, riderId: order.riderId, deliveryOtp: order.deliveryOtp ?? null };
@@ -155,6 +155,7 @@ export const useOrderStore = create<OrderState>()(
         const filledHistory = fillMissedStages(order.status, status, order.trackingHistory, actor.name);
         const newEvent: TrackingEvent = { status, timestamp: new Date().toISOString(), note };
         const finalHistory = [...filledHistory, newEvent];
+        // Optimistic update
         set({
           orders: get().orders.map((o) =>
             o.id === id
@@ -171,9 +172,20 @@ export const useOrderStore = create<OrderState>()(
           summary: `Updated status to ${status}${note ? ` (${note})` : ''}`,
           changes: { before, after },
         });
-        // Mock: send OTP to customer email when one is generated
-        if (status === 'processing' && deliveryOtp && deliveryOtp !== before.deliveryOtp) {
-          console.info(`[mock-email] To: ${order.customerEmail} — Your Havanat delivery OTP is ${deliveryOtp}. Show this to the rider on arrival.`);
+        
+        // Persist to backend
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPatch(`/api/orders/${id}/status`, { status, note }, true);
+          } catch (err) {
+            console.error('updateStatus failed:', err);
+            // Revert on error
+            set({
+              orders: get().orders.map((o) =>
+                o.id === id ? { ...o, status: before.status, trackingHistory: order.trackingHistory } : o
+              ),
+            });
+          }
         }
       },
       assignRider: async (id, riderId, riderName, actor) => {

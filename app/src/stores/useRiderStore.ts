@@ -12,7 +12,7 @@ interface RiderState {
   riders: Rider[];
   deliveries: Delivery[];
   addRider: (rider: Omit<Rider, 'id' | 'rating' | 'totalDeliveries' | 'totalEarnings' | 'joinedAt'>, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
-  setStatus: (riderId: string, status: RiderStatus, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
+  setStatus: (riderId: string, status: RiderStatus, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => Promise<void>;
   removeRider: (riderId: string, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => void;
   updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus, proof?: ProofOfDelivery) => void;
   setDeliveryProof: (deliveryId: string, proof: ProofOfDelivery) => void;
@@ -98,10 +98,11 @@ export const useRiderStore = create<RiderState>()(
           changes: { before: null, after: { name: rider.name, vehicleType: rider.vehicleType } },
         });
       },
-      setStatus: (riderId, status, actor) => {
+      setStatus: async (riderId, status, actor) => {
         const rider = get().riders.find((r) => r.id === riderId);
         if (!rider) return;
         const before = { status: rider.status };
+        // Optimistic update
         set({ riders: get().riders.map((r) => (r.id === riderId ? { ...r, status } : r)) });
         logAuditAction({
           userId: actor.id, userName: actor.name, userRole: actor.role,
@@ -109,6 +110,16 @@ export const useRiderStore = create<RiderState>()(
           summary: `Set rider status to ${status}`,
           changes: { before, after: { status } },
         });
+        // Persist to backend
+        if (apiConfig.useBackend && useAuthStore.getState().isAuthenticated) {
+          try {
+            await apiPatch(`/api/riders/${riderId}/status`, { status }, true);
+          } catch (err) {
+            console.error('setStatus failed:', err);
+            // Revert on error
+            set({ riders: get().riders.map((r) => (r.id === riderId ? { ...r, status: before.status } : r)) });
+          }
+        }
       },
       removeRider: (riderId, actor) => {
         const rider = get().riders.find((r) => r.id === riderId);

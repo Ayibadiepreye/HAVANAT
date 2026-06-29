@@ -25,6 +25,12 @@ export default function AdminReviews() {
   useEffect(() => {
     const filters = filter === 'all' ? {} : { approved: filter === 'approved' };
     fetchAllReviews(filters);
+    
+    // Auto-refresh every 20 seconds
+    const interval = setInterval(() => {
+      fetchAllReviews(filters);
+    }, 20000);
+    return () => clearInterval(interval);
   }, [filter, fetchAllReviews]);
 
   const handleApprove = async (reviewId: number, approved: boolean) => {

@@ -62,7 +62,16 @@ export default function AdminOrders() {
   const orders = useOrderStore((s) => s.orders);
   const updateStatus = useOrderStore((s) => s.updateStatus);
   const fetchOrders = useOrderStore((s) => s.fetchOrders);
-  useEffect(() => { void fetchOrders(); }, [fetchOrders]);
+  
+  // Fetch on mount and auto-refresh every 15 seconds
+  useEffect(() => { 
+    void fetchOrders();
+    const interval = setInterval(() => {
+      void fetchOrders();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
+  
   const assignRider = useOrderStore((s) => s.assignRider);
   const riders = useRiderStore((s) => s.riders);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);

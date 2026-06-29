@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMembershipStore } from '@/stores/useMembershipStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -10,9 +10,19 @@ type TierName = 'Standard' | 'Deluxe' | 'Elite';
 
 export default function AdminMemberships() {
   const tiers = useMembershipStore((s) => s.tiers);
+  const fetchTiers = useMembershipStore((s) => s.fetchTiers);
   const saveTier: (tierName: TierName, next: MembershipTier, actor: { id: string; name: string; role: 'admin' | 'moderator' }) => Promise<void> = useMembershipStore((s) => s.saveTier);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
+
+  // Fetch tiers on mount and auto-refresh every 30 seconds
+  useEffect(() => {
+    void fetchTiers();
+    const interval = setInterval(() => {
+      void fetchTiers();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchTiers]);
 
   return (
     <div className="space-y-6">

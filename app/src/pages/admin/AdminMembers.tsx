@@ -13,7 +13,16 @@ export default function AdminMembers() {
   const members = useMembershipStore((s) => s.members);
   const setStatus = useMembershipStore((s) => s.setMemberStatus);
   const fetchMembers = useMembershipStore((s) => s.fetchMembers);
-  useEffect(() => { void fetchMembers(); }, [fetchMembers]);
+  
+  // Fetch on mount and auto-refresh every 15 seconds
+  useEffect(() => { 
+    void fetchMembers();
+    const interval = setInterval(() => {
+      void fetchMembers();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [fetchMembers]);
+  
   const changeTier = useMembershipStore((s) => s.changeMemberTier);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);

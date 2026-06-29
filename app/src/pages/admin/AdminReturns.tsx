@@ -24,7 +24,16 @@ export default function AdminReturns() {
   const reject = useReturnStore((s) => s.reject);
   const assignRider = useReturnStore((s) => s.assignRider);
   const fetchReturns = useReturnStore((s) => s.fetchReturns);
-  useEffect(() => { void fetchReturns(); }, [fetchReturns]);
+  
+  // Fetch on mount and auto-refresh every 20 seconds
+  useEffect(() => { 
+    void fetchReturns();
+    const interval = setInterval(() => {
+      void fetchReturns();
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [fetchReturns]);
+  
   const processRefund = useReturnStore((s) => s.processRefund);
   const riders = useRiderStore((s) => s.riders);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
