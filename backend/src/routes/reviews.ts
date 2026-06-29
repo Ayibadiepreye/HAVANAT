@@ -35,13 +35,16 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
   const userId = (req as any).user.id;
 
   // Debug: Log the authenticated user info
+  const debugInfo: any = {
+    jwtUser: {
+      id: userId,
+      email: (req as any).user.email,
+      sub: (req as any).user.sub,
+      role: (req as any).user.role
+    }
+  };
   console.log('=== REVIEW SUBMISSION DEBUG ===');
-  console.log('Authenticated user from JWT:', {
-    id: userId,
-    email: (req as any).user.email,
-    sub: (req as any).user.sub,
-    fullUser: req.user
-  });
+  console.log('Authenticated user from JWT:', debugInfo.jwtUser);
 
   // 1. Check if user already reviewed this product
   const [existing] = await db
@@ -65,9 +68,11 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
     .from(orders)
     .where(eq(orders.userId, userId));
   
+  debugInfo.userOrders = userOrders;
   console.log('Orders for user:', userOrders);
   
   // Check all order items for this user
+  debugInfo.userOrderItems = [];
   if (userOrders.length > 0) {
     const orderIds = userOrders.map(o => o.id);
     const userOrderItems = await db
@@ -75,11 +80,12 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
       .from(orderItems)
       .where(sql`${orderItems.orderId} = ANY(${orderIds})`);
     
-    console.log('Order items for user:', userOrderItems.map(i => ({
+    debugInfo.userOrderItems = userOrderItems.map(i => ({
       orderId: i.orderId,
       productId: i.productId,
       productName: i.productName
-    })));
+    }));
+    console.log('Order items for user:', debugInfo.userOrderItems);
   }
   
   // Now do the actual purchase check
@@ -93,17 +99,14 @@ reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res)
     ))
     .limit(1);
 
+  debugInfo.purchased = purchased;
   console.log('Purchase check result:', purchased);
   console.log('=== END DEBUG ===');
 
   if (purchased.length === 0) {
     return res.status(403).json({ 
       error: 'You can only review products you have purchased',
-      debug: { 
-        userId,
-        productId,
-        userOrdersCount: userOrders.length
-      }
+      debug: debugInfo
     });
   }
 
