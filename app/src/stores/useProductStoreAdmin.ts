@@ -55,6 +55,19 @@ function toBackendPayload(p: Partial<Product>, _isCreate: boolean) {
   // Type assertion helper to access any field
   const pAny = p as any;
   
+  // Fix category - ensure lowercase
+  const category = p.category ? p.category.toLowerCase() : 'suits';
+  
+  // Fix occasion - backend expects string, frontend might send array
+  let occasion: string | undefined;
+  if (pAny.occasion) {
+    if (Array.isArray(pAny.occasion)) {
+      occasion = pAny.occasion.join(', ');
+    } else if (typeof pAny.occasion === 'string') {
+      occasion = pAny.occasion;
+    }
+  }
+  
   const payload: Record<string, unknown> = {
     name: p.name,
     slug,
@@ -64,7 +77,7 @@ function toBackendPayload(p: Partial<Product>, _isCreate: boolean) {
     images: Array.isArray(p.images) && p.images.length > 0
       ? p.images
       : ['https://placehold.co/600x800/EEE/333?text=No+Image'],
-    category: p.category ?? 'suits',
+    category,
     sizes: Array.isArray(p.sizes) ? p.sizes : [],
     colors: Array.isArray(pAny.colors) ? pAny.colors : [],
     fit: pAny.fit || 'Tailored',
@@ -76,7 +89,7 @@ function toBackendPayload(p: Partial<Product>, _isCreate: boolean) {
     details: pAny.details ?? '',
     care: pAny.care ?? '',
     sku: pAny.sku,
-    occasion: pAny.occasion,
+    occasion,
     deliveryFee: pAny.deliveryFee != null ? Number(pAny.deliveryFee) : undefined,
     deluxeDiscount: pAny.deluxeDiscount != null ? Number(pAny.deluxeDiscount) : undefined,
     eliteDiscount: pAny.eliteDiscount != null ? Number(pAny.eliteDiscount) : undefined,
