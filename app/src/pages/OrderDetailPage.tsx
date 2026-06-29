@@ -54,17 +54,14 @@ export default function OrderDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const showToast = useUIStore((s) => s.showToast);
-  const orders = useOrderStore((s) => s.orders);
   const fetchOrders = useOrderStore((s) => s.fetchOrders);
   const fetchNotifications = useNotificationStore((s) => s.fetchNotifications);
   
-  // Ensure we have the order — fetch if not present locally.
+  // Always fetch the latest order data when page loads
   useEffect(() => {
-    if (!orders.find((o) => o.id === id)) {
-      void fetchOrders();
-      void fetchNotifications(); // Also fetch notifications to show any new updates
-    }
-  }, [id, orders, fetchOrders, fetchNotifications]);
+    void fetchOrders();
+    void fetchNotifications();
+  }, [id, fetchOrders, fetchNotifications]);
 
   // When user returns from Paystack (callback: ?paid=1&reference=ORD-...),
   // call /api/payments/verify to flip paidAt + status on the backend.
@@ -99,6 +96,19 @@ export default function OrderDetailPage() {
   }, [searchParams, fetchOrders, id, showToast]);
 
   const order = useOrderStore((s) => s.getById(id));
+
+  // Debug: log the order to see what data we have
+  useEffect(() => {
+    if (order) {
+      console.log('[OrderDetailPage] Order data:', {
+        id: order.id,
+        status: order.status,
+        deliveryOtp: order.deliveryOtp,
+        trackingHistory: order.trackingHistory,
+        itemCount: order.items?.length || 0,
+      });
+    }
+  }, [order]);
 
   if (!order) {
     return (
