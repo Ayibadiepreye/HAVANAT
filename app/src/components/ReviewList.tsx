@@ -55,14 +55,14 @@ export default function ReviewList({ productId }: ReviewListProps) {
           {/* Average Rating */}
           <div className="text-center md:text-left">
             <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-              <span className="text-5xl font-bold">{stats.averageRating.toFixed(1)}</span>
+              <span className="text-5xl font-bold">{(stats.averageRating || 0).toFixed(1)}</span>
               <div>
                 <div className="flex gap-0.5 mb-1">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star
                       key={i}
                       size={16}
-                      className={i < Math.round(stats.averageRating) ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}
+                      className={i < Math.round(stats.averageRating || 0) ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}
                     />
                   ))}
                 </div>
