@@ -1,10 +1,14 @@
 import { config } from './config.js';
 import app from './app.js';
 import { startAutoPrune, stopAutoPrune } from './jobs/pruneNotifications.js';
+import { startLowStockAlerts, stopLowStockAlerts } from './jobs/lowStockAlert.js';
 
 // Auto-prune notifications older than the retention window (default 48h).
 // Runs once at startup, then on a 6h interval. Safe to call before listen().
 startAutoPrune();
+
+// Low stock alerts - check for low/out of stock products every 24h
+startLowStockAlerts();
 
 const server = app.listen(config.port, () => {
   // eslint-disable-next-line no-console
@@ -15,6 +19,7 @@ const shutdown = (signal: string) => {
   // eslint-disable-next-line no-console
   console.log(`\n${signal} received, closing…`);
   stopAutoPrune();
+  stopLowStockAlerts();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 10_000).unref();
 };

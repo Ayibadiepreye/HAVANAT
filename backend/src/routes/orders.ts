@@ -100,53 +100,98 @@ ordersRouter.post('/', requireAuth, async (req, res) => {
     customerPhone: string;
   };
   if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'No items' });
-  const productIds = items.map((i) => i.productId);
-  const found = await db.select().from(products).where(inArray(products.id, productIds));
-  if (found.length !== items.length) return res.status(400).json({ error: 'Invalid product' });
-  const productById = new Map(found.map((p) => [p.id, p]));
-  let subtotal = 0;
-  const orderItemsToInsert = items.map((i) => {
-    const p = productById.get(i.productId)!;
-    const unitPrice = Number(p.price);
-    const lineTotal = unitPrice * i.quantity;
-    subtotal += lineTotal;
-    return {
-      productId: p.id,
-      productName: p.name,
-      productImage: p.images?.[0] ?? null,
-      size: i.size ?? null,
-      color: i.color ?? null,
-      quantity: i.quantity,
-      unitPrice: String(unitPrice),
-      totalPrice: String(lineTotal),
-    };
-  });
-  const shippingFee = '1500';
-  const total = String(subtotal + Number(shippingFee));
-  const orderNumber = `ORD-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-  const [order] = await db.insert(orders).values({
-    orderNumber, userId: Number(req.user!.sub), status: 'received',
-    subtotal: String(subtotal), shippingFee, total,
-    paymentMethod, addressId: addressId ?? null,
-    customerName, customerPhone, customerEmail: req.user!.email,
-    shippingAddress: ((req.body as any)?.shippingAddress ?? { fullName: customerName, phone: customerPhone, street: 'TBD', city: 'TBD', state: 'TBD' }) as any,
-    tracking: [{ status: 'received', timestamp: new Date().toISOString() }],
-  } as any).returning();
-  if (!order) return res.status(500).json({ error: 'Failed to create order' });
-  await db.insert(orderItems).values(orderItemsToInsert.map((i) => ({ ...i, orderId: order.id })));
-  // Send order confirmation email
-  sendEmailSafe({
-    to: order.customerEmail,
-    subject: `Order confirmed — ${order.orderNumber}`,
-    html: orderConfirmationEmail({
-      reference: order.orderNumber,
-      total: Number(order.total),
-      items: orderItemsToInsert.map((i) => ({ name: i.productName, quantity: i.quantity, price: Number(i.unitPrice) })),
-      customerName: order.customerName,
-      deliveryAddress: order.shippingAddress as any,
-    }),
-  });
-  res.status(201).json(order);
+  
+  try {
+    // Use transaction to ensure atomic stock check and reduction
+    const result = await db.transaction(async (tx) => {
+      const productIds = items.map((i) => i.productId);
+      const found = await tx.select().from(products).where(inArray(products.id, productIds));
+      if (found.length !== items.length) throw new Error('Invalid product');
+      
+      const productById = new Map(found.map((p) => [p.id, p]));
+      
+      // STOCK CHECK: Verify all products have sufficient stock (with row locking)
+      for (const item of items) {
+        const product = productById.get(item.productId)!;
+        const currentStock = product.stock ?? 0;
+        if (currentStock < item.quantity) {
+          throw new Error(`Insufficient stock for ${product.name}. Available: ${currentStock}, Requested: ${item.quantity}`);
+        }
+      }
+      
+      let subtotal = 0;
+      const orderItemsToInsert = items.map((i) => {
+        const p = productById.get(i.productId)!;
+        const unitPrice = Number(p.price);
+        const lineTotal = unitPrice * i.quantity;
+        subtotal += lineTotal;
+        return {
+          productId: p.id,
+          productName: p.name,
+          productImage: p.images?.[0] ?? null,
+          size: i.size ?? null,
+          color: i.color ?? null,
+          quantity: i.quantity,
+          unitPrice: String(unitPrice),
+          totalPrice: String(lineTotal),
+        };
+      });
+      
+      const shippingFee = '1500';
+      const total = String(subtotal + Number(shippingFee));
+      const orderNumber = `ORD-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      
+      // Create order
+      const [order] = await tx.insert(orders).values({
+        orderNumber, userId: Number(req.user!.sub), status: 'received',
+        subtotal: String(subtotal), shippingFee, total,
+        paymentMethod, addressId: addressId ?? null,
+        customerName, customerPhone, customerEmail: req.user!.email,
+        shippingAddress: ((req.body as any)?.shippingAddress ?? { fullName: customerName, phone: customerPhone, street: 'TBD', city: 'TBD', state: 'TBD' }) as any,
+        tracking: [{ status: 'received', timestamp: new Date().toISOString() }],
+      } as any).returning();
+      
+      if (!order) throw new Error('Failed to create order');
+      
+      // Insert order items
+      await tx.insert(orderItems).values(orderItemsToInsert.map((i) => ({ ...i, orderId: order.id })));
+      
+      // DECREMENT STOCK: Reduce stock for each product atomically
+      for (const item of items) {
+        const product = productById.get(item.productId)!;
+        const newStock = (product.stock ?? 0) - item.quantity;
+        await tx.update(products)
+          .set({ 
+            stock: newStock,
+            inStock: newStock > 0 // Auto-mark out of stock if stock reaches 0
+          })
+          .where(eq(products.id, item.productId));
+      }
+      
+      return { order, orderItemsToInsert };
+    });
+    
+    // Send order confirmation email (outside transaction)
+    sendEmailSafe({
+      to: result.order.customerEmail,
+      subject: `Order confirmed — ${result.order.orderNumber}`,
+      html: orderConfirmationEmail({
+        reference: result.order.orderNumber,
+        total: Number(result.order.total),
+        items: result.orderItemsToInsert.map((i) => ({ name: i.productName, quantity: i.quantity, price: Number(i.unitPrice) })),
+        customerName: result.order.customerName,
+        deliveryAddress: result.order.shippingAddress as any,
+      }),
+    });
+    
+    res.status(201).json(result.order);
+  } catch (err: any) {
+    if (err.message?.includes('Insufficient stock')) {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error('Order creation failed:', err);
+    return res.status(500).json({ error: 'Failed to create order' });
+  }
 });
 
 // Admin: update status
@@ -156,6 +201,23 @@ ordersRouter.patch('/:id/status', requireAuth, requireRole('admin', 'moderator')
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
   const [before] = await db.select().from(orders).where(eq(orders.id, id));
   if (!before) return res.status(404).json({ error: 'Not found' });
+  
+  // RESTORE STOCK: If order is being cancelled, restore stock for all items
+  if (parsed.data.status === 'cancelled' && before.status !== 'cancelled') {
+    const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
+    for (const item of items) {
+      const [product] = await db.select().from(products).where(eq(products.id, item.productId));
+      if (product) {
+        const restoredStock = (product.stock ?? 0) + item.quantity;
+        await db.update(products)
+          .set({ 
+            stock: restoredStock,
+            inStock: true // Mark back in stock when stock is restored
+          })
+          .where(eq(products.id, item.productId));
+      }
+    }
+  }
   
   // Generate OTP if moving to processing and no OTP exists
   let otp = null;

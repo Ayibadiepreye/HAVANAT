@@ -90,6 +90,26 @@ export default function AdminProducts() {
     { key: 'sku', label: 'SKU', render: (p) => <span className="text-xs text-gray-500">HVN-{String(p.id).padStart(4, '0')}</span> },
     { key: 'category', label: 'Category', render: (p) => p.category },
     { key: 'price', label: 'Price', render: (p) => formatNaira(p.price), align: 'right' },
+    { 
+      key: 'stock', 
+      label: 'Stock', 
+      render: (p) => {
+        const stock = (p as any).stock ?? 0;
+        const threshold = (p as any).lowStockThreshold ?? 5;
+        const isLow = stock <= threshold && stock > 0;
+        const isOut = stock === 0;
+        return (
+          <div className="flex items-center gap-2">
+            <span className={`text-sm font-medium ${isOut ? 'text-red-600' : isLow ? 'text-orange-600' : 'text-gray-900'}`}>
+              {stock}
+            </span>
+            {isLow && <span className="text-[10px] text-orange-600 uppercase tracking-wider">Low</span>}
+            {isOut && <span className="text-[10px] text-red-600 uppercase tracking-wider">Out</span>}
+          </div>
+        );
+      },
+      align: 'right'
+    },
     { key: 'sizes', label: 'Sizes', render: (p) => <span className="text-xs text-gray-600">{p.sizes.join(', ')}</span> },
     {
       key: 'status',

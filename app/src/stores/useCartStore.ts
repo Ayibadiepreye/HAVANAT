@@ -16,6 +16,7 @@ interface CartState {
   openCart: () => void;
   closeCart: () => void;
   setDeliveryState: (state: string) => void;
+  validateStock: (products: Product[]) => { removed: CartItem[]; updated: CartItem[] };
   totalItems: () => number;
   /** Sum of line-item price × qty BEFORE any tier discount. */
   subtotal: () => number;
@@ -66,7 +67,8 @@ export const useCartStore = create<CartState>()(
       deliveryState: '',
 
       addItem: (product, size, quantity = 1) => {
-        if (product.stock <= 0) return; // out of stock guard
+        const currentStock = product.stock ?? 0;
+        if (currentStock <= 0) return; // out of stock guard
         const { items } = get();
         const existing = items.find(
           (item) => item.product.id === product.id && item.size === size
@@ -75,12 +77,12 @@ export const useCartStore = create<CartState>()(
           set({
             items: items.map((item) =>
               item.product.id === product.id && item.size === size
-                ? { ...item, quantity: Math.min(item.quantity + quantity, product.stock) }
+                ? { ...item, quantity: Math.min(item.quantity + quantity, currentStock) }
                 : item
             ),
           });
         } else {
-          set({ items: [...items, { product, size, quantity: Math.min(quantity, product.stock) }] });
+          set({ items: [...items, { product, size, quantity: Math.min(quantity, currentStock) }] });
         }
         set({ isOpen: true });
       },
@@ -98,10 +100,12 @@ export const useCartStore = create<CartState>()(
           get().removeItem(productId, size);
           return;
         }
+        const item = get().items.find(i => i.product.id === productId && i.size === size);
+        const maxStock = item ? (item.product.stock ?? 0) : 0;
         set({
           items: get().items.map((item) =>
             item.product.id === productId && item.size === size
-              ? { ...item, quantity: Math.min(quantity, item.product.stock) }
+              ? { ...item, quantity: Math.min(quantity, maxStock) }
               : item
           ),
         });
@@ -112,6 +116,47 @@ export const useCartStore = create<CartState>()(
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
       setDeliveryState: (state) => set({ deliveryState: state }),
+
+      validateStock: (products: Product[]) => {
+        const items = get().items;
+        const productMap = new Map(products.map(p => [p.id, p]));
+        const removed: CartItem[] = [];
+        const updated: CartItem[] = [];
+        
+        const validItems = items.filter(item => {
+          const latestProduct = productMap.get(item.product.id);
+          if (!latestProduct) {
+            removed.push(item);
+            return false;
+          }
+          
+          const currentStock = latestProduct.stock ?? 0;
+          
+          // Remove if out of stock
+          if (currentStock <= 0 || !latestProduct.inStock) {
+            removed.push(item);
+            return false;
+          }
+          
+          // Adjust quantity if exceeds available stock
+          if (item.quantity > currentStock) {
+            updated.push({ ...item, quantity: currentStock });
+            return true;
+          }
+          
+          return true;
+        });
+        
+        // Update cart with valid items and adjusted quantities
+        set({
+          items: validItems.map(item => {
+            const updatedItem = updated.find(u => u.product.id === item.product.id && u.size === item.size);
+            return updatedItem || item;
+          })
+        });
+        
+        return { removed, updated };
+      },
 
       totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
 

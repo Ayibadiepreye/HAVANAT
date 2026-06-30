@@ -6,8 +6,9 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
 import { orders, orderItems, riderProfiles, products, users, members, returns, memberships, addresses, deliveries } from '../db/schema.js';
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, inArray } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { logAction } from '../audit/logger.js';
 
 export const adminRouter = Router();
 
@@ -401,5 +402,80 @@ adminRouter.post('/notifications/prune', requireAuth, requireRole('admin', 'mode
   } catch (err: any) {
     console.error('[admin/notifications/prune]', err);
     res.status(500).json({ error: 'Prune failed' });
+  }
+});
+
+// POST /api/admin/products/bulk-stock
+// Bulk update stock for multiple products. Accepts array of {productId, stock} updates.
+// Uses transaction for atomic updates and logs audit trail.
+adminRouter.post('/products/bulk-stock', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
+  try {
+    const { updates } = req.body as { updates: Array<{ productId: number; stock: number }> };
+    
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ error: 'Updates array is required' });
+    }
+    
+    // Validate all updates
+    for (const update of updates) {
+      if (typeof update.productId !== 'number' || typeof update.stock !== 'number') {
+        return res.status(400).json({ error: 'Each update must have productId (number) and stock (number)' });
+      }
+      if (update.stock < 0) {
+        return res.status(400).json({ error: 'Stock cannot be negative' });
+      }
+    }
+    
+    const updatedCount = await db.transaction(async (tx) => {
+      let count = 0;
+      
+      for (const update of updates) {
+        // Get current product state
+        const [product] = await tx.select().from(products).where(eq(products.id, update.productId));
+        
+        if (!product) {
+          throw new Error(`Product with ID ${update.productId} not found`);
+        }
+        
+        const oldStock = product.stock ?? 0;
+        const newStock = update.stock;
+        
+        // Update stock and inStock status
+        await tx.update(products)
+          .set({ 
+            stock: newStock,
+            inStock: newStock > 0
+          })
+          .where(eq(products.id, update.productId));
+        
+        // Log audit trail
+        await logAction({
+          actorId: Number(req.user!.sub),
+          actorRole: req.user!.role,
+          action: 'update',
+          targetType: 'product',
+          targetId: update.productId,
+          meta: {
+            name: product.name,
+            summary: `Bulk stock update: ${oldStock} → ${newStock}`,
+            oldStock,
+            newStock,
+          },
+        });
+        
+        count++;
+      }
+      
+      return count;
+    });
+    
+    res.json({ 
+      ok: true, 
+      updatedCount,
+      message: `Successfully updated stock for ${updatedCount} product${updatedCount !== 1 ? 's' : ''}`
+    });
+  } catch (err: any) {
+    console.error('[admin/products/bulk-stock]', err);
+    res.status(500).json({ error: err.message || 'Failed to update stock' });
   }
 });

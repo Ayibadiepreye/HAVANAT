@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
-import { returns, orders, users } from '../db/schema.js';
+import { returns, orders, users, products, orderItems } from '../db/schema.js';
 import { desc, eq } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { ApproveReturnSchema, AssignRiderSchema, CreateReturnSchema, RejectReturnSchema } from '../lib/validators.js';
@@ -42,6 +42,22 @@ returnsRouter.post('/:id/approve', requireAuth, requireRole('admin', 'moderator'
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
   const [before] = await db.select().from(returns).where(eq(returns.id, id));
   if (!before) return res.status(404).json({ error: 'Not found' });
+  
+  // RESTORE STOCK: Get order items and restore stock for returned products
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, before.orderId));
+  for (const item of items) {
+    const [product] = await db.select().from(products).where(eq(products.id, item.productId));
+    if (product) {
+      const restoredStock = (product.stock ?? 0) + item.quantity;
+      await db.update(products)
+        .set({ 
+          stock: restoredStock,
+          inStock: true // Mark back in stock when restored
+        })
+        .where(eq(products.id, item.productId));
+    }
+  }
+  
   const [after] = await db.update(returns).set({ status: 'approved', approvedBy: Number(req.user!.sub), updatedAt: new Date() }).where(eq(returns.id, id)).returning();
   await logAction({ req, user: req.user!, action: 'update', entityType: 'return', entityId: id, entityLabel: `Return: ${before.returnNumber}`, summary: 'Approved return', before, after });
   res.json(after);

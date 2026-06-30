@@ -338,18 +338,24 @@ export default function ShopPage() {
                             <Sparkles className="h-3 w-3" /> SNEAK PEEK
                           </span>
                         )}
-                        {/* Quick Add */}
+                        {/* Quick Add or Out of Stock */}
                         <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              addItem(product, product.sizes[1] || product.sizes[0]);
-                              showToast(`${product.name} added to cart`, 'success');
-                            }}
-                            className="w-full py-2.5 bg-black text-white text-[10px] tracking-[0.15em] font-semibold hover:bg-black/80 transition-colors"
-                          >
-                            QUICK ADD
-                          </button>
+                          {(product as any).stock > 0 ? (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                addItem(product, product.sizes[1] || product.sizes[0]);
+                                showToast(`${product.name} added to cart`, 'success');
+                              }}
+                              className="w-full py-2.5 bg-black text-white text-[10px] tracking-[0.15em] font-semibold hover:bg-black/80 transition-colors"
+                            >
+                              QUICK ADD
+                            </button>
+                          ) : (
+                            <div className="w-full py-2.5 bg-gray-200 text-gray-500 text-[10px] tracking-[0.15em] font-semibold text-center">
+                              OUT OF STOCK
+                            </div>
+                          )}
                         </div>
                       </div>
                     </Link>

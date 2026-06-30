@@ -18,25 +18,37 @@ function buildWhatsAppOrderMessage(state: string): string {
 }
 
 export default function CartPage() {
-  const { items, updateQuantity, removeItem, subtotal, deliveryFee, total, deliveryState, setDeliveryState, tierDiscount } = useCartStore();
+  const { items, updateQuantity, removeItem, subtotal, deliveryFee, total, deliveryState, setDeliveryState, tierDiscount, validateStock } = useCartStore();
   const isAuthed = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const defaultAddress = useAddressStore((s) => s.addresses.find((a) => a.isDefault) ?? s.addresses[0]);
   const { zoneFeeByState } = useDeliveryZones();
   const products = useProductStore((s) => s.products);
+  const fetchProducts = useProductStore((s) => s.fetchProducts);
   const showToast = useUIStore((s) => s.showToast);
   const [state, setState] = useState<string>(deliveryState || defaultAddress?.state || '');
 
-  // AUTO-REMOVE OUT-OF-STOCK ITEMS: Check cart items against current product stock
+  // Fetch latest products on mount
   useEffect(() => {
-    items.forEach((item) => {
-      const currentProduct = products.find((p) => p.id === item.product.id);
-      if (currentProduct && currentProduct.stock <= 0) {
-        removeItem(item.product.id, item.size);
-        showToast(`${item.product.name} removed (out of stock)`, 'info');
-      }
+    void fetchProducts();
+  }, [fetchProducts]);
+
+  // AUTO-VALIDATE STOCK: Check cart items against current product stock
+  useEffect(() => {
+    if (products.length === 0 || items.length === 0) return;
+    
+    const { removed, updated } = validateStock(products);
+    
+    // Notify user of removed items
+    removed.forEach(item => {
+      showToast(`${item.product.name} removed from cart (out of stock)`, 'error');
     });
-  }, [products, items, removeItem, showToast]);
+    
+    // Notify user of quantity adjustments
+    updated.forEach(item => {
+      showToast(`${item.product.name} quantity adjusted to ${item.quantity} (limited stock)`, 'info');
+    });
+  }, [products, items.length, validateStock, showToast]);
 
   // Keep cart store's deliveryState in sync
   useEffect(() => {
