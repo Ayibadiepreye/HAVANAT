@@ -126,7 +126,7 @@ export default function SneakPeeksPage() {
           <h1 className="font-serif text-3xl sm:text-4xl mb-4">Sneak Peeks are a Deluxe and Elite privilege</h1>
           <p className="text-gray-500 mb-6">
             Upgrade to Deluxe or Elite to see limited drops before they go public, plus other perks like
-            free shipping, member discounts, and priority customer service.
+            member discounts and priority customer service.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link

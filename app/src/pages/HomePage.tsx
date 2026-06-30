@@ -69,7 +69,7 @@ function HeroSection() {
 /* ──────────────────── TRUST BAR ──────────────────── */
 function TrustBar() {
   const items = [
-    { icon: Truck, label: 'Standard delivery ₦2,500 · Express ₦5,000' },
+    { icon: Truck, label: 'Nationwide delivery' },
     { icon: RotateCcw, label: '14-day returns' },
     { icon: Award, label: 'Hand-tailored' },
     { icon: Sparkles, label: 'Membership perks' },

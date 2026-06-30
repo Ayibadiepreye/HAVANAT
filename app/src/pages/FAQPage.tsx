@@ -37,7 +37,7 @@ const FAQS: FAQ[] = [
     category: 'Shipping',
     question: 'How long does delivery take?',
     answer:
-      'Lagos orders typically arrive in 1–2 business days, Abuja in 2–3, and other Nigerian states in 3–5. Express shipping is available at checkout for next-day delivery to Lagos and Abuja.',
+      'Delivery times vary by location. Lagos orders typically arrive in 1–2 business days, Abuja in 2–3, and other Nigerian states in 3–5 business days. Exact delivery fees and estimated times are shown at checkout based on your delivery zone.',
   },
   {
     category: 'Shipping',

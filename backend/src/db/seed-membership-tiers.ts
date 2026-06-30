@@ -9,7 +9,6 @@ const TIERS = [
     billingCycles: ['monthly'],
     features: [
       'Full access to shop',
-      'Standard shipping',
       'Customer support',
     ],
     description: 'Browse and shop our full collection.',
@@ -22,7 +21,7 @@ const TIERS = [
     price: '10000.00',
     billingCycles: ['monthly'],
     features: [
-      'Free standard shipping on all orders',
+      'Free shipping on all orders',
       '15% off everything',
       'Early access to new collections (48h)',
       'Priority customer support',

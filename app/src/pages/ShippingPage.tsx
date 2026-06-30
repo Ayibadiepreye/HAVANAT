@@ -66,7 +66,7 @@ export default function ShippingPage() {
             <p className="text-[10px] tracking-[0.25em] text-gray-400 uppercase mb-3">Rates</p>
             <h2 className="font-serif text-3xl sm:text-4xl">Shipping Fees</h2>
             <p className="text-gray-500 text-sm mt-4 max-w-md mx-auto">
-              Free standard shipping on orders over ₦250,000 — anywhere in Nigeria.
+              Delivery fees vary by location — calculated at checkout based on your delivery zone.
             </p>
           </div>
 
