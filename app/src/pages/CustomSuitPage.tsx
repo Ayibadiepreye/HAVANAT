@@ -103,7 +103,7 @@ export default function CustomSuitPage() {
             <p className="text-[10px] tracking-[0.25em] text-gray-400 uppercase mb-4">Craftsmanship</p>
             <h2 className="font-serif text-3xl sm:text-4xl mb-6">Precision in Every Stitch</h2>
             <p className="text-gray-600 leading-relaxed mb-4">
-              Each bespoke garment requires over 40 hours of meticulous handwork. Our master tailors bring decades of experience to every piece, ensuring a fit and finish that mass production simply cannot replicate.
+              Each bespoke garment requires over 40 hours of meticulous handwork. Our master tailors bring expert craftsmanship and time-honored techniques to every piece, ensuring a fit and finish that mass production simply cannot replicate.
             </p>
             <p className="text-gray-600 leading-relaxed mb-8">
               From initial consultation to final fitting, every detail is tailored to your preferences — lapel width, button stance, pocket style, and lining selection.

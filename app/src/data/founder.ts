@@ -54,10 +54,5 @@ export const VALUES = [
 ];
 
 export const MILESTONES = [
-  { year: '2014', label: 'Havanat founded in Port Harcourt.' },
-  { year: '2017', label: 'Opened the Port Harcourt flagship studio.' },
-  { year: '2019', label: 'Launched the Bespoke service for fully custom garments.' },
-  { year: '2022', label: 'Crossed 5,000 active members across Nigeria.' },
-  { year: '2024', label: 'Began nationwide doorstep delivery via in-house rider network.' },
-  { year: '2026', label: 'Membership tiers (Standard, Deluxe, Elite) introduced.' },
+  { year: '2026', label: 'Havanat founded in Port Harcourt.' },
 ];

@@ -179,7 +179,7 @@ function BrandStorySection() {
             </p>
             <p className="text-gray-600 leading-relaxed mb-8">
               Each garment is meticulously crafted using premium fabrics sourced from the finest mills in
-              Italy and the United Kingdom. Our master tailors combine decades of expertise with modern
+              Italy and the United Kingdom. Our master tailors combine time-honored expertise with modern
               techniques to create pieces that command respect in every room.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
@@ -198,8 +198,8 @@ function BrandStorySection() {
           <div className="relative">
             <img src="/images/community/professional-1.jpg" alt="Professional wearing Havanat" className="w-full h-[500px] lg:h-[600px] object-cover" />
             <div className="absolute -bottom-6 -left-6 bg-black text-white p-6 hidden lg:block">
-              <p className="font-serif text-3xl">12+</p>
-              <p className="text-[10px] tracking-[0.15em] mt-1 uppercase">Years of Excellence</p>
+              <p className="font-serif text-3xl">∞</p>
+              <p className="text-[10px] tracking-[0.15em] mt-1 uppercase">Timeless Excellence</p>
             </div>
             {/* Crest watermark */}
             <img src={BRAND.assets.crest} alt="" className="absolute top-6 right-6 h-16 w-auto opacity-40 mix-blend-difference hidden lg:block" />

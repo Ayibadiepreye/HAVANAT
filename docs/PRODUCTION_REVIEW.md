@@ -5,7 +5,7 @@
 
 **Brand:** Havanat (single-word spelling, matches the brand crest)
 **Founder:** Rapheal Ebipado Otele
-**Established:** 2014
+**Established:** 2026
 **Tagline:** Where Style Meets Elegance
 
 ---

@@ -3,7 +3,7 @@ import { useDeliveryZoneStore } from '@/stores/useDeliveryZoneStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
-import { Plus, X, Trash2, Mail } from 'lucide-react';
+import { Plus, X, Trash2, Mail, Edit2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { apiGet, apiPatch } from '@/lib/api';
 import { useEmailTemplates } from '@/hooks/useEmailTemplates';
@@ -170,10 +170,12 @@ function DeliveryZonesTab() {
   const zones = useDeliveryZoneStore((s) => s.zones);
   const fetchZones = useDeliveryZoneStore((s) => s.fetchZones);
   const addZone = useDeliveryZoneStore((s) => s.addZone);
+  const updateZone = useDeliveryZoneStore((s) => s.updateZone);
   const removeZone = useDeliveryZoneStore((s) => s.removeZone);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingZone, setEditingZone] = useState<DeliveryZone | null>(null);
 
   // Fetch zones on mount
   useEffect(() => {
@@ -185,13 +187,20 @@ function DeliveryZonesTab() {
     { key: 'fee', label: 'Fee', render: (z) => `₦${z.fee.toLocaleString('en-NG')}`, align: 'right' },
     { key: 'eta', label: 'ETA', render: (z) => <span className="text-xs text-gray-600">{z.eta}</span> },
     {
-      key: 'actions', label: '', align: 'right', width: '60px',
+      key: 'actions', label: '', align: 'right', width: '100px',
       render: (z) => (
-        <button
-          onClick={() => dashboardUser && removeZone(z.id, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' })}
-          className="p-1.5 hover:bg-gray-100 text-red-600"
-          aria-label="Delete"
-        ><Trash2 className="h-4 w-4" /></button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setEditingZone(z)}
+            className="p-1.5 hover:bg-gray-100 text-gray-700"
+            aria-label="Edit"
+          ><Edit2 className="h-4 w-4" /></button>
+          <button
+            onClick={() => dashboardUser && removeZone(z.id, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' })}
+            className="p-1.5 hover:bg-gray-100 text-red-600"
+            aria-label="Delete"
+          ><Trash2 className="h-4 w-4" /></button>
+        </div>
       ),
     },
   ];
@@ -213,6 +222,19 @@ function DeliveryZonesTab() {
             addZone(z, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' });
             showToast(`Added ${z.state} zone`, 'success');
             setShowAdd(false);
+          }}
+        />
+      )}
+
+      {editingZone && (
+        <EditZoneModal
+          zone={editingZone}
+          onClose={() => setEditingZone(null)}
+          onUpdate={(z) => {
+            if (!dashboardUser) return;
+            updateZone(editingZone.id, z, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' });
+            showToast(`Updated ${z.state} zone`, 'success');
+            setEditingZone(null);
           }}
         />
       )}
@@ -239,6 +261,31 @@ function AddZoneModal({ onClose, onAdd }: { onClose: () => void; onAdd: (z: Omit
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onClose} className="px-4 py-2 text-[10px] uppercase tracking-[0.15em] border border-gray-300 hover:border-black">Cancel</button>
           <button onClick={() => onAdd({ state, fee, eta })} disabled={!state} className="px-4 py-2 text-[10px] uppercase tracking-[0.15em] bg-black text-white hover:bg-gray-900 disabled:opacity-50">Add Zone</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditZoneModal({ zone, onClose, onUpdate }: { zone: DeliveryZone; onClose: () => void; onUpdate: (z: Partial<DeliveryZone>) => void }) {
+  const [state, setState] = useState(zone.state);
+  const [fee, setFee] = useState(zone.fee);
+  const [eta, setEta] = useState(zone.eta);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-serif text-xl font-light">Edit Delivery Zone</h3>
+          <button onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="space-y-3">
+          <Field label="State / Region" value={state} onChange={setState} />
+          <Field label="Delivery Fee (₦)" value={String(fee)} onChange={(v) => setFee(Number(v))} />
+          <Field label="ETA" value={eta} onChange={setEta} />
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onClose} className="px-4 py-2 text-[10px] uppercase tracking-[0.15em] border border-gray-300 hover:border-black">Cancel</button>
+          <button onClick={() => onUpdate({ state, fee, eta })} disabled={!state} className="px-4 py-2 text-[10px] uppercase tracking-[0.15em] bg-black text-white hover:bg-gray-900 disabled:opacity-50">Update Zone</button>
         </div>
       </div>
     </div>

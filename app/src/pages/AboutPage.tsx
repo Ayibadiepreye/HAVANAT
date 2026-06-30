@@ -106,7 +106,7 @@ export default function AboutPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-[10px] tracking-[0.25em] text-white/40 uppercase mb-4">Our Journey</p>
-            <h2 className="font-serif text-3xl sm:text-4xl">A Decade of {BRAND.name}</h2>
+            <h2 className="font-serif text-3xl sm:text-4xl">The {BRAND.name} Story</h2>
           </div>
           <div className="space-y-6">
             {MILESTONES.map((m) => (

@@ -6,7 +6,7 @@ export const BRAND = {
   name: 'Havanat',
   tagline: 'Where Style Meets Elegance',
   shortPitch: 'Premium affordable luxury for the modern Nigerian professional.',
-  established: 2014,
+  established: 2026,
   founder: {
     name: 'Rapheal Ebipado Otele',
     shortBio:
