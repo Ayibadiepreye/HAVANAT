@@ -1,0 +1,1 @@
+ALTER TABLE "bespoke_requests" ADD COLUMN "conversation" jsonb DEFAULT '[]'::jsonb NOT NULL;

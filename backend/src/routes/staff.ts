@@ -17,7 +17,15 @@ staffRouter.post('/', requireAuth, requireRole('admin'), async (req, res) => {
   const { name, email, phone, role } = req.body as { name: string; email: string; phone?: string; role: 'admin' | 'moderator' | 'rider' };
   if (!['admin', 'moderator', 'rider'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
   const passwordHash = await bcrypt.hash('password', 10);
-  const [user] = await db.insert(users).values({ name, email: email.toLowerCase(), phone, passwordHash, role }).returning();
+  // Auto-verify staff accounts
+  const [user] = await db.insert(users).values({ 
+    name, 
+    email: email.toLowerCase(), 
+    phone, 
+    passwordHash, 
+    role,
+    emailVerified: true // Staff accounts are auto-verified
+  }).returning();
   if (!user) return res.status(500).json({ error: 'Failed' });
   if (role === 'rider') {
     await db.insert(riderProfiles).values({ userId: user.id, vehicleType: 'bike', plateNumber: 'PENDING', status: 'pending' });

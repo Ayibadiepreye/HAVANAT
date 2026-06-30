@@ -1,20 +1,31 @@
 {
-  "name": "Havanat",
+  "name": "Havanat — Where Style Meets Elegance",
   "short_name": "Havanat",
-  "description": "Where Style Meets Elegance — Premium Nigerian fashion",
+  "description": "Luxury Nigerian fashion. Hand-tailored suits, blazers, and bespoke garments.",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/android-chrome-512x512.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
       "type": "image/png"
     }
   ],
   "theme_color": "#000000",
   "background_color": "#ffffff",
-  "display": "standalone"
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": ["shopping", "lifestyle", "fashion"]
 }

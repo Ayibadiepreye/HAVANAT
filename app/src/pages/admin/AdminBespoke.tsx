@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useUIStore } from '@/stores/useUIStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { apiGet, apiPost, apiPatch } from '@/lib/api';
 import AdminTable, { type Column } from '@/components/admin/AdminTable';
 import StatusBadge from '@/components/admin/StatusBadge';
@@ -21,6 +22,7 @@ interface BespokeRequest {
   status: 'new' | 'in_review' | 'quoted' | 'accepted' | 'declined' | 'complete';
   assignedTo: number | null;
   adminNotes: string;
+  conversation: Array<{ from: 'admin' | 'customer'; message: string; timestamp: string; senderName: string }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,16 +30,33 @@ interface BespokeRequest {
 export default function AdminBespoke() {
   const [requests, setRequests] = useState<BespokeRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<BespokeRequest | null>(null);
   const showToast = useUIStore((s) => s.showToast);
+  const dashboardUser = useAuthStore((s) => s.dashboardUser);
+
+  useEffect(() => {
+    console.log('AdminBespoke: Component mounted');
+    console.log('AdminBespoke: dashboardUser:', dashboardUser);
+    console.log('AdminBespoke: User role:', dashboardUser?.role);
+    console.log('AdminBespoke: Access token:', localStorage.getItem('havanat-access-token')?.substring(0, 20) + '...');
+  }, [dashboardUser]);
 
   const fetchRequests = async () => {
     try {
       setLoading(true);
+      setError(null);
+      console.log('AdminBespoke: Fetching bespoke requests...');
       const res = await apiGet<{ items: BespokeRequest[] }>('/api/bespoke', true);
+      console.log('AdminBespoke: Received data:', res);
       setRequests(res.items);
     } catch (err: any) {
-      showToast(err?.message || 'Failed to load bespoke requests', 'error');
+      console.error('AdminBespoke: Error fetching requests:', err);
+      console.error('AdminBespoke: Error status:', err?.status);
+      console.error('AdminBespoke: Error details:', err?.details);
+      const errorMsg = err?.message || 'Failed to load bespoke requests';
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -94,6 +113,21 @@ export default function AdminBespoke() {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-gray-500">Loading bespoke requests...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <p className="text-red-600">Error: {error}</p>
+        <button
+          type="button"
+          onClick={() => fetchRequests()}
+          className="px-4 py-2 bg-black text-white text-sm hover:bg-gray-800"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -298,6 +332,41 @@ function RequestDetailModal({
           >
             Update Request
           </button>
+
+          {/* Conversation Thread */}
+          {request.conversation && request.conversation.length > 0 && (
+            <div className="border-t border-gray-200 pt-6 mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <MessageSquare className="h-4 w-4" />
+                <h4 className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium">Conversation History</h4>
+              </div>
+              <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
+                {request.conversation.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-3 border-l-4 ${
+                      msg.from === 'admin' ? 'bg-gray-50 border-l-black' : 'bg-blue-50 border-l-blue-500'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[9px] uppercase tracking-[0.15em] font-semibold text-gray-500">
+                        {msg.from === 'admin' ? `ADMIN: ${msg.senderName}` : 'CUSTOMER'}
+                      </span>
+                      <span className="text-[9px] text-gray-400">
+                        {new Date(msg.timestamp).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-700 whitespace-pre-wrap">{msg.message}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Reply Section */}
           <div className="border-t border-gray-200 pt-6 mt-6">

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Star, Edit3, Trash2, MessageSquare, Package, Crown, MapPin, Heart } from 'lucide-react';
 import { useReviewStore } from '@/stores/useReviewStore';
 import type { Review } from '@/stores/useReviewStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import ImageUpload from '@/components/ImageUpload';
 import EmailVerificationBanner from '@/components/EmailVerificationBanner';
@@ -79,11 +80,13 @@ export default function MyReviewsPage() {
 
   const pendingReviews = reviews.filter((r) => !r.approved);
   const approvedReviews = reviews.filter((r) => r.approved);
+  const dashboardUser = useAuthStore((s) => s.dashboardUser);
+  const needsVerification = dashboardUser?.emailVerified === false;
 
   return (
     <>
       <EmailVerificationBanner />
-      <main className="min-h-screen pt-20 lg:pt-24 pb-24 lg:pb-12 bg-white">
+      <main className={`min-h-screen pt-20 lg:pt-24 pb-24 lg:pb-12 bg-white ${needsVerification ? 'mt-32 lg:mt-36' : ''}`}>
         <div className="lg:hidden h-0" />
         <div className="px-4 sm:px-6 lg:px-12 py-8 lg:py-12 max-w-5xl mx-auto">
           {/* Header */}

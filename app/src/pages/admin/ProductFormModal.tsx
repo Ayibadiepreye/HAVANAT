@@ -215,6 +215,17 @@ export default function ProductFormModal({ product, onClose }: Props) {
               <input type="number" value={form.price ?? 0} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className={inputCls} />
             </div>
             <div>
+              <Label>Original Price (₦) - Optional</Label>
+              <input 
+                type="number" 
+                value={form.originalPrice ?? ''} 
+                onChange={(e) => setForm({ ...form, originalPrice: e.target.value ? Number(e.target.value) : undefined })} 
+                placeholder="Leave empty if not on sale"
+                className={inputCls} 
+              />
+              <p className="text-xs text-gray-500 mt-1">If set, shows "SALE" badge and strikethrough price</p>
+            </div>
+            <div>
               <Label>Stock (units)</Label>
               <input type="number" min={0} value={form.stock ?? 0} onChange={(e) => setForm({ ...form, stock: Math.max(0, Number(e.target.value)) })} className={inputCls} />
             </div>

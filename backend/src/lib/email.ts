@@ -495,26 +495,24 @@ export function subscriptionWelcomeEmail(opts: {
   periodEnd: string;
   manageUrl: string;
 }): string {
-  const formatted = `${opts.currency ?? 'N'}${opts.amount.toLocaleString()}`;
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#fafafa;font-family:Helvetica,Arial,sans-serif;color:#111">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#fafafa;padding:32px 16px">
-  <tr><td align="center">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;max-width:560px;width:100%">
-      <tr><td style="padding:40px 32px 16px 32px;text-align:center">
-        <h1 style="margin:0;font-size:28px;letter-spacing:0.06em;font-weight:300;text-transform:uppercase">Welcome to ${opts.tierLabel}</h1>
-      </td></tr>
-      <tr><td style="padding:16px 32px 32px 32px;font-size:15px;line-height:1.6;color:#333">
-        <p>Hi ${opts.customerName},</p>
-        <p>Your <strong>${opts.tierLabel}</strong> membership is now active. You'll be charged <strong>${formatted}</strong> monthly and your perks take effect immediately.</p>
-        <p>Next renewal date: <strong>${opts.periodEnd.slice(0, 10)}</strong>.</p>
-        <p style="margin:32px 0;text-align:center">
-          <a href="${opts.manageUrl}" style="display:inline-block;padding:14px 32px;background:#000;color:#fff;text-decoration:none;text-transform:uppercase;font-size:11px;letter-spacing:0.15em">Manage Subscription</a>
-        </p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`;
+  const formatted = `₦${opts.amount.toLocaleString()}`;
+  const tierUpper = opts.tier === 'deluxe' ? 'Deluxe' : 'Elite';
+  return emailShell({
+    eyebrow: 'Membership Activated',
+    title: `Welcome to ${opts.tierLabel}`,
+    preheader: `Your ${opts.tierLabel} membership is now active.`,
+    bodyHtml: `
+      <p style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Dear ${escapeHtml(opts.customerName.split(' ')[0])},</p>
+      <p style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Your <strong style="font-family:${FONT_SERIF};font-weight:500;">${tierUpper}</strong> membership is now active. All perks and member-only benefits are available immediately.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;">
+        ${labelValue('Membership', escapeHtml(opts.tierLabel))}
+        ${labelValue('Billing', `${formatted}/month`)}
+        ${labelValue('Next Renewal', new Date(opts.periodEnd).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' }))}
+      </table>
+      ${btn('Manage subscription', opts.manageUrl)}
+      ${muted('Your benefits include priority access to new collections, exclusive sneak peeks, and elevated discounts on all products.')}
+    `,
+  });
 }
 
 export function subscriptionCancelledEmail(opts: {
@@ -523,24 +521,22 @@ export function subscriptionCancelledEmail(opts: {
   periodEnd: string;
   resubscribeUrl: string;
 }): string {
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#fafafa;font-family:Helvetica,Arial,sans-serif;color:#111">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#fafafa;padding:32px 16px">
-  <tr><td align="center">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;max-width:560px;width:100%">
-      <tr><td style="padding:40px 32px 16px 32px;text-align:center">
-        <h1 style="margin:0;font-size:28px;letter-spacing:0.06em;font-weight:300;text-transform:uppercase">Subscription Cancelled</h1>
-      </td></tr>
-      <tr><td style="padding:16px 32px 32px 32px;font-size:15px;line-height:1.6;color:#333">
-        <p>Hi ${opts.customerName},</p>
-        <p>Your <strong>${opts.tierLabel}</strong> membership has been cancelled. You'll continue to enjoy your perks until <strong>${opts.periodEnd.slice(0, 10)}</strong>.</p>
-        <p style="margin:32px 0;text-align:center">
-          <a href="${opts.resubscribeUrl}" style="display:inline-block;padding:14px 32px;background:#000;color:#fff;text-decoration:none;text-transform:uppercase;font-size:11px;letter-spacing:0.15em">Resubscribe</a>
-        </p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`;
+  return emailShell({
+    eyebrow: 'Membership Cancelled',
+    title: 'Subscription Cancelled',
+    preheader: `Your ${opts.tierLabel} membership has been cancelled.`,
+    bodyHtml: `
+      <p style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Dear ${escapeHtml(opts.customerName.split(' ')[0])},</p>
+      <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Your <strong style="font-family:${FONT_SERIF};font-weight:500;">${escapeHtml(opts.tierLabel)}</strong> membership has been cancelled as requested.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;">
+        ${labelValue('Access until', new Date(opts.periodEnd).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' }))}
+        ${labelValue('New tier', 'Standard (from end date)')}
+      </table>
+      <p style="margin:16px 0 24px 0;font-family:${FONT_SANS};font-size:14px;line-height:1.7;color:${MUTED};">You'll continue to enjoy all ${opts.tierLabel} perks until ${new Date(opts.periodEnd).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}. After that, your account will revert to Standard.</p>
+      ${btn('Resubscribe', opts.resubscribeUrl)}
+      ${muted('Changed your mind? You can reactivate at any time from your account settings.')}
+    `,
+  });
 }
 
 export function subscriptionExpiredEmail(opts: {
@@ -548,24 +544,18 @@ export function subscriptionExpiredEmail(opts: {
   tierLabel: string;
   resubscribeUrl: string;
 }): string {
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#fafafa;font-family:Helvetica,Arial,sans-serif;color:#111">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#fafafa;padding:32px 16px">
-  <tr><td align="center">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;max-width:560px;width:100%">
-      <tr><td style="padding:40px 32px 16px 32px;text-align:center">
-        <h1 style="margin:0;font-size:28px;letter-spacing:0.06em;font-weight:300;text-transform:uppercase">Membership Ended</h1>
-      </td></tr>
-      <tr><td style="padding:16px 32px 32px 32px;font-size:15px;line-height:1.6;color:#333">
-        <p>Hi ${opts.customerName},</p>
-        <p>Your <strong>${opts.tierLabel}</strong> subscription has ended and your account has been moved to Standard.</p>
-        <p style="margin:32px 0;text-align:center">
-          <a href="${opts.resubscribeUrl}" style="display:inline-block;padding:14px 32px;background:#000;color:#fff;text-decoration:none;text-transform:uppercase;font-size:11px;letter-spacing:0.15em">Resubscribe</a>
-        </p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`;
+  return emailShell({
+    eyebrow: 'Membership Ended',
+    title: 'Your membership has ended',
+    preheader: `Your ${opts.tierLabel} membership has ended and your account is now Standard.`,
+    bodyHtml: `
+      <p style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Dear ${escapeHtml(opts.customerName.split(' ')[0])},</p>
+      <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Your <strong style="font-family:${FONT_SERIF};font-weight:500;">${escapeHtml(opts.tierLabel)}</strong> subscription has ended and your account has been moved to Standard.</p>
+      <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:14px;line-height:1.7;color:${MUTED};">Member-only features like exclusive sneak peeks and elevated discounts are no longer available, but you can still shop the main collection and place orders.</p>
+      ${btn('Resubscribe', opts.resubscribeUrl)}
+      ${muted('Want your perks back? Reactivate your membership anytime from your account page.')}
+    `,
+  });
 }
 
 export function orderShippedEmail(order: {
@@ -578,30 +568,44 @@ export function orderShippedEmail(order: {
   items: Array<{ name: string; quantity: number; price: number | string }>;
   total: number | string;
 }): string {
-  const itemRows = order.items.map((i) =>
-    `<tr><td style="padding:8px 0;border-bottom:1px solid #eee">${i.name}</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #eee">x${i.quantity}</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #eee">N${(Number(i.price) * Number(i.quantity)).toLocaleString()}</td></tr>`
-  ).join('');
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#fafafa;font-family:Helvetica,Arial,sans-serif;color:#111">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#fafafa;padding:32px 16px">
-  <tr><td align="center">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;max-width:560px;width:100%">
-      <tr><td style="padding:40px 32px 16px 32px;text-align:center">
-        <h1 style="margin:0;font-size:28px;letter-spacing:0.06em;font-weight:300;text-transform:uppercase">Your order is on its way</h1>
-      </td></tr>
-      <tr><td style="padding:16px 32px 32px 32px;font-size:15px;line-height:1.6;color:#333">
-        <p>Hi ${order.customerName},</p>
-        <p>Order <strong>#${order.id}</strong> has shipped.</p>
-        ${order.trackingNumber ? `<p>Tracking: <strong>${order.courier ?? ''} ${order.trackingNumber}</strong></p>` : ''}
-        <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.15em;color:#666;margin-top:32px">Items</p>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:8px;font-size:14px">
-          ${itemRows}
-          <tr><td colspan="2" style="padding:16px 0 4px 0;text-align:right;font-weight:bold">Total</td><td style="padding:16px 0 4px 0;text-align:right;font-weight:bold">N${Number(order.total).toLocaleString()}</td></tr>
-        </table>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`;
+  const itemsRows = order.items
+    .map(
+      (i) => `
+      <tr>
+        <td style="padding:14px 0;border-bottom:1px solid ${SOFT_LINE};font-family:${FONT_SANS};font-size:14px;color:${INK};">${escapeHtml(i.name)}</td>
+        <td style="padding:14px 0;border-bottom:1px solid ${SOFT_LINE};font-family:${FONT_SANS};font-size:13px;color:${MUTED};text-align:center;width:60px;">× ${i.quantity}</td>
+        <td style="padding:14px 0;border-bottom:1px solid ${SOFT_LINE};font-family:${FONT_SANS};font-size:14px;color:${INK};text-align:right;width:120px;">₦${(Number(i.price) * Number(i.quantity)).toLocaleString()}</td>
+      </tr>`
+    )
+    .join('');
+  const trackingInfo = order.trackingNumber
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;">
+        ${labelValue('Courier', escapeHtml(order.courier || '—'))}
+        ${labelValue('Tracking', escapeHtml(order.trackingNumber))}
+        ${order.estimatedDelivery ? labelValue('Estimated delivery', escapeHtml(order.estimatedDelivery)) : ''}
+      </table>`
+    : '';
+  const trackingBtn = order.trackingUrl ? btn('Track shipment', order.trackingUrl) : '';
+  return emailShell({
+    eyebrow: 'Order Shipped',
+    title: `Order #${order.id} is on its way`,
+    preheader: `Order #${order.id} has shipped and is on its way to you.`,
+    bodyHtml: `
+      <p style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Dear ${escapeHtml(order.customerName.split(' ')[0])},</p>
+      <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Your order has been handed to our logistics partner and is now en route.</p>
+      ${trackingInfo}
+      ${divider()}
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 8px 0;">
+        ${itemsRows}
+        <tr>
+          <td colspan="2" style="padding:18px 0 4px 0;font-family:${FONT_SANS};font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:${MUTED};font-weight:600;">Total</td>
+          <td style="padding:18px 0 4px 0;font-family:${FONT_SERIF};font-size:22px;color:${BLACK};text-align:right;">₦${Number(order.total).toLocaleString()}</td>
+        </tr>
+      </table>
+      ${trackingBtn}
+      ${muted('You\'ll receive another update once it\'s delivered. Questions? Reply to this email.')}
+    `,
+  });
 }
 
 export function sneakPeekEmail(p: {
@@ -612,27 +616,156 @@ export function sneakPeekEmail(p: {
   releaseNote: string;
   shopUrl: string;
 }): string {
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#fafafa;font-family:Helvetica,Arial,sans-serif;color:#111">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#fafafa;padding:32px 16px">
-  <tr><td align="center">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;max-width:560px;width:100%">
-      <tr><td style="padding:32px 32px 8px 32px;text-align:center">
-        <p style="margin:0;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#888">Sneak Peek</p>
-        <h1 style="margin:8px 0 0 0;font-size:28px;letter-spacing:0.04em;font-weight:300">${p.productName}</h1>
-      </td></tr>
-      ${p.productImage ? `<tr><td style="padding:24px 32px;text-align:center">
-        <img src="${p.productImage}" alt="${p.productName}" style="max-width:100%;height:auto;display:block;margin:0 auto" />
-      </td></tr>` : ''}
-      <tr><td style="padding:16px 32px 24px 32px;font-size:15px;line-height:1.6;color:#333">
-        <p>Hi ${p.customerName},</p>
-        <p>${p.releaseNote}</p>
-        <p style="margin:24px 0;text-align:center">
-          <a href="${p.shopUrl}" style="display:inline-block;background:#000;color:#fff;padding:14px 32px;text-decoration:none;font-size:11px;letter-spacing:0.2em;text-transform:uppercase">View Sneak Peeks</a>
-        </p>
-        <p style="font-size:12px;color:#888;margin-top:32px">This exclusive drop is only available to Deluxe and Elite members. Not for you? You can upgrade your membership at any time from your account page.</p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`;
+  const productImg = p.productImage
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:28px 0;">
+        <tr>
+          <td align="center">
+            <img src="${escapeHtml(p.productImage)}" alt="${escapeHtml(p.productName)}" style="max-width:100%;height:auto;display:block;border:1px solid ${LINE};" />
+          </td>
+        </tr>
+      </table>`
+    : '';
+  return emailShell({
+    eyebrow: 'Sneak Peek · Member Exclusive',
+    title: p.productName,
+    preheader: `Sneak Peek: ${p.productName} is now available for Deluxe & Elite members.`,
+    bodyHtml: `
+      <p style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Dear ${escapeHtml(p.customerName.split(' ')[0])},</p>
+      <p style="margin:0 0 24px 0;font-family:${FONT_SERIF};font-style:italic;font-size:17px;line-height:1.6;color:${INK};">${escapeHtml(p.releaseNote)}</p>
+      ${productImg}
+      ${btn('View sneak peeks', p.shopUrl)}
+      ${muted('This exclusive drop is only available to Deluxe and Elite members. Upgrade your membership at any time from your account page.')}
+    `,
+  });
+}
+
+export function broadcastEmail(opts: {
+  title: string;
+  body: string;
+  senderName: string;
+  senderRole: string;
+  category?: string;
+}): string {
+  const categoryLabel = opts.category ? ` · ${opts.category.charAt(0).toUpperCase() + opts.category.slice(1)}` : '';
+  return emailShell({
+    eyebrow: `Broadcast${categoryLabel}`,
+    title: opts.title,
+    preheader: opts.body.substring(0, 100),
+    bodyHtml: `
+      <div style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};white-space:pre-wrap;">${escapeHtml(opts.body)}</div>
+      ${divider()}
+      <p style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${MUTED};line-height:1.6;">
+        This notification was sent by ${escapeHtml(opts.senderName)} (${escapeHtml(opts.senderRole)}).
+      </p>
+    `,
+    footerNote: 'Visit <a href="https://havanat.store/account" style="color:#6b6b6b;text-decoration:underline;">your account</a> to view all notifications.',
+  });
+}
+
+export function riderAssignedEmail(opts: {
+  orderNumber: string;
+  customerName: string;
+  riderName: string;
+  riderPhone: string;
+  deliveryOtp: string;
+  deliveryAddress: { street: string; city: string; state: string };
+}): string {
+  return emailShell({
+    eyebrow: 'Delivery Update',
+    title: `Rider assigned for Order ${opts.orderNumber}`,
+    preheader: `${opts.riderName} will deliver your order soon.`,
+    bodyHtml: `
+      <p style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Dear ${escapeHtml(opts.customerName.split(' ')[0])},</p>
+      <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Your order has been assigned to a rider and will arrive shortly.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;">
+        ${labelValue('Rider', escapeHtml(opts.riderName))}
+        ${labelValue('Contact', escapeHtml(opts.riderPhone))}
+        ${labelValue('Delivering to', `${escapeHtml(opts.deliveryAddress.street)}<br>${escapeHtml(opts.deliveryAddress.city)}, ${escapeHtml(opts.deliveryAddress.state)}`)}
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:32px 0;background:${BLACK};padding:28px;text-align:center;">
+        <tr>
+          <td>
+            <p style="margin:0 0 8px 0;font-family:${FONT_SANS};font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(255,255,255,0.6);">Delivery Verification Code</p>
+            <p style="margin:0;font-family:${FONT_SERIF};font-size:40px;font-weight:300;letter-spacing:0.4em;color:${WHITE};">${escapeHtml(opts.deliveryOtp)}</p>
+            <p style="margin:12px 0 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:rgba(255,255,255,0.75);">Show this 4-digit code to the rider upon arrival to verify delivery.</p>
+          </td>
+        </tr>
+      </table>
+      ${muted('The rider will call when they\'re close. Have your OTP ready to complete the handoff.')}
+    `,
+  });
+}
+
+export function contactReplyEmail(opts: {
+  customerName: string;
+  replyMessage: string;
+  originalMessage: { subject: string; body: string };
+}): string {
+  return emailShell({
+    eyebrow: 'Customer Support',
+    title: `Re: ${opts.originalMessage.subject}`,
+    preheader: 'Reply from Havanat Concierge',
+    bodyHtml: `
+      <p style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Dear ${escapeHtml(opts.customerName.split(' ')[0])},</p>
+      <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">Thank you for reaching out. Here's our response:</p>
+      <div style="margin:0 0 32px 0;padding:24px;background:${SOFT};border-left:3px solid ${BLACK};font-family:${FONT_SANS};font-size:14px;line-height:1.7;color:${INK};white-space:pre-wrap;">${escapeHtml(opts.replyMessage)}</div>
+      ${divider()}
+      <p style="margin:0 0 8px 0;font-family:${FONT_SANS};font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:${MUTED};font-weight:600;">Your Original Message</p>
+      <div style="margin:0;padding:16px 20px;border-left:2px solid ${SOFT_LINE};font-family:${FONT_SANS};font-size:13px;line-height:1.7;color:${MUTED};font-style:italic;white-space:pre-wrap;">${escapeHtml(opts.originalMessage.body)}</div>
+      ${muted('Have more questions? Simply reply to this email and we\'ll get back to you. — The Havanat Concierge')}
+    `,
+  });
+}
+
+export function bespokeReplyEmail(opts: {
+  reference: string;
+  occasion: string;
+  message: string;
+  trackingLink: string;
+}): string {
+  return emailShell({
+    eyebrow: 'Bespoke Update',
+    title: `Update on your bespoke request — ${opts.reference}`,
+    preheader: `New message from Havanat regarding your ${opts.occasion} request.`,
+    bodyHtml: `
+      <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">We have an update on your bespoke request.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;">
+        ${labelValue('Reference', escapeHtml(opts.reference))}
+        ${labelValue('Occasion', escapeHtml(opts.occasion))}
+      </table>
+      <p style="margin:24px 0 8px 0;font-family:${FONT_SANS};font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:${MUTED};font-weight:600;">Message from HAVANAT</p>
+      <div style="margin:0 0 32px 0;padding:24px;background:${SOFT};border-left:3px solid ${BLACK};font-family:${FONT_SANS};font-size:14px;line-height:1.7;color:${INK};white-space:pre-wrap;">${escapeHtml(opts.message)}</div>
+      ${btn('View & Reply', opts.trackingLink)}
+      ${muted('Reply directly to continue the conversation with our concierge team.')}
+    `,
+  });
+}
+
+export function bespokeCustomerReplyEmailToAdmin(opts: {
+  reference: string;
+  customerName: string;
+  occasion: string;
+  message: string;
+  adminLink: string;
+}): string {
+  return emailShell({
+    eyebrow: 'Bespoke Reply',
+    title: `Customer replied to ${opts.reference}`,
+    preheader: `${opts.customerName} sent a reply to their bespoke request.`,
+    bodyHtml: `
+      <p style="margin:0 0 20px 0;font-family:${FONT_SANS};font-size:15px;line-height:1.7;color:${INK};">
+        <strong style="font-family:${FONT_SERIF};font-weight:500;">${escapeHtml(opts.customerName)}</strong>
+        sent a reply to their bespoke request.
+      </p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${labelValue('Reference', escapeHtml(opts.reference))}
+        ${labelValue('Customer', escapeHtml(opts.customerName))}
+        ${labelValue('Occasion', escapeHtml(opts.occasion))}
+      </table>
+      <p style="margin:24px 0 8px 0;font-family:${FONT_SANS};font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:${MUTED};font-weight:600;">Customer's Message</p>
+      <div style="margin:0 0 32px 0;padding:24px;background:${SOFT};border-left:3px solid ${BLACK};font-family:${FONT_SANS};font-size:14px;line-height:1.7;color:${INK};white-space:pre-wrap;">${escapeHtml(opts.message)}</div>
+      ${btn('View & respond in admin', opts.adminLink)}
+      ${muted('Reply directly to this email to respond to the customer — your reply will go to their inbox.')}
+    `,
+  });
 }

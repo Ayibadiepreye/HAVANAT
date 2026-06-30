@@ -547,6 +547,7 @@ export const bespokeRequests = pgTable('bespoke_requests', {
   status: varchar('status', { length: 30 }).notNull().default('new'), // new | in_review | quoted | accepted | declined | complete
   assignedTo: integer('assigned_to').references(() => users.id),
   adminNotes: text('admin_notes').notNull().default(''),
+  conversation: jsonb('conversation').$type<Array<{ from: 'admin' | 'customer'; message: string; timestamp: string; senderName: string }>>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({

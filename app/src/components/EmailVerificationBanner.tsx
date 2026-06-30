@@ -120,7 +120,7 @@ export default function EmailVerificationBanner() {
   if (!needsVerification || dismissed) return null;
 
   return (
-    <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 lg:px-8 py-4">
+    <div className="fixed top-16 lg:top-20 left-0 right-0 z-40 bg-amber-50 border-b border-amber-200 px-4 sm:px-6 lg:px-8 py-4">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-start gap-3 flex-wrap">
           <Mail size={20} className="text-amber-700 flex-shrink-0 mt-0.5" />

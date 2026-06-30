@@ -3,6 +3,7 @@ import { X, Send, Paperclip, CheckCircle } from 'lucide-react';
 import { useUIStore } from '@/stores/useUIStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Link } from 'react-router-dom';
+import { apiPost } from '@/lib/api';
 
 export default function ChatModal() {
   const activeModal = useUIStore((s) => s.activeModal);
@@ -10,26 +11,73 @@ export default function ChatModal() {
   const showToast = useUIStore((s) => s.showToast);
   const user = useAuthStore((s) => s.user);
 
-  const [message, setMessage] = useState('');
+  const [occasion, setOccasion] = useState('');
+  const [budget, setBudget] = useState('');
+  const [timeline, setTimeline] = useState('');
+  const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const isOpen = activeModal === 'chat';
   if (!isOpen) return null;
 
   const isElite = user?.membershipTier === 'elite';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim()) return;
-    setSubmitted(true);
-    showToast('Your bespoke request has been submitted', 'success');
-    setTimeout(() => {
-      closeModal();
-      setSubmitted(false);
-      setMessage('');
-      setFile(null);
-    }, 2000);
+    if (!description.trim() || description.trim().length < 10) {
+      showToast('Please provide at least 10 characters describing your custom piece', 'error');
+      return;
+    }
+    if (!occasion.trim()) {
+      showToast('Please specify the occasion', 'error');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Upload image if provided
+      let imageUrl: string | undefined;
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const upload = await apiPost<{ url: string }>('/api/uploads', formData, true);
+        imageUrl = upload.url;
+      }
+
+      // Submit bespoke request
+      await apiPost(
+        '/api/bespoke',
+        {
+          customerName: user?.name || 'Anonymous',
+          customerEmail: user?.email || 'anonymous@example.com',
+          customerPhone: user?.phone || '',
+          occasion: occasion.trim(),
+          budget: budget ? parseFloat(budget) : undefined,
+          timeline: timeline.trim(),
+          description: description.trim(),
+          images: imageUrl ? [imageUrl] : [],
+        },
+        true
+      );
+
+      setSubmitted(true);
+      showToast('Your bespoke request has been submitted successfully', 'success');
+      
+      setTimeout(() => {
+        closeModal();
+        setSubmitted(false);
+        setOccasion('');
+        setBudget('');
+        setTimeline('');
+        setDescription('');
+        setFile(null);
+      }, 2000);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to submit bespoke request', 'error');
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -78,19 +126,65 @@ export default function ChatModal() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col h-full">
-            <div className="flex-1 p-6 overflow-y-auto min-h-[200px]">
-              <p className="text-sm text-gray-600 mb-4">
-                Describe your custom piece. Include fabric preferences, measurements, and any design details.
-              </p>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="I would like a custom oversized blazer in midnight blue wool..."
-                className="w-full h-32 p-4 border text-sm resize-none focus:outline-none focus:border-black transition-colors"
-                required
-              />
+            <div className="flex-1 p-6 overflow-y-auto min-h-[200px] space-y-4">
+              {/* Occasion */}
+              <div>
+                <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-1.5 uppercase font-semibold">Occasion *</label>
+                <input
+                  type="text"
+                  value={occasion}
+                  onChange={(e) => setOccasion(e.target.value)}
+                  placeholder="e.g., Wedding, Business Meeting, Gala Event"
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none"
+                  required
+                />
+              </div>
+
+              {/* Budget */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-1.5 uppercase font-semibold">Budget (₦)</label>
+                  <input
+                    type="number"
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                    placeholder="150000"
+                    min="0"
+                    step="1000"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-1.5 uppercase font-semibold">Timeline</label>
+                  <input
+                    type="text"
+                    value={timeline}
+                    onChange={(e) => setTimeline(e.target.value)}
+                    placeholder="e.g., 2 weeks"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-1.5 uppercase font-semibold">Description *</label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Describe your custom piece. Include fabric preferences, measurements, and any design details.
+                </p>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="I would like a custom oversized blazer in midnight blue wool..."
+                  className="w-full h-32 p-3 border border-gray-200 text-sm resize-none focus:outline-none focus:border-black transition-colors"
+                  required
+                  minLength={10}
+                />
+                <p className="text-xs text-gray-400 mt-1">Minimum 10 characters</p>
+              </div>
+
               {/* File Upload */}
-              <div className="mt-4">
+              <div>
                 <label className="flex items-center gap-2 px-4 py-3 border border-dashed cursor-pointer hover:border-black transition-colors">
                   <Paperclip size={16} strokeWidth={1.5} />
                   <span className="text-sm text-gray-500">
@@ -104,6 +198,7 @@ export default function ChatModal() {
                   />
                 </label>
               </div>
+
               {user && (
                 <div className="mt-4 text-xs text-gray-400">
                   <p>From: {user.name} ({user.email})</p>
@@ -113,10 +208,11 @@ export default function ChatModal() {
             <div className="p-6 border-t">
               <button
                 type="submit"
-                className="w-full py-3 bg-black text-white text-xs tracking-[0.15em] font-semibold flex items-center justify-center gap-2 hover:bg-black/80 transition-colors"
+                disabled={submitting}
+                className="w-full py-3 bg-black text-white text-xs tracking-[0.15em] font-semibold flex items-center justify-center gap-2 hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send size={14} />
-                SEND REQUEST
+                {submitting ? 'SUBMITTING...' : 'SEND REQUEST'}
               </button>
             </div>
           </form>

@@ -106,17 +106,18 @@ messagesRouter.post(
       });
       // Send email reply to customer
       try {
-        const { sendEmailSafe } = await import('../lib/email.js');
+        const { sendEmailSafe, contactReplyEmail } = await import('../lib/email.js');
         sendEmailSafe({
           to: msg.email,
           subject: `Re: ${msg.subject}`,
-          html: `<p>Dear ${escapeHtml(msg.name)},</p>
-<p>Thank you for reaching out to Havanat.</p>
-<div style="background:#fafafa;padding:16px;border-left:2px solid #000;margin:16px 0;font-family:Inter,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.7;color:#111;white-space:pre-wrap;">${escapeHtml(reply)}</div>
-<p style="font-size:12px;color:#888;">Your original message:</p>
-<blockquote style="border-left:2px solid #ccc;padding-left:12px;color:#666;font-style:italic;font-size:13px;">${escapeHtml(msg.body)}</blockquote>
-<p>If you have further questions, simply reply to this email.</p>
-<p style="margin-top:32px;">— The Havanat Concierge</p>`,
+          html: contactReplyEmail({
+            customerName: msg.name,
+            replyMessage: reply,
+            originalMessage: {
+              subject: msg.subject,
+              body: msg.body,
+            },
+          }),
           replyTo: req.user!.sub ? undefined : undefined,
           tags: [{ name: 'type', value: 'message_reply' }],
         });

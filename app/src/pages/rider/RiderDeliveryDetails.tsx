@@ -18,22 +18,48 @@ export default function RiderDeliveryDetails() {
 
   const [otp, setOtp] = useState(['', '', '', '']);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
+  // Fetch deliveries when component mounts or when delivery is not found
   useEffect(() => {
-    if (!delivery) {
-      void fetchMyDeliveries();
-    }
-  }, [delivery, fetchMyDeliveries]);
+    const loadDelivery = async () => {
+      if (!delivery && id) {
+        setLoading(true);
+        await fetchMyDeliveries();
+        setLoading(false);
+      }
+    };
+    void loadDelivery();
+  }, [id]); // Only depend on id, not delivery to avoid infinite loop
 
   useEffect(() => {
     if (delivery?.proofOfDelivery?.photoUrl) setPhoto(delivery.proofOfDelivery.photoUrl);
   }, [delivery?.proofOfDelivery?.photoUrl]);
 
-  if (!delivery) {
+  // Show loading state while fetching
+  if (loading) {
+    return (
+      <div className="bg-white border border-gray-200 p-8 text-center">
+        <p className="text-sm text-gray-500">Loading delivery details...</p>
+      </div>
+    );
+  }
+
+  // Show not found only after loading is complete
+  if (!delivery && !loading) {
     return (
       <div className="bg-white border border-gray-200 p-8 text-center">
         <p className="text-sm text-gray-500">Delivery not found.</p>
         <button onClick={() => navigate(-1)} className="mt-3 text-[10px] uppercase tracking-[0.15em] underline">Back</button>
+      </div>
+    );
+  }
+
+  // Show placeholder while delivery data is being loaded
+  if (!delivery) {
+    return (
+      <div className="bg-white border border-gray-200 p-8 text-center">
+        <p className="text-sm text-gray-500">Loading...</p>
       </div>
     );
   }
@@ -97,25 +123,25 @@ export default function RiderDeliveryDetails() {
         <ArrowLeft className="h-3 w-3" /> Back to deliveries
       </button>
 
-      <div className="bg-white border border-gray-200 p-6">
+      <div className="bg-white border border-gray-200 p-4 sm:p-6">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium">{delivery.type === 'pickup' ? 'Pickup' : 'Delivery'} · {formatTime(delivery.scheduledFor)}</p>
-            <p className="font-serif text-2xl font-light mt-1">{delivery.id}</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium break-words">{delivery.type === 'pickup' ? 'Pickup' : 'Delivery'} · {formatTime(delivery.scheduledFor)}</p>
+            <p className="font-serif text-xl sm:text-2xl font-light mt-1 truncate">{delivery.id}</p>
           </div>
           <StatusBadge status={delivery.status} type="delivery" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1">Customer</p>
-            <p className="font-medium">{delivery.customerName}</p>
-            <a href={`tel:${delivery.customerPhone}`} className="flex items-center gap-1 text-blue-700 text-xs mt-1">
-              <Phone className="h-3 w-3" /> {delivery.customerPhone}
+            <p className="font-medium break-words">{delivery.customerName}</p>
+            <a href={`tel:${delivery.customerPhone}`} className="flex items-center gap-1 text-blue-700 text-xs mt-1 break-all">
+              <Phone className="h-3 w-3 flex-shrink-0" /> {delivery.customerPhone}
             </a>
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1">Address</p>
-            <p className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-gray-400" /> {delivery.address}, {delivery.city}, {delivery.state}</p>
+            <p className="flex items-start gap-1.5 break-words"><MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0 mt-0.5" /> {delivery.address}, {delivery.city}, {delivery.state}</p>
             <button
               onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${delivery.address}, ${delivery.city}, ${delivery.state}`)}`, '_blank')}
               className="mt-2 text-[10px] uppercase tracking-wider underline underline-offset-4 hover:opacity-60"
@@ -124,13 +150,13 @@ export default function RiderDeliveryDetails() {
         </div>
         <div className="mt-4 pt-4 border-t border-gray-200">
           <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Items</p>
-          <p className="text-sm">{delivery.itemSummary} ({delivery.itemCount})</p>
+          <p className="text-sm break-words">{delivery.itemSummary} ({delivery.itemCount})</p>
         </div>
       </div>
 
       {/* Status Update Section */}
-      <div className="bg-white border border-gray-200 p-6 space-y-5">
-        <h3 className="font-serif text-xl font-light">Update Status</h3>
+      <div className="bg-white border border-gray-200 p-4 sm:p-6 space-y-5">
+        <h3 className="font-serif text-lg sm:text-xl font-light">Update Status</h3>
 
         {delivery.status === 'assigned' && (
           <button type="button" onClick={markPickedUp} className="w-full py-3 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-gray-900">

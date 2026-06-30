@@ -138,20 +138,20 @@ export default function RiderDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-gray-200 p-6 flex items-center justify-between flex-wrap gap-4">
-        <div>
+      <div className="bg-white border border-gray-200 p-4 sm:p-6 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex-1 min-w-0">
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-semibold">Welcome back</p>
-          <h2 className="font-serif text-3xl font-light mt-1">{rider.name}</h2>
-          <p className="text-xs text-gray-500 mt-1 capitalize">
+          <h2 className="font-serif text-2xl sm:text-3xl font-light mt-1 truncate">{rider.name}</h2>
+          <p className="text-xs text-gray-500 mt-1 capitalize break-words">
             {profile.vehicleType} · {profile.plateNumber} · {profile.address || 'No address on file'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <StatusBadge status={profile.status} type="generic" />
           <button
             onClick={toggleOnline}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-[0.15em] font-medium border',
+              'flex items-center gap-2 px-3 sm:px-4 py-2 text-[9px] sm:text-xs uppercase tracking-[0.15em] font-medium border whitespace-nowrap',
               online ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-300'
             )}
           >
@@ -168,14 +168,14 @@ export default function RiderDashboard() {
       </div>
 
       <div className="bg-white border border-gray-200">
-        <div className="flex items-center justify-between p-5 border-b border-gray-200">
-          <div>
-            <h3 className="font-medium text-lg">Today's Schedule</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Your assigned deliveries for {todayKey}</p>
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-200 gap-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-base sm:text-lg">Today's Schedule</h3>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">Your assigned deliveries for {todayKey}</p>
           </div>
           <button
             onClick={() => navigate('/rider/deliveries')}
-            className="text-[10px] uppercase tracking-[0.15em] text-gray-500 hover:text-black flex items-center gap-1"
+            className="text-[9px] sm:text-[10px] uppercase tracking-[0.15em] text-gray-500 hover:text-black flex items-center gap-1 whitespace-nowrap"
           >
             View all <ArrowRight size={12} />
           </button>

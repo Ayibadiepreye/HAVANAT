@@ -22,6 +22,20 @@
       "when": 1782663153620,
       "tag": "0002_silky_kitty_pryde",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782832453454,
+      "tag": "0003_military_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782835444217,
+      "tag": "0004_flimsy_stephen_strange",
+      "breakpoints": true
     }
   ]
 }

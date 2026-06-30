@@ -26,8 +26,13 @@ export default function ModeratorReturns() {
   const fetchReturns = useReturnStore((s) => s.fetchReturns);
   useEffect(() => { void fetchReturns(); }, [fetchReturns]);
   const riders = useRiderStore((s) => s.riders);
+  const fetchRiders = useRiderStore((s) => s.fetchRiders);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
+  
+  // Fetch riders on mount
+  useEffect(() => { void fetchRiders(); }, [fetchRiders]);
+  
   const [activeTab, setActiveTab] = useState<ReturnStatus | 'all'>('all');
   const [details, setDetails] = useState<ReturnRequest | null>(null);
   const [rejecting, setRejecting] = useState<ReturnRequest | null>(null);

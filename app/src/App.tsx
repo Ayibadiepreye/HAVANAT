@@ -7,6 +7,7 @@ import ChatModal from '@/components/ChatModal';
 import ReturnModal from '@/components/ReturnModal';
 import CookieConsent from '@/components/shared/CookieConsent';
 import ScrollToTop from '@/components/shared/ScrollToTop';
+import PWAInstallPrompt from '@/components/shared/PWAInstallPrompt';
 import HomePage from '@/pages/HomePage';
 import ShopPage from '@/pages/ShopPage';
 import ProductDetailPage from '@/pages/ProductDetailPage';
@@ -94,7 +95,7 @@ export default function App() {
         <Route path="/admin/riders" element={<RoleGuard roles={['admin']}><AdminLayout><AdminRiders /></AdminLayout></RoleGuard>} />
         <Route path="/admin/memberships" element={<RoleGuard roles={['admin', 'moderator']}><AdminLayout><AdminMemberships /></AdminLayout></RoleGuard>} />
         <Route path="/admin/content" element={<RoleGuard roles={['admin']}><AdminLayout><AdminContent /></AdminLayout></RoleGuard>} />
-        <Route path="/admin/bespoke" element={<RoleGuard roles={['admin', 'moderator']}><AdminLayout><AdminBespoke /></AdminLayout></RoleGuard>} />
+        <Route path="/admin/bespoke" element={<RoleGuard roles={['admin']}><AdminLayout><AdminBespoke /></AdminLayout></RoleGuard>} />
         <Route path="/admin/team" element={<RoleGuard roles={['admin']}><AdminLayout><AdminTeam /></AdminLayout></RoleGuard>} />
         <Route path="/admin/audit-log" element={<RoleGuard roles={['admin']}><AdminLayout><AdminAuditLog /></AdminLayout></RoleGuard>} />
         <Route path="/admin/messages" element={<RoleGuard roles={['admin']}><AdminLayout><AdminMessages /></AdminLayout></RoleGuard>} />
@@ -107,6 +108,7 @@ export default function App() {
         <Route path="/moderator" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorContent /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/products" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorProducts /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/orders" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorOrders /></ModeratorLayout></RoleGuard>} />
+        <Route path="/moderator/bespoke" element={<RoleGuard roles={['moderator']}><ModeratorLayout><AdminBespoke /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/returns" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReturns /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/reviews" element={<RoleGuard roles={['moderator']}><ModeratorLayout><ModeratorReviews /></ModeratorLayout></RoleGuard>} />
         <Route path="/moderator/memberships" element={<RoleGuard roles={['moderator']}><ModeratorLayout><AdminMemberships /></ModeratorLayout></RoleGuard>} />
@@ -180,6 +182,7 @@ function PublicSite() {
         <Footer />
       </div>
       <CookieConsent />
+      <PWAInstallPrompt />
     </>
   );
 }

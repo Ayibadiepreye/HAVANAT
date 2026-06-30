@@ -74,8 +74,15 @@ export default function AdminOrders() {
   
   const assignRider = useOrderStore((s) => s.assignRider);
   const riders = useRiderStore((s) => s.riders);
+  const fetchRiders = useRiderStore((s) => s.fetchRiders);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
+  
+  // Fetch riders on mount
+  useEffect(() => {
+    void fetchRiders();
+  }, [fetchRiders]);
+  
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('all');
   const [search, setSearch] = useState('');
   const [details, setDetails] = useState<DashboardOrder | null>(null);

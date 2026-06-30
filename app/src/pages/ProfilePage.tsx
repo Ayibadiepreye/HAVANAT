@@ -286,10 +286,13 @@ export default function ProfilePage() {
 
 
   // ───── Render ─────
+  const dashboardUser = useAuthStore((s) => s.dashboardUser);
+  const needsVerification = dashboardUser?.emailVerified === false;
+
   return (
     <>
     <EmailVerificationBanner />
-    <main className="min-h-screen pt-20 lg:pt-24 pb-24 lg:pb-12 bg-white">
+    <main className={`min-h-screen pt-20 lg:pt-24 pb-24 lg:pb-12 bg-white ${needsVerification ? 'mt-32 lg:mt-36' : ''}`}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
         {/* Header */}
         <div className="flex flex-wrap items-center gap-4 mb-8 lg:mb-12">

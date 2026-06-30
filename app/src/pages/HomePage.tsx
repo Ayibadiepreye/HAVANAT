@@ -9,6 +9,7 @@ import { formatNaira } from '@/config';
 import { useCartStore } from '@/stores/useCartStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { BRAND } from '@/config/brand';
+import { useAutoRefreshUser } from '@/hooks/useAutoRefreshUser';
 
 /* ──────────────────── HERO ──────────────────── */
 function HeroSection() {
@@ -518,6 +519,9 @@ function BannerCarousel() {
 /* ──────────────────── HOME PAGE ──────────────────── */
 export default function HomePage() {
   const fetchContent = useContentStore((s) => s.fetchContent);
+  
+  // Auto-refresh user data for live tier updates
+  useAutoRefreshUser({ enabled: true, intervalMs: 30000 });
   
   // Fetch all content on mount
   useEffect(() => {

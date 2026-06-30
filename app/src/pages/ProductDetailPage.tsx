@@ -8,8 +8,12 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import ReviewList from '@/components/ReviewList';
 import ReviewForm from '@/components/ReviewForm';
+import { useAutoRefreshUser } from '@/hooks/useAutoRefreshUser';
 
 export default function ProductDetailPage() {
+  // Auto-refresh user data every 30 seconds
+  useAutoRefreshUser({ enabled: true, intervalMs: 30000 });
+
   const { slug } = useParams<{ slug: string }>();
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);

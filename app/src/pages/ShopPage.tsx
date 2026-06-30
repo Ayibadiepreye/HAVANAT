@@ -8,6 +8,7 @@ import { useUIStore } from '@/stores/useUIStore';
 import { useProductStore } from '@/stores/useProductStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useMembershipStatus } from '@/hooks/useMembershipStatus';
+import { useAutoRefreshUser } from '@/hooks/useAutoRefreshUser';
 
 const CATEGORIES = ['All', 'Suits', 'Blazers', 'Trousers', 'Vests', 'Formal', 'Outerwear'];
 const FITS = ['All', 'Oversized', 'Tailored', 'Classic', 'Slim'];
@@ -20,6 +21,9 @@ const SORT_OPTIONS = [
 ];
 
 export default function ShopPage() {
+  // Auto-refresh user data every 30 seconds
+  useAutoRefreshUser({ enabled: true, intervalMs: 30000 });
+
   const [searchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const [category, setCategory] = useState(searchParams.get('category') || 'All');

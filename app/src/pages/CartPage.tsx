@@ -9,6 +9,7 @@ import { useProductStore } from '@/stores/useProductStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { formatNaira, CONFIG } from '@/config';
 import { NIGERIAN_STATES } from '@/pages/CheckoutPage';
+import { useAutoRefreshUser } from '@/hooks/useAutoRefreshUser';
 
 function buildWhatsAppOrderMessage(state: string): string {
   const { items, subtotal } = useCartStore.getState();
@@ -18,6 +19,9 @@ function buildWhatsAppOrderMessage(state: string): string {
 }
 
 export default function CartPage() {
+  // Auto-refresh user data every 30 seconds
+  useAutoRefreshUser({ enabled: true, intervalMs: 30000 });
+
   const { items, updateQuantity, removeItem, subtotal, deliveryFee, total, deliveryState, setDeliveryState, tierDiscount, validateStock } = useCartStore();
   const isAuthed = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);

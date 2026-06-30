@@ -70,30 +70,30 @@ export default function RiderDeliveries() {
       ) : (
         <div className="space-y-4">
           {sorted.map((d) => (
-            <div key={d.id} className="bg-white border border-gray-200 p-6">
+            <div key={d.id} className="bg-white border border-gray-200 p-4 sm:p-6">
               <div className="flex justify-between items-start mb-4 flex-wrap gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium">{d.status === 'pending' ? 'Pickup' : 'Delivery'} · {formatTime(d.assignedAt)}</p>
-                  <p className="font-serif text-lg mt-1">Order #{d.orderId}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium break-words">{d.status === 'pending' ? 'Pickup' : 'Delivery'} · {formatTime(d.assignedAt)}</p>
+                  <p className="font-serif text-base sm:text-lg mt-1 truncate">Order #{d.orderId}</p>
                 </div>
                 <StatusBadge status={d.status} type="delivery" />
               </div>
               <div className="space-y-1.5 text-sm">
                 <p><strong className="font-medium">Order #:</strong> {d.orderId}</p>
-                <p className="flex items-center gap-1.5 text-gray-500 text-xs">
+                <p className="flex items-center gap-1.5 text-gray-500 text-xs break-words">
                   Delivery #{d.id} · assigned {formatTime(d.assignedAt)}
                 </p>
               </div>
-              <div className="flex gap-2 mt-4">
+              <div className="flex flex-col sm:flex-row gap-2 mt-4">
                 <button
                   onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${d.address}, ${d.city}, ${d.state}`)}`, '_blank')}
-                  className="px-4 py-2.5 text-[10px] uppercase tracking-[0.15em] border border-gray-300 hover:border-black flex items-center gap-2"
+                  className="px-4 py-2.5 text-[10px] uppercase tracking-[0.15em] border border-gray-300 hover:border-black flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   <MapPin className="h-3.5 w-3.5" /> Navigate
                 </button>
                 <button
                   onClick={() => navigate(`/rider/deliveries/${d.id}`)}
-                  className="px-4 py-2.5 text-[10px] uppercase tracking-[0.15em] font-medium bg-black text-white hover:bg-gray-900 flex items-center gap-2"
+                  className="px-4 py-2.5 text-[10px] uppercase tracking-[0.15em] font-medium bg-black text-white hover:bg-gray-900 flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   Open Task <ArrowRight className="h-3.5 w-3.5" />
                 </button>

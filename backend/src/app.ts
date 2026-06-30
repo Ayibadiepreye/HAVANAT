@@ -28,7 +28,15 @@ const app = express();
 
 app.use((req, _res, next) => { console.log(`[req] ${req.method} ${req.url}`); next(); });
 app.use(helmet());
-app.use(cors({ origin: config.corsOrigins, credentials: true }));
+app.use(cors({ 
+  origin: config.corsOrigins, 
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
 app.use(express.json({ limit: '2mb' }));
 
 const limiter = rateLimit({ windowMs: config.rateLimitWindowMs, max: config.rateLimitMax, standardHeaders: true, legacyHeaders: false });

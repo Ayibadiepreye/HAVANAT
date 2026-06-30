@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiPost } from '@/lib/api';
 import { useTierStore } from '@/stores/useTierStore';
 import { useEffect } from 'react';
+import { useAutoRefreshUser } from '@/hooks/useAutoRefreshUser';
 
 const FAQS = [
   { q: 'Can I change or cancel my membership?', a: 'Yes, you can upgrade, downgrade, or cancel your membership at any time from your account dashboard. Changes take effect at the start of your next billing cycle.' },
@@ -19,6 +20,9 @@ const FAQS = [
 ];
 
 export default function MembershipPage() {
+  // Auto-refresh user data every 30 seconds
+  useAutoRefreshUser({ enabled: true, intervalMs: 30000 });
+
   const liveTiers = useTierStore((s) => s.tiers);
   const fetchTiers = useTierStore((s) => s.fetch);
   

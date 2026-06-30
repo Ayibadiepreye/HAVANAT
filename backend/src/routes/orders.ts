@@ -297,49 +297,23 @@ ordersRouter.patch('/:id/assign-rider', requireAuth, requireRole('admin', 'moder
   
   // Send email to customer with delivery OTP
   const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
+  const { riderAssignedEmail } = await import('../lib/email.js');
   await sendEmailSafe({
     to: before.customerEmail,
     subject: `Rider assigned for Order ${before.orderNumber}`,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 20px; }
-          .otp-box { background: #000; color: #fff; padding: 30px; text-align: center; margin: 30px 0; }
-          .otp { font-size: 48px; font-weight: bold; letter-spacing: 0.3em; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="font-family: Georgia, serif; font-size: 28px; font-weight: 300; margin: 0;">Rider On The Way</h1>
-          </div>
-          
-          <p>Hello ${before.customerName},</p>
-          
-          <p>Great news! Your order <strong>${before.orderNumber}</strong> is now being delivered by ${rider.name}.</p>
-          
-          <div class="otp-box">
-            <p style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8;">Delivery Verification Code</p>
-            <div class="otp">${otp}</div>
-          </div>
-          
-          <p><strong>Important:</strong> When the rider arrives, they will ask for this 4-digit code to confirm delivery. Please have it ready.</p>
-          
-          <p>You can track your order here:<br>
-          <a href="${frontendUrl}/track?orderNumber=${before.orderNumber}" style="color: #000; text-decoration: underline;">${frontendUrl}/track?orderNumber=${before.orderNumber}</a></p>
-          
-          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #999;">
-            <p>HAVANAT - Bespoke Tailoring</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
+    html: riderAssignedEmail({
+      orderNumber: before.orderNumber,
+      customerName: before.customerName,
+      riderName: rider.name,
+      riderPhone: rider.phone || '',
+      deliveryOtp: otp,
+      deliveryAddress: {
+        street: before.shippingAddress.street,
+        city: before.shippingAddress.city,
+        state: before.shippingAddress.state,
+      },
+    }),
+    tags: [{ name: 'type', value: 'rider_assigned' }],
   });
   
   // Create in-app notification with OTP

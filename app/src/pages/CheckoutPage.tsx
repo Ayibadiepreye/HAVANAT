@@ -9,6 +9,7 @@ import { useAddressStore, type Address } from '@/stores/useAddressStore';
 import { useDeliveryZones } from '@/hooks/useDeliveryZones';
 import { formatNaira } from '@/config';
 import { apiPost } from '@/lib/api';
+import { useAutoRefreshUser } from '@/hooks/useAutoRefreshUser';
 
 // Nigerian states. Sourced from the official 36-state list.
 export const NIGERIAN_STATES = [
@@ -20,6 +21,9 @@ export const NIGERIAN_STATES = [
 ];
 
 export default function CheckoutPage() {
+  // Auto-refresh user data every 30 seconds
+  useAutoRefreshUser({ enabled: true, intervalMs: 30000 });
+
   const { items, subtotal: cartSubtotal, deliveryFee, total: cartTotal, tierDiscount, clearCart } = useCartStore();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);

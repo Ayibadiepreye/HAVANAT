@@ -332,9 +332,7 @@ googleAuthRouter.get('/callback', async (req, res, next) => {
     const url = new URL(frontendCallback);
     url.searchParams.set('access_token', issued.accessToken);
     url.searchParams.set('refresh_token', issued.refreshToken);
-    if (!user.emailVerified) {
-      url.searchParams.set('verifyEmail', '1');
-    }
+    // No longer need verifyEmail param - all Google OAuth users are auto-verified
     res.redirect(url.toString());
   } catch (err) {
     next(err);
@@ -382,8 +380,8 @@ googleAuthRouter.post('/verify', async (req, res, next) => {
         [user] = await db.insert(users).values({
           name, email, passwordHash, googleId, avatarUrl,
           role: 'customer', tier: 'standard',
-          // Same as /callback — never auto-verify new signups.
-          emailVerified: false,
+          // Auto-verify Google OAuth users since Google has already verified the email
+          emailVerified: true,
         }).returning();
         if (!user) return res.status(500).json({ error: 'Failed to create user' });
         sendEmailSafe({
@@ -397,37 +395,7 @@ googleAuthRouter.post('/verify', async (req, res, next) => {
       user = { ...user, avatarUrl };
     }
 
-    // Same auto-OTP logic as /callback: send a 6-digit code if email unverified.
-    if (!user.emailVerified) {
-      try {
-        const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-        const tokenHash = crypto.createHash('sha256').update(code).digest('hex');
-        await db.update(twoFactorOtps)
-          .set({ usedAt: new Date() })
-          .where(and(
-            eq(twoFactorOtps.userId, user.id),
-            eq(twoFactorOtps.purpose, 'oauth_email_verify'),
-            isNull(twoFactorOtps.usedAt)
-          ));
-        await db.insert(twoFactorOtps).values({
-          userId: user.id,
-          codeHash: tokenHash,
-          expiresAt,
-          purpose: 'oauth_email_verify',
-        });
-        const result = await sendEmailSafe({
-          to: user.email,
-          subject: 'Verify your Havanat email',
-          html: twoFactorCodeEmail(code),
-          tags: [{ name: 'type', value: 'email_verify' }],
-        });
-        if (!result.ok) console.warn('[oauth/verify] OTP email failed:', result.error);
-        else console.info('[oauth/verify] OTP sent to', user.email);
-      } catch (e) {
-        console.warn('[oauth/verify] failed to send verify-email OTP:', e);
-      }
-    }
+    // Skip OTP sending for OAuth users - they're already verified by Google
 
     const issued = await issueTokensForUser(user, req);
     res.json({

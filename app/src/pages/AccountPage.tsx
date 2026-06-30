@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Package, Crown, MapPin, Heart, LogOut, Plus, Edit3, Trash2 } from 'lucide-react';
+import { Package, Crown, MapPin, Heart, LogOut, Plus, Edit3, Trash2, Scissors } from 'lucide-react';
 import MobileBottomNav, { type MobileBottomNavItem } from '@/components/MobileBottomNav';
 import { useUIStore } from '@/stores/useUIStore';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiPost } from '@/lib/api';
 import { useProductStore } from '@/stores/useProductStore';
 import { useOrderStore } from '@/stores/useOrderStore';
 import { useAddressStore, type Address as StoreAddress } from '@/stores/useAddressStore';
@@ -12,15 +12,10 @@ import { NIGERIAN_STATES } from '@/pages/CheckoutPage';
 import { formatNaira } from '@/config';
 import MembershipPanel from '@/components/MembershipPanel';
 import EmailVerificationBanner from '@/components/EmailVerificationBanner';
+import { useAutoRefreshUser } from '@/hooks/useAutoRefreshUser';
+import BespokePanel from '@/components/BespokePanel';
 
-type Tab = 'orders' | 'membership' | 'addresses' | 'wishlist';
-
-const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
-  { key: 'orders', label: 'Orders', icon: Package },
-  { key: 'membership', label: 'Membership', icon: Crown },
-  { key: 'addresses', label: 'Addresses', icon: MapPin },
-  { key: 'wishlist', label: 'Wishlist', icon: Heart },
-];
+type Tab = 'orders' | 'membership' | 'bespoke' | 'addresses' | 'wishlist';
 
 const STATUS_COLORS: Record<string, string> = {
   received: 'bg-gray-100 text-gray-700',
@@ -33,9 +28,16 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AccountPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const validTabs: Tab[] = ['orders', 'membership', 'addresses', 'wishlist'];
+  const user = useAuthStore((s) => s.user);
+  const isElite = user?.membershipTier === 'elite';
+  const validTabs: Tab[] = isElite 
+    ? ['orders', 'membership', 'bespoke', 'addresses', 'wishlist']
+    : ['orders', 'membership', 'addresses', 'wishlist'];
   const initialTab = (searchParams.get('tab') ?? 'orders') as Tab;
   const [activeTab, setActiveTab] = useState<Tab>(validTabs.includes(initialTab) ? initialTab : 'orders');
+
+  // Auto-refresh user data every 30 seconds to keep tier and other info up-to-date
+  useAutoRefreshUser({ enabled: true, intervalMs: 30000 });
 
   // When user returns from Paystack (callback: ?tab=membership&paystack=verify&reference=...),
   // call /api/memberships/confirm to flip the DB tier. Runs once on mount.
@@ -59,10 +61,9 @@ export default function AccountPage() {
             // 'standard' to the new tier. Cart, checkout, sneak peek
             // filters, tier-gated UI — all read from this.
             try {
-              const fresh = await apiGet<{ tier: string }>('/api/auth/me', true);
-              if (fresh?.tier) useAuthStore.getState().upgradeTier(fresh.tier as any);
+              await useAuthStore.getState().fetchUserData();
             } catch (e) {
-              console.warn('refresh user tier failed', e);
+              console.warn('refresh user data failed', e);
             }
           }
         } catch (err: any) {
@@ -115,13 +116,36 @@ export default function AccountPage() {
   };
 
   const inputClass = 'w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none bg-white';
-  const navItems: MobileBottomNavItem[] = [
-    { key: 'orders', label: 'Orders', icon: Package, onClick: () => setActiveTab('orders') },
-    { key: 'membership', label: 'Membership', icon: Crown, onClick: () => setActiveTab('membership') },
-    { key: 'addresses', label: 'Addresses', icon: MapPin, onClick: () => setActiveTab('addresses') },
-    { key: 'wishlist', label: 'Wishlist', icon: Heart, onClick: () => setActiveTab('wishlist') },
-  ];
-  const user = useAuthStore((s) => s.user);
+  
+  const TABS: { key: Tab; label: string; icon: typeof Package }[] = isElite
+    ? [
+        { key: 'orders', label: 'Orders', icon: Package },
+        { key: 'membership', label: 'Membership', icon: Crown },
+        { key: 'bespoke', label: 'Bespoke', icon: Scissors },
+        { key: 'addresses', label: 'Addresses', icon: MapPin },
+        { key: 'wishlist', label: 'Wishlist', icon: Heart },
+      ]
+    : [
+        { key: 'orders', label: 'Orders', icon: Package },
+        { key: 'membership', label: 'Membership', icon: Crown },
+        { key: 'addresses', label: 'Addresses', icon: MapPin },
+        { key: 'wishlist', label: 'Wishlist', icon: Heart },
+      ];
+  
+  const navItems: MobileBottomNavItem[] = isElite
+    ? [
+        { key: 'orders', label: 'Orders', icon: Package, onClick: () => setActiveTab('orders') },
+        { key: 'membership', label: 'Membership', icon: Crown, onClick: () => setActiveTab('membership') },
+        { key: 'bespoke', label: 'Bespoke', icon: Scissors, onClick: () => setActiveTab('bespoke') },
+        { key: 'addresses', label: 'Addresses', icon: MapPin, onClick: () => setActiveTab('addresses') },
+        { key: 'wishlist', label: 'Wishlist', icon: Heart, onClick: () => setActiveTab('wishlist') },
+      ]
+    : [
+        { key: 'orders', label: 'Orders', icon: Package, onClick: () => setActiveTab('orders') },
+        { key: 'membership', label: 'Membership', icon: Crown, onClick: () => setActiveTab('membership') },
+        { key: 'addresses', label: 'Addresses', icon: MapPin, onClick: () => setActiveTab('addresses') },
+        { key: 'wishlist', label: 'Wishlist', icon: Heart, onClick: () => setActiveTab('wishlist') },
+      ];
 
   // Fetch addresses when authenticated
   useEffect(() => {
@@ -171,6 +195,7 @@ export default function AccountPage() {
     }
   }, [showAddrForm, editingAddr, user?.name, user?.phone, user?.email, addresses.length]);
   const logout = useAuthStore((s) => s.logout);
+  const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const wishlist = useProductStore((s) => s.wishlist);
   const products = useProductStore((s) => s.products);
   const fetchProducts = useProductStore((s) => s.fetchProducts);
@@ -182,6 +207,8 @@ export default function AccountPage() {
     showToast('Signed out — see you soon', 'success');
     navigate('/', { replace: true });
   };
+
+  const needsVerification = dashboardUser?.emailVerified === false;
 
   if (!user) {
       return (
@@ -199,7 +226,7 @@ export default function AccountPage() {
   return (
     <>
     <EmailVerificationBanner />
-    <main className="min-h-screen pt-20 lg:pt-24 pb-24 lg:pb-12 bg-white">
+    <main className={`min-h-screen pt-20 lg:pt-24 pb-24 lg:pb-12 bg-white ${needsVerification ? 'mt-32 lg:mt-36' : ''}`}>
         <div className="lg:hidden h-0" />
       <div className="px-4 sm:px-6 lg:px-12 py-8 lg:py-12">
         {/* Header */}
@@ -345,6 +372,11 @@ export default function AccountPage() {
                 </div>
                 <MembershipPanel />
               </div>
+            )}
+
+            {/* Bespoke Tab (Elite only) */}
+            {activeTab === 'bespoke' && isElite && (
+              <BespokePanel />
             )}
 
             {/* Addresses Tab */}

@@ -120,6 +120,9 @@ notificationsRouter.post('/', requireAuth, requireRole('admin', 'moderator'), as
 
         // Send emails in batches (Resend supports batch sending)
         if (recipientEmails.length > 0) {
+          // Import the broadcast email template
+          const { broadcastEmail } = await import('../lib/email.js');
+          
           // For large lists, send in batches of 100
           const batchSize = 100;
           for (let i = 0; i < recipientEmails.length; i += batchSize) {
@@ -130,17 +133,13 @@ notificationsRouter.post('/', requireAuth, requireRole('admin', 'moderator'), as
               await sendEmailSafe({
                 to: email,
                 subject: title,
-                html: `
-                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #000; font-size: 24px; margin-bottom: 20px;">${title}</h2>
-                    <p style="color: #333; font-size: 16px; line-height: 1.6;">${body.replace(/\n/g, '<br>')}</p>
-                    <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-                    <p style="color: #666; font-size: 12px;">
-                      This notification was sent by ${author.name} (${req.user!.role}).<br>
-                      Visit <a href="${process.env.FRONTEND_URL || 'https://havanat.store'}" style="color: #000;">havanat.store</a> to view all notifications.
-                    </p>
-                  </div>
-                `,
+                html: broadcastEmail({
+                  title,
+                  body,
+                  senderName: author.name,
+                  senderRole: req.user!.role,
+                  category,
+                }),
                 tags: [
                   { name: 'type', value: 'broadcast' },
                   { name: 'category', value: category },
