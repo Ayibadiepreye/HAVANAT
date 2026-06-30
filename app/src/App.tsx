@@ -53,6 +53,7 @@ import AdminMessages from '@/pages/admin/AdminMessages';
 import AdminNotifications from '@/pages/admin/AdminNotifications';
 import AdminBroadcast from '@/pages/admin/AdminBroadcast';
 import AdminReviews from '@/pages/admin/AdminReviews';
+import AdminBespoke from '@/pages/admin/AdminBespoke';
 import ModeratorContent from '@/pages/moderator/ModeratorContent';
 import ModeratorProducts from '@/pages/moderator/ModeratorProducts';
 import ModeratorOrders from '@/pages/moderator/ModeratorOrders';
@@ -93,6 +94,7 @@ export default function App() {
         <Route path="/admin/riders" element={<RoleGuard roles={['admin']}><AdminLayout><AdminRiders /></AdminLayout></RoleGuard>} />
         <Route path="/admin/memberships" element={<RoleGuard roles={['admin', 'moderator']}><AdminLayout><AdminMemberships /></AdminLayout></RoleGuard>} />
         <Route path="/admin/content" element={<RoleGuard roles={['admin']}><AdminLayout><AdminContent /></AdminLayout></RoleGuard>} />
+        <Route path="/admin/bespoke" element={<RoleGuard roles={['admin', 'moderator']}><AdminLayout><AdminBespoke /></AdminLayout></RoleGuard>} />
         <Route path="/admin/team" element={<RoleGuard roles={['admin']}><AdminLayout><AdminTeam /></AdminLayout></RoleGuard>} />
         <Route path="/admin/audit-log" element={<RoleGuard roles={['admin']}><AdminLayout><AdminAuditLog /></AdminLayout></RoleGuard>} />
         <Route path="/admin/messages" element={<RoleGuard roles={['admin']}><AdminLayout><AdminMessages /></AdminLayout></RoleGuard>} />

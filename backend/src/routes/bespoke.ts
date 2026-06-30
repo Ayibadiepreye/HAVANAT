@@ -24,6 +24,7 @@ const CreateBespokeSchema = z.object({
   timeline: z.string().max(200).optional().default(''),
   description: z.string().min(10).max(5000),
   measurements: z.record(z.string()).optional().default({}),
+  images: z.array(z.string()).optional().default([]),
 });
 
 bespokeRouter.post('/', async (req, res, next) => {
@@ -60,6 +61,7 @@ bespokeRouter.post('/', async (req, res, next) => {
         timeline: parsed.data.timeline,
         description: parsed.data.description,
         measurements: parsed.data.measurements,
+        images: parsed.data.images || [],
         status: 'new',
       })
       .returning();
@@ -198,6 +200,98 @@ bespokeRouter.patch('/:id', requireAuth, requireRole('admin', 'moderator'), asyn
       meta: { status: row.status },
     });
     res.json({ ok: true, item: row });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Admin: reply to customer ─────────────────────────────────────
+const ReplySchema = z.object({
+  message: z.string().min(1).max(5000),
+});
+bespokeRouter.post('/:id/reply', requireAuth, requireRole('admin', 'moderator'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ ok: false, error: 'Invalid id' });
+    
+    const parsed = ReplySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, error: 'Validation failed', issues: parsed.error.flatten() });
+    }
+    
+    // Get bespoke request
+    const [request] = await db.select().from(bespokeRequests).where(eq(bespokeRequests.id, id)).limit(1);
+    if (!request) return res.status(404).json({ ok: false, error: 'Request not found' });
+    
+    const adminName = req.user!.email;
+    const message = parsed.data.message;
+    
+    // Send in-app notification to customer (if they have an account)
+    if (request.userId) {
+      await db.insert(notifications).values({
+        title: `Reply to your bespoke request — ${request.reference}`,
+        body: message.slice(0, 200) + (message.length > 200 ? '...' : ''),
+        category: 'bespoke',
+        channels: 'inapp',
+        scope: 'user',
+        targetUserId: request.userId,
+        authorId: Number(req.user!.sub),
+        authorName: adminName,
+        authorRole: req.user!.role,
+        readBy: {},
+      });
+    }
+    
+    // Send email to customer
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3002';
+    const trackingLink = request.userId 
+      ? `${frontendUrl}/account?tab=bespoke` 
+      : `${frontendUrl}/custom-request?ref=${request.reference}`;
+    
+    sendEmailSafe({
+      to: request.customerEmail,
+      subject: `[Havanat] Update on your bespoke request — ${request.reference}`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: #000; color: #fff; padding: 30px; text-align: center; margin-bottom: 30px;">
+            <h1 style="margin: 0; font-family: Georgia, serif; font-weight: 300; font-size: 28px; letter-spacing: 2px;">HAVANAT</h1>
+          </div>
+          
+          <div style="background: #f9f9f9; padding: 30px; margin-bottom: 20px;">
+            <h2 style="margin: 0 0 20px 0; font-size: 20px; font-weight: 300;">Update on Your Bespoke Request</h2>
+            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Reference: <strong>${request.reference}</strong></p>
+            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Occasion: <strong>${request.occasion}</strong></p>
+          </div>
+          
+          <div style="background: #fff; border-left: 4px solid #000; padding: 20px; margin-bottom: 30px;">
+            <p style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #999;">Message from HAVANAT:</p>
+            <p style="margin: 0; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${message}</p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${trackingLink}" style="display: inline-block; background: #000; color: #fff; padding: 15px 40px; text-decoration: none; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;">View Request</a>
+          </div>
+          
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #999; text-align: center;">
+            <p>HAVANAT - Bespoke Tailoring</p>
+            <p>Lagos, Nigeria</p>
+          </div>
+        </div>
+      `,
+      tags: [{ name: 'type', value: 'bespoke_reply' }],
+    });
+    
+    // Log action
+    await logAction({
+      actorId: Number(req.user!.sub),
+      actorRole: req.user!.role,
+      action: 'bespoke.reply',
+      targetType: 'bespoke_request',
+      targetId: request.id,
+      meta: { reference: request.reference, messageSent: true },
+    });
+    
+    res.json({ ok: true, message: 'Reply sent successfully' });
   } catch (err) {
     next(err);
   }

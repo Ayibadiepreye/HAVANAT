@@ -13,6 +13,9 @@ import type { DeliveryZone, AdminAccount } from '@/types/dashboard';
 import RoleBadge from '@/components/admin/RoleBadge';
 import { formatDate } from '@/utils/formatters';
 export default function AdminSettings() {
+  const dashboardUser = useAuthStore((s) => s.dashboardUser);
+  const isAdmin = dashboardUser?.role === 'admin';
+  
   return (
     <div className="space-y-6">
       <div>
@@ -27,7 +30,7 @@ export default function AdminSettings() {
             ['payments', 'Payment', 'credit-card' as const],
             ['zones', 'Delivery Zones', 'truck' as const],
             ['emails', 'Email Templates', 'mail' as const],
-            ['team', 'Admin Users', 'users' as const],
+            ...(isAdmin ? [['team', 'Admin Users', 'users' as const]] : []),
           ].map(([k, l]) => (
             <TabsTrigger
               key={k}
@@ -41,7 +44,7 @@ export default function AdminSettings() {
           <TabsContent value="payments" className="m-0"><PaymentTab /></TabsContent>
           <TabsContent value="zones" className="m-0"><DeliveryZonesTab /></TabsContent>
           <TabsContent value="emails" className="m-0"><EmailsTab /></TabsContent>
-          <TabsContent value="team" className="m-0"><TeamTab /></TabsContent>
+          {isAdmin && <TabsContent value="team" className="m-0"><TeamTab /></TabsContent>}
         </div>
       </Tabs>
     </div>
@@ -278,11 +281,14 @@ function EmailsTab() {
 
 function TeamTab() {
   const accounts = useAdminUserStore((s) => s.accounts);
+  const addAccount = useAdminUserStore((s) => s.addAccount);
   const removeAccount = useAdminUserStore((s) => s.removeAccount);
   const dashboardUser = useAuthStore((s) => s.dashboardUser);
   const showToast = useUIStore((s) => s.showToast);
+  const [showAdd, setShowAdd] = useState(false);
 
-  const columns: Column<AdminAccount>[] = [    { key: 'name', label: 'Name', render: (a) => a.name },
+  const columns: Column<AdminAccount>[] = [
+    { key: 'name', label: 'Name', render: (a) => a.name },
     { key: 'email', label: 'Email', render: (a) => <span className="text-xs">{a.email}</span> },
     { key: 'role', label: 'Role', render: (a) => <RoleBadge role={a.role} /> },
     { key: 'created', label: 'Created', render: (a) => <span className="text-xs">{formatDate(a.createdAt)}</span> },
@@ -290,6 +296,7 @@ function TeamTab() {
       key: 'actions', label: '', align: 'right', width: '60px',
       render: (a) => (
         <button
+          type="button"
           onClick={() => {
             if (!dashboardUser || a.id === dashboardUser.id) return;
             removeAccount(a.id, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' });
@@ -303,7 +310,99 @@ function TeamTab() {
   ];
 
   return (
-    <AdminTable<AdminAccount> columns={columns} rows={accounts} keyFn={(a) => a.id} emptyMessage="No team members" />
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowAdd(true)}
+          className="bg-black text-white px-4 py-2 text-[10px] uppercase tracking-[0.2em] font-medium flex items-center gap-2 hover:bg-gray-900"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add Team Member
+        </button>
+      </div>
+      
+      <AdminTable<AdminAccount> columns={columns} rows={accounts} keyFn={(a) => a.id} emptyMessage="No team members" />
+
+      {showAdd && (
+        <AddTeamMemberModal
+          onClose={() => setShowAdd(false)}
+          onAdd={(member) => {
+            if (!dashboardUser) return;
+            addAccount(member, { id: dashboardUser.id, name: dashboardUser.name, role: 'admin' });
+            showToast(`Added ${member.name}`, 'success');
+            setShowAdd(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function AddTeamMemberModal({
+  onClose,
+  onAdd,
+}: {
+  onClose: () => void;
+  onAdd: (member: { name: string; email: string; phone?: string; role: 'admin' | 'moderator' | 'rider' }) => void;
+}) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [role, setRole] = useState<'admin' | 'moderator' | 'rider'>('moderator');
+
+  const handleSubmit = () => {
+    if (!name || !email) {
+      return;
+    }
+    onAdd({ name, email, phone: phone || undefined, role });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-serif text-xl font-light">Add Team Member</h3>
+          <button type="button" onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="space-y-3">
+          <Field label="Full Name" value={name} onChange={setName} />
+          <Field label="Email" value={email} onChange={setEmail} />
+          <Field label="Phone (optional)" value={phone} onChange={setPhone} />
+          <div>
+            <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1.5 font-medium">Role</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as any)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none bg-white"
+            >
+              <option value="moderator">Moderator</option>
+              <option value="admin">Admin</option>
+              <option value="rider">Rider</option>
+            </select>
+          </div>
+          <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 p-3">
+            Default password is <code className="bg-gray-100 px-1 font-mono">password</code>. User will be prompted to change it on first login.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-[10px] uppercase tracking-[0.15em] border border-gray-300 hover:border-black"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!name || !email}
+            className="px-4 py-2 text-[10px] uppercase tracking-[0.15em] bg-black text-white hover:bg-gray-900 disabled:opacity-50"
+          >
+            Add Member
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

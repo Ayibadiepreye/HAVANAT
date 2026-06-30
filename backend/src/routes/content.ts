@@ -124,14 +124,14 @@ contentRouter.get('/delivery-zones', async (_req, res) => {
   const rows = await db.select().from(deliveryZones);
   res.json({ items: rows });
 });
-contentRouter.post('/delivery-zones', requireAuth, requireRole('admin'), async (req, res) => {
+contentRouter.post('/delivery-zones', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const parsed = CreateDeliveryZoneSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
   const [created] = await db.insert(deliveryZones).values(parsed.data as any).returning();
   await logAction({ req, user: req.user!, action: 'create', entityType: 'delivery_zone', entityId: created!.id, entityLabel: `Zone: ${created!.state}`, summary: 'Added delivery zone', after: created });
   res.status(201).json(created);
 });
-contentRouter.patch('/delivery-zones/:id', requireAuth, requireRole('admin'), async (req, res) => {
+contentRouter.patch('/delivery-zones/:id', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const id = Number(req.params.id);
   const [before] = await db.select().from(deliveryZones).where(eq(deliveryZones.id, id));
   if (!before) return res.status(404).json({ error: 'Not found' });
@@ -139,7 +139,7 @@ contentRouter.patch('/delivery-zones/:id', requireAuth, requireRole('admin'), as
   await logAction({ req, user: req.user!, action: 'update', entityType: 'delivery_zone', entityId: id, entityLabel: `Zone: ${after!.state}`, summary: 'Updated zone', before, after });
   res.json(after);
 });
-contentRouter.delete('/delivery-zones/:id', requireAuth, requireRole('admin'), async (req, res) => {
+contentRouter.delete('/delivery-zones/:id', requireAuth, requireRole('admin', 'moderator'), async (req, res) => {
   const id = Number(req.params.id);
   const [before] = await db.select().from(deliveryZones).where(eq(deliveryZones.id, id));
   if (!before) return res.status(404).json({ error: 'Not found' });

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 
 import type { DeliveryZone } from '@/types/dashboard';
 import { logAuditAction } from '@/utils/auditLogger';
-import { apiConfig, apiDelete, apiGet, apiPost } from '@/lib/api';
+import { apiConfig, apiDelete, apiGet, apiPost, apiPatch } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 interface DeliveryZoneState {
@@ -46,16 +46,27 @@ export const useDeliveryZoneStore = create<DeliveryZoneState>()(
           console.error('addZone backend POST failed', err);
         }
       },
-      updateZone: (id, z, actor) => {
+      updateZone: async (id, z, actor) => {
         const before = get().zones.find((x) => x.id === id);
         if (!before) return;
-        set({ zones: get().zones.map((x) => (x.id === id ? { ...x, ...z } : x)) });
-        logAuditAction({
-          userId: actor.id, userName: actor.name, userRole: actor.role,
-          action: 'update', entityType: 'settings', entityId: id, entityLabel: `Delivery zone: ${before.state}`,
-          summary: 'Updated delivery zone',
-          changes: { before: z as unknown as Record<string, unknown>, after: { ...z } as unknown as Record<string, unknown> },
-        });
+        
+        if (!apiConfig.useBackend || !useAuthStore.getState().isAuthenticated) {
+          set({ zones: get().zones.map((x) => (x.id === id ? { ...x, ...z } : x)) });
+          return;
+        }
+        
+        try {
+          await apiPatch(`/api/content/delivery-zones/${id}`, z, true);
+          set({ zones: get().zones.map((x) => (x.id === id ? { ...x, ...z } : x)) });
+          logAuditAction({
+            userId: actor.id, userName: actor.name, userRole: actor.role,
+            action: 'update', entityType: 'settings', entityId: id, entityLabel: `Delivery zone: ${before.state}`,
+            summary: 'Updated delivery zone',
+            changes: { before: z as unknown as Record<string, unknown>, after: { ...z } as unknown as Record<string, unknown> },
+          });
+        } catch (err) {
+          console.error('updateZone backend PATCH failed', err);
+        }
       },
       removeZone: async (id, actor) => {
         const z = get().zones.find((x) => x.id === id);

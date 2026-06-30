@@ -543,6 +543,7 @@ export const bespokeRequests = pgTable('bespoke_requests', {
   timeline: varchar('timeline', { length: 200 }).notNull().default(''),
   description: text('description').notNull(),
   measurements: jsonb('measurements').$type<Record<string, string>>().notNull().default({}),
+  images: jsonb('images').$type<string[]>().notNull().default([]),
   status: varchar('status', { length: 30 }).notNull().default('new'), // new | in_review | quoted | accepted | declined | complete
   assignedTo: integer('assigned_to').references(() => users.id),
   adminNotes: text('admin_notes').notNull().default(''),

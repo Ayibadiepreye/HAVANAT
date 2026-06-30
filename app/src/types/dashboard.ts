@@ -297,6 +297,6 @@ export interface AdminAccount {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'moderator';
+  role: 'admin' | 'moderator' | 'rider';
   createdAt: string;
 }
