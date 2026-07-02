@@ -83,9 +83,9 @@ export default function ChatModal() {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal} />
-      <div className="relative bg-white w-full max-w-lg max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="relative bg-white w-full max-w-lg max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
+        <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
           <div>
             <h3 className="font-serif text-xl">Bespoke Request</h3>
             <p className="text-xs text-gray-500 mt-1 tracking-wide">Custom tailoring consultation</p>
@@ -96,7 +96,7 @@ export default function ChatModal() {
         </div>
 
         {!isElite && !user ? (
-          <div className="p-8 text-center">
+          <div className="p-8 text-center overflow-y-auto">
             <p className="text-gray-600 mb-6">Please sign in to access bespoke customization services.</p>
             <Link
               to="/login"
@@ -107,7 +107,7 @@ export default function ChatModal() {
             </Link>
           </div>
         ) : !isElite ? (
-          <div className="p-8 text-center">
+          <div className="p-8 text-center overflow-y-auto">
             <p className="text-gray-600 mb-2">Bespoke customization is exclusive to Elite members.</p>
             <p className="text-sm text-gray-400 mb-6">Upgrade your membership to unlock this feature.</p>
             <Link
@@ -119,14 +119,14 @@ export default function ChatModal() {
             </Link>
           </div>
         ) : submitted ? (
-          <div className="p-12 text-center">
+          <div className="p-12 text-center overflow-y-auto">
             <CheckCircle size={48} className="mx-auto mb-4 text-black" strokeWidth={1} />
             <h4 className="font-serif text-lg mb-2">Request Submitted</h4>
             <p className="text-sm text-gray-500">Our team will contact you within 24 hours.</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col h-full">
-            <div className="flex-1 p-6 overflow-y-auto min-h-[200px] space-y-4">
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 p-6 overflow-y-auto space-y-4">
               {/* Occasion */}
               <div>
                 <label className="block text-[10px] tracking-[0.1em] text-gray-400 mb-1.5 uppercase font-semibold">Occasion *</label>
@@ -205,7 +205,7 @@ export default function ChatModal() {
                 </div>
               )}
             </div>
-            <div className="p-6 border-t">
+            <div className="p-6 border-t flex-shrink-0">
               <button
                 type="submit"
                 disabled={submitting}
