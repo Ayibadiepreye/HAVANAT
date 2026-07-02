@@ -12,7 +12,7 @@ interface AuthState {
   signup: (data: { name: string; email: string; password: string; phone?: string }) => Promise<DashboardUser | null>;
   logout: () => void;
   upgradeTier: (tier: CustomerTier) => Promise<void>;
-  refreshToken: () => Promise<void>;
+  refreshToken: () => Promise<boolean>;
   fetchUserData: () => Promise<void>;
   startTokenRefresh: () => void;
   hasRole: (role: UserRole) => boolean;
@@ -97,7 +97,9 @@ export const useAuthStore = create<AuthState>()(
           
           return dash;
         } catch (err: any) {
-          throw new Error(err?.message || 'Login failed');
+          // Import error message utility
+          const { getUserFriendlyError } = await import('@/utils/errorMessages');
+          throw new Error(getUserFriendlyError(err));
         }
       },
 
@@ -120,7 +122,9 @@ export const useAuthStore = create<AuthState>()(
           
           return dash;
         } catch (err: any) {
-          throw new Error(err?.message || 'Signup failed');
+          // Import error message utility
+          const { getUserFriendlyError } = await import('@/utils/errorMessages');
+          throw new Error(getUserFriendlyError(err));
         }
       },
 
@@ -149,7 +153,8 @@ export const useAuthStore = create<AuthState>()(
         const existingInterval = (window as any).__havanatTokenRefreshInterval;
         if (existingInterval) clearInterval(existingInterval);
         
-        // Refresh token every 3 hours (before 4h expiration)
+        // Refresh token every 30 minutes (tokens expire after 4 hours)
+        // This ensures the token is always fresh and 401 errors are minimized
         const interval = setInterval(() => {
           const currentState = useAuthStore.getState();
           if (currentState.isAuthenticated) {
@@ -158,7 +163,7 @@ export const useAuthStore = create<AuthState>()(
             clearInterval(interval);
             delete (window as any).__havanatTokenRefreshInterval;
           }
-        }, 3 * 60 * 60 * 1000); // 3 hours
+        }, 30 * 60 * 1000); // 30 minutes
         
         (window as any).__havanatTokenRefreshInterval = interval;
       },
@@ -177,32 +182,40 @@ export const useAuthStore = create<AuthState>()(
       // membership upgrade) so the JWT claim reflects the new tier. Without
       // this, the user keeps a stale access token until the refresh window
       // expires or they sign out and back in.
-      refreshToken: async () => {
+      refreshToken: async (): Promise<boolean> => {
         try {
           const refreshToken = localStorage.getItem('havanat-refresh-token');
-          if (!refreshToken) return;
+          if (!refreshToken) {
+            console.warn('[auth] No refresh token found');
+            return false;
+          }
           const apiUrl = import.meta.env.VITE_API_URL || '';
           const res = await fetch(`${apiUrl}/api/auth/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refreshToken }),
+            credentials: 'include',
           });
           if (!res.ok) {
             // Token expired or invalid - log user out
-            if (res.status === 401) {
+            if (res.status === 401 || res.status === 403) {
+              console.warn('[auth] Refresh token expired or invalid, logging out');
               get().logout();
             }
-            return;
+            return false;
           }
           const data = await res.json();
           // Update tokens in localStorage
           localStorage.setItem('havanat-access-token', data.accessToken);
-          localStorage.setItem('havanat-refresh-token', data.refreshToken);
+          if (data.refreshToken) {
+            localStorage.setItem('havanat-refresh-token', data.refreshToken);
+          }
           
           // Fetch fresh user data to update the store
           try {
             const userRes = await fetch(`${apiUrl}/api/auth/me`, {
               headers: { 'Authorization': `Bearer ${data.accessToken}` },
+              credentials: 'include',
             });
             if (userRes.ok) {
               const userData = await userRes.json();
@@ -210,11 +223,16 @@ export const useAuthStore = create<AuthState>()(
               const legacy = toLegacyUser(userData.user, data.accessToken);
               set({ user: legacy, dashboardUser: dash, isAuthenticated: true });
             }
-          } catch {}
+          } catch (err) {
+            console.warn('[auth] Failed to fetch user data after refresh:', err);
+          }
+          
+          return true;
         } catch (err) {
           // Silent: the next API call will simply use the old token. If the
           // user really needs a fresh tier claim, they can sign out/in.
           console.warn('[auth] refreshToken failed', err);
+          return false;
         }
       },
 

@@ -86,11 +86,15 @@ export async function api<T = unknown>(path: string, options: { method?: string;
     try {
       // Import dynamically to avoid circular dependency
       const { useAuthStore } = await import('@/stores/useAuthStore');
-      await useAuthStore.getState().refreshToken();
-      // Retry the request with new token
-      return api<T>(path, { ...options, _retry: true });
-    } catch {
-      // Refresh failed, throw original error
+      const refreshResult = await useAuthStore.getState().refreshToken();
+      
+      // Only retry if refresh was successful
+      if (refreshResult) {
+        return api<T>(path, { ...options, _retry: true });
+      }
+    } catch (refreshErr) {
+      console.warn('[api] Token refresh failed:', refreshErr);
+      // Fall through to throw original error
     }
   }
   
