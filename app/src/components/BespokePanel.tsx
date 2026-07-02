@@ -44,6 +44,7 @@ export default function BespokePanel() {
   const [replyImage, setReplyImage] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const showToast = useUIStore((s) => s.showToast);
+  const activeModal = useUIStore((s) => s.activeModal);
 
   const fetchRequests = async () => {
     try {
@@ -60,6 +61,13 @@ export default function BespokePanel() {
   useEffect(() => {
     void fetchRequests();
   }, []);
+
+  // Refresh when modal closes (after new request submission)
+  useEffect(() => {
+    if (!activeModal) {
+      void fetchRequests();
+    }
+  }, [activeModal]);
 
   const handleSendReply = async () => {
     if (!selectedRequest || !replyText.trim()) {
@@ -89,8 +97,9 @@ export default function BespokePanel() {
       showToast('Reply sent successfully', 'success');
       setReplyText('');
       setReplyImage(null);
+      
+      // Refresh list and update selected request
       await fetchRequests();
-      // Update selected request
       const updated = await apiGet<{ item: BespokeRequest }>(`/api/bespoke/${selectedRequest.id}`, true);
       setSelectedRequest(updated.item);
     } catch (err: any) {

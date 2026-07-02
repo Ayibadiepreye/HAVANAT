@@ -151,9 +151,17 @@ export default function AdminBespoke() {
         <RequestDetailModal
           request={selectedRequest}
           onClose={() => setSelectedRequest(null)}
-          onUpdate={() => {
-            void fetchRequests();
-            setSelectedRequest(null);
+          onUpdate={async () => {
+            // First fetch all requests
+            await fetchRequests();
+            // Then get the updated single request to refresh conversation
+            try {
+              const res = await apiGet<{ item: BespokeRequest }>(`/api/bespoke/${selectedRequest.id}`, true);
+              setSelectedRequest(res.item);
+            } catch (err: any) {
+              console.error('Failed to refresh request:', err);
+              showToast('Updated successfully', 'success');
+            }
           }}
         />
       )}
@@ -181,7 +189,7 @@ function RequestDetailModal({
     try {
       await apiPatch(`/api/bespoke/${request.id}`, { status, adminNotes }, true);
       showToast('Request updated successfully', 'success');
-      onUpdate();
+      await onUpdate();
     } catch (err: any) {
       showToast(err?.message || 'Failed to update request', 'error');
     }
@@ -215,7 +223,9 @@ function RequestDetailModal({
       showToast('Reply sent successfully', 'success');
       setReplyMessage('');
       setReplyImage(null);
-      onUpdate();
+      
+      // Fetch fresh data and call onUpdate
+      await onUpdate();
     } catch (err: any) {
       showToast(err?.message || 'Failed to send reply', 'error');
     } finally {
