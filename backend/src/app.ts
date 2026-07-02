@@ -23,6 +23,7 @@ import { adminRouter } from './routes/admin.js';
 import { googleAuthRouter } from './routes/google-auth.js';
 import { reviewsRouter } from './routes/reviews.js';
 import { contactRouter } from './routes/contact.js';
+import { uploadsRouter } from './routes/uploads.js';
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use('/api/auth/google', googleAuthRouter);
 app.use('/api/memberships', membershipsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api', reviewsRouter); // Handles /api/products/:id/reviews and /api/reviews
+app.use('/api/uploads', uploadsRouter);
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.path }));

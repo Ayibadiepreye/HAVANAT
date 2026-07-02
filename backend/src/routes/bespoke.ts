@@ -208,6 +208,7 @@ bespokeRouter.patch('/:id', requireAuth, requireRole('admin', 'moderator'), asyn
 // ─── Admin: reply to customer ─────────────────────────────────────
 const ReplySchema = z.object({
   message: z.string().min(1).max(5000),
+  imageUrl: z.string().optional(),
 });
 bespokeRouter.post('/:id/reply', requireAuth, requireRole('admin', 'moderator'), async (req, res, next) => {
   try {
@@ -225,15 +226,20 @@ bespokeRouter.post('/:id/reply', requireAuth, requireRole('admin', 'moderator'),
     
     const adminName = req.user!.email;
     const message = parsed.data.message;
+    const imageUrl = parsed.data.imageUrl;
     
     // Append message to conversation
     const conversation = request.conversation || [];
-    conversation.push({
+    const messageObj: any = {
       from: 'admin' as const,
       message,
       timestamp: new Date().toISOString(),
       senderName: adminName,
-    });
+    };
+    if (imageUrl) {
+      messageObj.imageUrl = imageUrl;
+    }
+    conversation.push(messageObj);
     
     // Update conversation in DB
     await db.update(bespokeRequests)
@@ -325,12 +331,17 @@ bespokeRouter.post('/:id/customer-reply', requireAuth, async (req, res, next) =>
     
     // Append customer reply
     const message = parsed.data.message;
-    conversation.push({
+    const imageUrl = parsed.data.imageUrl;
+    const messageObj: any = {
       from: 'customer' as const,
       message,
       timestamp: new Date().toISOString(),
       senderName: req.user!.email,
-    });
+    };
+    if (imageUrl) {
+      messageObj.imageUrl = imageUrl;
+    }
+    conversation.push(messageObj);
     
     // Update conversation in DB
     await db.update(bespokeRequests)

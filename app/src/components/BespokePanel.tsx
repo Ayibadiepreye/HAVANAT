@@ -9,6 +9,7 @@ interface BespokeMessage {
   message: string;
   timestamp: string;
   senderName: string;
+  imageUrl?: string;
 }
 
 interface BespokeRequest {
@@ -39,6 +40,7 @@ export default function BespokePanel() {
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<BespokeRequest | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [replyImage, setReplyImage] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const showToast = useUIStore((s) => s.showToast);
 
@@ -66,9 +68,38 @@ export default function BespokePanel() {
 
     try {
       setSending(true);
-      await apiPost(`/api/bespoke/${selectedRequest.id}/customer-reply`, { message: replyText }, true);
+      
+      let imageUrl: string | undefined = undefined;
+      
+      // Upload image if provided
+      if (replyImage) {
+        try {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(replyImage);
+          });
+
+          const uploadRes = await apiPost<{ url: string }>(
+            '/api/uploads',
+            { file: base64, filename: replyImage.name, contentType: replyImage.type },
+            true
+          );
+          imageUrl = uploadRes.url;
+        } catch (uploadErr: any) {
+          showToast('Failed to upload image. Continuing without image.', 'info');
+        }
+      }
+      
+      await apiPost(
+        `/api/bespoke/${selectedRequest.id}/customer-reply`,
+        { message: replyText, imageUrl },
+        true
+      );
       showToast('Reply sent successfully', 'success');
       setReplyText('');
+      setReplyImage(null);
       await fetchRequests();
       // Update selected request
       const updated = await apiGet<{ item: BespokeRequest }>(`/api/bespoke/${selectedRequest.id}`, true);
@@ -197,6 +228,11 @@ export default function BespokePanel() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{msg.message}</p>
+                  {msg.imageUrl && (
+                    <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" className="block mt-2">
+                      <img src={msg.imageUrl} alt="Attached" className="max-w-xs max-h-48 object-contain border" />
+                    </a>
+                  )}
                 </div>
               ))}
             </div>
@@ -216,7 +252,22 @@ export default function BespokePanel() {
               className="w-full h-24 p-3 border text-sm resize-none focus:outline-none focus:border-black mb-3"
               disabled={sending}
             />
+            <div className="mb-3">
+              <label className="flex items-center gap-2 px-4 py-2.5 border border-dashed cursor-pointer hover:border-black transition-colors text-sm">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setReplyImage(e.target.files?.[0] || null)}
+                  disabled={sending}
+                />
+                <span className="text-gray-500">
+                  {replyImage ? `📎 ${replyImage.name}` : '📎 Attach image (optional)'}
+                </span>
+              </label>
+            </div>
             <button
+              type="button"
               onClick={handleSendReply}
               disabled={sending || !replyText.trim()}
               className="flex items-center gap-2 px-6 py-2.5 bg-black text-white text-xs tracking-[0.15em] font-semibold hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed"

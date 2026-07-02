@@ -22,7 +22,7 @@ interface BespokeRequest {
   status: 'new' | 'in_review' | 'quoted' | 'accepted' | 'declined' | 'complete';
   assignedTo: number | null;
   adminNotes: string;
-  conversation: Array<{ from: 'admin' | 'customer'; message: string; timestamp: string; senderName: string }>;
+  conversation: Array<{ from: 'admin' | 'customer'; message: string; timestamp: string; senderName: string; imageUrl?: string }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -173,6 +173,7 @@ function RequestDetailModal({
   const [status, setStatus] = useState(request.status);
   const [adminNotes, setAdminNotes] = useState(request.adminNotes);
   const [replyMessage, setReplyMessage] = useState('');
+  const [replyImage, setReplyImage] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
 
   const handleUpdateStatus = async () => {
@@ -193,9 +194,38 @@ function RequestDetailModal({
 
     try {
       setSending(true);
-      await apiPost(`/api/bespoke/${request.id}/reply`, { message: replyMessage }, true);
+      
+      let imageUrl: string | undefined = undefined;
+      
+      // Upload image if provided
+      if (replyImage) {
+        try {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(replyImage);
+          });
+
+          const uploadRes = await apiPost<{ url: string }>(
+            '/api/uploads',
+            { file: base64, filename: replyImage.name, contentType: replyImage.type },
+            true
+          );
+          imageUrl = uploadRes.url;
+        } catch (uploadErr: any) {
+          showToast('Failed to upload image. Continuing without image.', 'info');
+        }
+      }
+      
+      await apiPost(
+        `/api/bespoke/${request.id}/reply`,
+        { message: replyMessage, imageUrl },
+        true
+      );
       showToast('Reply sent successfully', 'success');
       setReplyMessage('');
+      setReplyImage(null);
       onUpdate();
     } catch (err: any) {
       showToast(err?.message || 'Failed to send reply', 'error');
@@ -362,6 +392,11 @@ function RequestDetailModal({
                       </span>
                     </div>
                     <p className="text-xs text-gray-700 whitespace-pre-wrap">{msg.message}</p>
+                    {msg.imageUrl && (
+                      <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" className="block mt-2">
+                        <img src={msg.imageUrl} alt="Attachment" className="max-w-xs h-auto border border-gray-300 hover:opacity-75 transition" />
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>
@@ -382,6 +417,19 @@ function RequestDetailModal({
               className="w-full px-3 py-2.5 text-sm border border-gray-200 focus:border-black focus:outline-none resize-none"
               placeholder="Type your reply to the customer..."
             />
+            <div className="mt-3">
+              <label className="flex items-center gap-2 px-4 py-2.5 border border-dashed cursor-pointer hover:border-black transition-colors text-sm">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setReplyImage(e.target.files?.[0] || null)}
+                />
+                <span className="text-gray-500">
+                  {replyImage ? `📎 ${replyImage.name}` : '📎 Attach image (optional)'}
+                </span>
+              </label>
+            </div>
             <div className="flex justify-end gap-2 mt-3">
               <button
                 type="button"

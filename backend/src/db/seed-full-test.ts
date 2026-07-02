@@ -77,18 +77,176 @@ async function seedDeliveryZones() {
 async function seedProducts() {
   console.log('Seeding products…');
   const productsData = [
-    { name: 'The Midnight Tuxedo', slug: 'midnight-tuxedo', price: '380000', category: 'suits', stock: 8, lowStockThreshold: 5, deliveryFee: '2500', occasion: 'formal-event' },
-    { name: 'The Charcoal Two-Piece', slug: 'charcoal-two-piece', price: '320000', originalPrice: '380000.00', category: 'suits', stock: 18, lowStockThreshold: 5, deliveryFee: '2500', occasion: 'corporate' },
-    { name: 'The Navy Single-Breasted', slug: 'navy-single-breasted', price: '290000', category: 'suits', stock: 15, lowStockThreshold: 5, deliveryFee: '2500', occasion: 'corporate' },
-    { name: 'The Pinstripe Statement', slug: 'pinstripe-statement', price: '340000', category: 'suits', stock: 3, lowStockThreshold: 5, deliveryFee: '2500', occasion: 'formal-event' },
-    { name: 'The Modernist Blazer', slug: 'modernist-blazer', price: '180000', category: 'blazers', stock: 12, lowStockThreshold: 5, deliveryFee: '2000', occasion: 'corporate' },
-    { name: 'The Linen Casual Blazer', slug: 'linen-casual-blazer', price: '150000', category: 'blazers', stock: 8, lowStockThreshold: 5, deliveryFee: '2000', occasion: 'social' },
-    { name: 'The Pleated Trouser', slug: 'pleated-trouser', price: '95000', category: 'trousers', stock: 20, lowStockThreshold: 5, deliveryFee: '1500', occasion: 'corporate' },
-    { name: 'The Slim-Fit Trouser', slug: 'slim-fit-trouser', price: '85000', category: 'trousers', stock: 15, lowStockThreshold: 5, deliveryFee: '1500', occasion: 'corporate' },
-    { name: 'The Waistcoat', slug: 'waistcoat', price: '65000', category: 'vests', stock: 10, lowStockThreshold: 5, deliveryFee: '1500', occasion: 'formal-event' },
-    { name: 'The Cashmere Overcoat', slug: 'cashmere-overcoat', price: '420000', category: 'outerwear', stock: 4, lowStockThreshold: 3, deliveryFee: '3000', occasion: 'corporate' },
-    { name: 'The Trench Coat', slug: 'trench-coat', price: '280000', category: 'outerwear', stock: 8, lowStockThreshold: 5, deliveryFee: '3000', occasion: 'everyday' },
-    { name: 'The Noir Evening Set', slug: 'noir-evening-set', price: '450000', category: 'suits', stock: 2, lowStockThreshold: 3, deliveryFee: '2500', occasion: 'formal-event', isSneakPeek: true },
+    { 
+      name: 'The Midnight Tuxedo', 
+      slug: 'midnight-tuxedo', 
+      price: '380000', 
+      category: 'suits', 
+      stock: 8, 
+      lowStockThreshold: 5, 
+      deliveryFee: '2500', 
+      occasion: 'formal-event',
+      images: [
+        'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80',
+        'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Charcoal Two-Piece', 
+      slug: 'charcoal-two-piece', 
+      price: '320000', 
+      originalPrice: '380000.00', 
+      category: 'suits', 
+      stock: 18, 
+      lowStockThreshold: 5, 
+      deliveryFee: '2500', 
+      occasion: 'corporate',
+      images: [
+        'https://images.unsplash.com/photo-1593030668930-c3c5c61380d3?w=800&q=80',
+        'https://images.unsplash.com/photo-1598808503491-c8c5b66d9e0b?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Navy Single-Breasted', 
+      slug: 'navy-single-breasted', 
+      price: '290000', 
+      category: 'suits', 
+      stock: 15, 
+      lowStockThreshold: 5, 
+      deliveryFee: '2500', 
+      occasion: 'corporate',
+      images: [
+        'https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?w=800&q=80',
+        'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Pinstripe Statement', 
+      slug: 'pinstripe-statement', 
+      price: '340000', 
+      category: 'suits', 
+      stock: 3, 
+      lowStockThreshold: 5, 
+      deliveryFee: '2500', 
+      occasion: 'formal-event',
+      images: [
+        'https://images.unsplash.com/photo-1615247001958-f4bc92fa6a4a?w=800&q=80',
+        'https://images.unsplash.com/photo-1593252719532-81b6b2b3d5b4?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Modernist Blazer', 
+      slug: 'modernist-blazer', 
+      price: '180000', 
+      category: 'blazers', 
+      stock: 12, 
+      lowStockThreshold: 5, 
+      deliveryFee: '2000', 
+      occasion: 'corporate',
+      images: [
+        'https://images.unsplash.com/photo-1606902965551-dce093cda6e7?w=800&q=80',
+        'https://images.unsplash.com/photo-1593032465175-933b36f9e5dd?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Linen Casual Blazer', 
+      slug: 'linen-casual-blazer', 
+      price: '150000', 
+      category: 'blazers', 
+      stock: 8, 
+      lowStockThreshold: 5, 
+      deliveryFee: '2000', 
+      occasion: 'social',
+      images: [
+        'https://images.unsplash.com/photo-1592878904946-b3cd8ae243d0?w=800&q=80',
+        'https://images.unsplash.com/photo-1594587882537-d9b11f83c6cf?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Pleated Trouser', 
+      slug: 'pleated-trouser', 
+      price: '95000', 
+      category: 'trousers', 
+      stock: 20, 
+      lowStockThreshold: 5, 
+      deliveryFee: '1500', 
+      occasion: 'corporate',
+      images: [
+        'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&q=80',
+        'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Slim-Fit Trouser', 
+      slug: 'slim-fit-trouser', 
+      price: '85000', 
+      category: 'trousers', 
+      stock: 15, 
+      lowStockThreshold: 5, 
+      deliveryFee: '1500', 
+      occasion: 'corporate',
+      images: [
+        'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=800&q=80',
+        'https://images.unsplash.com/photo-1548883354-7622d03aca27?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Waistcoat', 
+      slug: 'waistcoat', 
+      price: '65000', 
+      category: 'vests', 
+      stock: 10, 
+      lowStockThreshold: 5, 
+      deliveryFee: '1500', 
+      occasion: 'formal-event',
+      images: [
+        'https://images.unsplash.com/photo-1608234807610-53b7b4c1e3b2?w=800&q=80',
+        'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Cashmere Overcoat', 
+      slug: 'cashmere-overcoat', 
+      price: '420000', 
+      category: 'outerwear', 
+      stock: 4, 
+      lowStockThreshold: 3, 
+      deliveryFee: '3000', 
+      occasion: 'corporate',
+      images: [
+        'https://images.unsplash.com/photo-1539533113208-f6df8cc8b543?w=800&q=80',
+        'https://images.unsplash.com/photo-1608234809335-ff98aae951a5?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Trench Coat', 
+      slug: 'trench-coat', 
+      price: '280000', 
+      category: 'outerwear', 
+      stock: 8, 
+      lowStockThreshold: 5, 
+      deliveryFee: '3000', 
+      occasion: 'everyday',
+      images: [
+        'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80',
+        'https://images.unsplash.com/photo-1608234807848-4d1d9b9c4d8d?w=800&q=80'
+      ]
+    },
+    { 
+      name: 'The Noir Evening Set', 
+      slug: 'noir-evening-set', 
+      price: '450000', 
+      category: 'suits', 
+      stock: 2, 
+      lowStockThreshold: 3, 
+      deliveryFee: '2500', 
+      occasion: 'formal-event', 
+      isSneakPeek: true,
+      images: [
+        'https://images.unsplash.com/photo-1593252719532-81b6b2b3d5b4?w=800&q=80',
+        'https://images.unsplash.com/photo-1617137968427-85924c800a22?w=800&q=80'
+      ]
+    },
   ];
 
   const inserted = await db.insert(products).values(productsData.map((p) => ({
@@ -102,7 +260,6 @@ async function seedProducts() {
     },
     deluxeDiscount: '0.15',
     eliteDiscount: '0.20',
-    images: [`/images/products/${p.slug}.jpg`],
     inStock: p.stock > 0,
     fit: 'Tailored',
     sizes: ['S', 'M', 'L', 'XL', 'XXL'],

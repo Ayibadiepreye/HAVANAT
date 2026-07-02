@@ -37,13 +37,27 @@ export default function ChatModal() {
 
     setSubmitting(true);
     try {
+      let imageUrl: string | undefined = undefined;
+      
       // Upload image if provided
-      let imageUrl: string | undefined;
       if (file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        const upload = await apiPost<{ url: string }>('/api/uploads', formData, true);
-        imageUrl = upload.url;
+        try {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          const uploadRes = await apiPost<{ url: string }>(
+            '/api/uploads',
+            { file: base64, filename: file.name, contentType: file.type },
+            true
+          );
+          imageUrl = uploadRes.url;
+        } catch (uploadErr: any) {
+          showToast('Failed to upload image. Continuing without image.', 'info');
+        }
       }
 
       // Submit bespoke request
@@ -76,6 +90,7 @@ export default function ChatModal() {
       }, 2000);
     } catch (err: any) {
       showToast(err?.message || 'Failed to submit bespoke request', 'error');
+    } finally {
       setSubmitting(false);
     }
   };
