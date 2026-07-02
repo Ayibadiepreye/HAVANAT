@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MessageCircle, Send, Clock, CheckCircle2, XCircle, Package } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { useUIStore } from '@/stores/useUIStore';
 import { formatNaira } from '@/config';
 
@@ -71,22 +72,10 @@ export default function BespokePanel() {
       
       let imageUrl: string | undefined = undefined;
       
-      // Upload image if provided
+      // Upload image to Cloudinary if provided
       if (replyImage) {
         try {
-          const reader = new FileReader();
-          const base64 = await new Promise<string>((resolve, reject) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(replyImage);
-          });
-
-          const uploadRes = await apiPost<{ url: string }>(
-            '/api/uploads',
-            { file: base64, filename: replyImage.name, contentType: replyImage.type },
-            true
-          );
-          imageUrl = uploadRes.url;
+          imageUrl = await uploadToCloudinary(replyImage, 'bespoke');
         } catch (uploadErr: any) {
           showToast('Failed to upload image. Continuing without image.', 'info');
         }

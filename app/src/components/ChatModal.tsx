@@ -4,6 +4,7 @@ import { useUIStore } from '@/stores/useUIStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Link } from 'react-router-dom';
 import { apiPost } from '@/lib/api';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export default function ChatModal() {
   const activeModal = useUIStore((s) => s.activeModal);
@@ -39,22 +40,11 @@ export default function ChatModal() {
     try {
       let imageUrl: string | undefined = undefined;
       
-      // Upload image if provided
+      // Upload image to Cloudinary if provided
       if (file) {
         try {
-          const reader = new FileReader();
-          const base64 = await new Promise<string>((resolve, reject) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-
-          const uploadRes = await apiPost<{ url: string }>(
-            '/api/uploads',
-            { file: base64, filename: file.name, contentType: file.type },
-            true
-          );
-          imageUrl = uploadRes.url;
+          imageUrl = await uploadToCloudinary(file, 'bespoke');
+          showToast('Image uploaded successfully', 'success');
         } catch (uploadErr: any) {
           showToast('Failed to upload image. Continuing without image.', 'info');
         }
