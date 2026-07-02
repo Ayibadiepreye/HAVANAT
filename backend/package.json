@@ -12,7 +12,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/db/seed.ts",
     "db:seed:test": "tsx src/db/seed-full-test.ts",
-    "db:clear:test": "tsx src/db/clear-test-data.ts"
+    "db:clear:test": "tsx src/db/clear-test-data.ts",
+    "db:clear": "tsx src/db/clear-db.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
