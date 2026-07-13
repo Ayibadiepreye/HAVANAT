@@ -43,7 +43,21 @@ app.use(express.json({ limit: '2mb' }));
 const limiter = rateLimit({ windowMs: config.rateLimitWindowMs, max: config.rateLimitMax, standardHeaders: true, legacyHeaders: false });
 app.use(limiter);
 
-app.get('/health', (_req, res) => res.json({ ok: true, env: config.nodeEnv, time: new Date().toISOString() }));
+// Lightweight ping endpoint for uptime monitoring (no DB queries, minimal processing)
+app.get('/ping', (_req, res) => res.status(200).send('pong'));
+
+// Health check with basic system info (no DB queries to save Neon compute units)
+app.get('/health', (_req, res) => res.json({ 
+  ok: true, 
+  status: 'healthy',
+  env: config.nodeEnv, 
+  timestamp: new Date().toISOString(),
+  uptime: process.uptime(),
+  memory: {
+    used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+    total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+  }
+}));
 
 app.use('/api/auth', authRouter);
 app.use('/api/products', productsRouter);
