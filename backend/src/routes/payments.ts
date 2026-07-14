@@ -4,6 +4,7 @@ import { db } from '../db/client.js';
 import { orders, users, notifications } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { requireAuth } from '../middleware/auth.js';
+import { paymentLimiter } from '../middleware/rateLimiters.js';
 import { logAction } from '../audit/logger.js';
 import { initializeTransaction, verifyTransaction, refundTransaction, verifyWebhookSignature, isPaystackConfigured, paystackMode } from '../lib/paystack.js';
 import { sendEmailSafe, orderConfirmationEmail } from '../lib/email.js';
@@ -14,7 +15,7 @@ paymentsRouter.get('/status', (_req, res) => {
 });
 
 const InitializeSchema = z.object({ orderId: z.number().int().positive() });
-paymentsRouter.post('/initialize', requireAuth, async (req, res, next) => {
+paymentsRouter.post('/initialize', requireAuth, paymentLimiter, async (req, res, next) => {
   try {
     const parsed = InitializeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, error: 'orderId required' });
@@ -83,7 +84,7 @@ paymentsRouter.post('/initialize', requireAuth, async (req, res, next) => {
 });
 
 const VerifySchema = z.object({ reference: z.string().min(3) });
-paymentsRouter.post('/verify', requireAuth, async (req, res, next) => {
+paymentsRouter.post('/verify', requireAuth, paymentLimiter, async (req, res, next) => {
   try {
     const parsed = VerifySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, error: 'reference required' });

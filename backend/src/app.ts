@@ -28,7 +28,34 @@ import { uploadsRouter } from './routes/uploads.js';
 const app = express();
 
 app.use((req, _res, next) => { console.log(`[req] ${req.method} ${req.url}`); next(); });
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      scriptSrc: ["'self'"],
+      connectSrc: [
+        "'self'",
+        "https://api.paystack.co",
+        "https://havanat.onrender.com",
+        "https://www.havanat.store",
+        "https://havanat.store",
+      ],
+      frameSrc: ["https://checkout.paystack.com"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+}));
 app.use(cors({ 
   origin: config.corsOrigins, 
   credentials: true,

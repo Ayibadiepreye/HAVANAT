@@ -3,6 +3,7 @@ import { db } from '../db/client.js';
 import { reviews, orders, orderItems, users } from '../db/schema.js';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { contentCreationLimiter } from '../middleware/rateLimiters.js';
 import { logAction } from '../audit/logger.js';
 
 export const reviewsRouter = Router();
@@ -24,7 +25,7 @@ reviewsRouter.get('/products/:productId/reviews', async (req, res) => {
 });
 
 // POST /api/products/:productId/reviews — Customer: submit a review (requires purchase)
-reviewsRouter.post('/products/:productId/reviews', requireAuth, async (req, res) => {
+reviewsRouter.post('/products/:productId/reviews', requireAuth, contentCreationLimiter, async (req, res) => {
   const productId = Number(req.params.productId);
   if (!Number.isFinite(productId)) return res.status(400).json({ error: 'Invalid product ID' });
 

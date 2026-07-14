@@ -11,7 +11,7 @@ import {
 } from '../db/schema.js';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { sendEmailSafe, passwordResetEmail, twoFactorCodeEmail } from '../lib/email.js';
-
+import { forgotPasswordLimiter, otpSendLimiter, otpVerifyLimiter } from '../middleware/rateLimiters.js';
 import { signAccessToken, signRefreshToken } from '../lib/jwt.js';
 import { requireAuth } from '../middleware/auth.js';
 import { logAction } from '../audit/logger.js';
@@ -32,7 +32,7 @@ function generateOtp(): string {
 // ─── Forgot password (step 1): send OTP to user's email ──────────
 // OTP replaces the previous long-token-link email. Same table (twoFactorOtps)
 // but purpose='forgot_password' so it can't be confused with login OTPs.
-authExtendedRouter.post('/forgot-password', async (req, res, next) => {
+authExtendedRouter.post('/forgot-password', forgotPasswordLimiter, async (req, res, next) => {
   try {
     const Schema = z.object({ email: z.string().email().max(200) });
     const parsed = Schema.safeParse(req.body);
@@ -92,7 +92,7 @@ authExtendedRouter.post('/forgot-password', async (req, res, next) => {
 // Frontend keeps this token and uses it on step 3 (set new password).
 // The token is a random 32-byte string hashed in DB; lasts 10 min.
 const passwordResetSessions = new Map<string, { userId: number; expiresAt: number }>();
-authExtendedRouter.post('/forgot-password/verify', async (req, res, next) => {
+authExtendedRouter.post('/forgot-password/verify', otpVerifyLimiter, async (req, res, next) => {
   try {
     const Schema = z.object({
       email: z.string().email(),
@@ -190,7 +190,7 @@ authExtendedRouter.post('/forgot-password/complete', async (req, res, next) => {
 
 
 // ─── Send 2FA OTP to user's email (login flow) ───────────────────
-authExtendedRouter.post('/2fa/send', async (req, res, next) => {
+authExtendedRouter.post('/2fa/send', otpSendLimiter, async (req, res, next) => {
   try {
     const Schema = z.object({ email: z.string().email().max(200) });
     const parsed = Schema.safeParse(req.body);
@@ -222,7 +222,7 @@ authExtendedRouter.post('/2fa/send', async (req, res, next) => {
 });
 
 // ─── Send OTP to verify email after OAuth signup (purpose=oauth_email_verify)
-authExtendedRouter.post('/oauth/verify-email/send', requireAuth, async (req, res, next) => {
+authExtendedRouter.post('/oauth/verify-email/send', requireAuth, otpSendLimiter, async (req, res, next) => {
   try {
     const userId = Number(req.user!.sub);
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -266,7 +266,7 @@ authExtendedRouter.post('/oauth/verify-email/send', requireAuth, async (req, res
 });
 
 // ─── Verify OTP for OAuth email verification ──────────────────────
-authExtendedRouter.post('/oauth/verify-email/verify', requireAuth, async (req, res, next) => {
+authExtendedRouter.post('/oauth/verify-email/verify', requireAuth, otpVerifyLimiter, async (req, res, next) => {
   try {
     const Schema = z.object({ code: z.string().length(6) });
     const parsed = Schema.safeParse(req.body);
@@ -303,7 +303,7 @@ authExtendedRouter.post('/oauth/verify-email/verify', requireAuth, async (req, r
 });
 
 // ─── Send OTP for OAuth user to set their first password ───────────
-authExtendedRouter.post('/oauth/set-password/send', requireAuth, async (req, res, next) => {
+authExtendedRouter.post('/oauth/set-password/send', requireAuth, otpSendLimiter, async (req, res, next) => {
   try {
     const userId = Number(req.user!.sub);
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -339,7 +339,7 @@ authExtendedRouter.post('/oauth/set-password/send', requireAuth, async (req, res
 });
 
 // ─── Complete set-password for OAuth user (after OTP verified) ─────
-authExtendedRouter.post('/oauth/set-password/complete', requireAuth, async (req, res, next) => {
+authExtendedRouter.post('/oauth/set-password/complete', requireAuth, otpVerifyLimiter, async (req, res, next) => {
   try {
     const Schema = z.object({
       code: z.string().length(6),
@@ -401,7 +401,7 @@ authExtendedRouter.post('/oauth/set-password/complete', requireAuth, async (req,
 
 
 // ─── Verify 2FA OTP and issue JWTs (login flow) ───────────────────
-authExtendedRouter.post('/2fa/verify', async (req, res, next) => {
+authExtendedRouter.post('/2fa/verify', otpVerifyLimiter, async (req, res, next) => {
   try {
     const Schema = z.object({
       email: z.string().email(),

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { contentCreationLimiter } from '../middleware/rateLimiters.js';
 import { sendEmailSafe } from '../lib/email.js';
 import { config } from '../config.js';
 
@@ -14,7 +15,7 @@ const ContactSchema = z.object({
 });
 
 // POST /api/contact - public contact form submission
-contactRouter.post('/', async (req, res) => {
+contactRouter.post('/', contentCreationLimiter, async (req, res) => {
   const parsed = ContactSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });

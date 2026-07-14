@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import { LoginSchema, RegisterSchema } from '../lib/validators.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
 import { requireAuth } from '../middleware/auth.js';
+import { loginLimiter, registerLimiter } from '../middleware/rateLimiters.js';
 import { sendEmailSafe, welcomeEmail } from '../lib/email.js';
 import { logAction } from '../audit/logger.js';
 
@@ -16,7 +17,7 @@ function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-authRouter.post('/register', async (req, res) => {
+authRouter.post('/register', registerLimiter, async (req, res) => {
   const parsed = RegisterSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
@@ -42,7 +43,7 @@ authRouter.post('/register', async (req, res) => {
   return res.status(201).json({ user: toUserResponse(user), ...tokens });
 });
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', loginLimiter, async (req, res) => {
   const parsed = LoginSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'Invalid input' });
